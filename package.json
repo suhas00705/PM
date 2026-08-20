@@ -1,0 +1,8 @@
+{
+  "name": "pulseboard",
+  "version": "2.0.0",
+  "description": "PulseBoard GM Sales dashboard — Vercel serverless functions + Zoho CRM proxy",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
