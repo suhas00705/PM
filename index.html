@@ -210,12 +210,7 @@ if (initial && document.getElementById('frame-' + initial)) {
 //  PM PORTAL — AUTH SYSTEM  (Google OAuth + permission-based tabs)
 // ============================================================
 
-const ADMIN_EMAIL   = 'suhas.s@elmeasure.com';
-const AUTH_TABS     = [
-  { key:'leads',       label:'Leads' },
-  { key:'potentials',  label:'Potentials' },
-  { key:'pmreview',    label:'PM Review' }
-];
+const ADMIN_EMAIL = 'suhas.s@elmeasure.com';
 const AUTH_REGIONS = [
   'Delhi','Punjab','Haryana','UP','Uttarakhand','Himachal Pradesh','J&K',
   'Rajasthan','MP','Bihar','Jharkhand',
@@ -224,16 +219,34 @@ const AUTH_REGIONS = [
   'West Bengal','Odisha','Assam','North East'
 ];
 
-window.__userPerms = null;  // Set after successful login
-let __authUsers    = [];    // Cached users list in admin panel
-let __editingEmail = null;  // Currently editing in modal
+window.__userPerms = null;
+let __authUsers    = [];
+let __editingEmail = null;
+
+// ── Show a tab by directly manipulating DOM ──────────────────
+function showPortalTab(target) {
+  // Handle iframes
+  document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+
+  const authPanel = document.getElementById('frame-authorization');
+  if (target === 'authorization') {
+    authPanel.style.display = 'block';
+    loadAuthPanel();
+  } else {
+    authPanel.style.display = 'none';
+    const frame = document.getElementById('frame-' + target);
+    if (frame) frame.classList.add('active');
+  }
+  const btn = document.querySelector('.tab-btn[data-target="' + target + '"]');
+  if (btn) btn.classList.add('active');
+}
 
 // ── Google login callback ────────────────────────────────────
 async function handleGoogleLogin(credentialResponse) {
   const errEl = document.getElementById('loginError');
   errEl.style.display = 'none';
   try {
-    // Decode JWT payload (no signature check needed — GSI already validated it)
     const payload = JSON.parse(atob(credentialResponse.credential.split('.')[1]
       .replace(/-/g,'+').replace(/_/g,'/')));
     const email   = (payload.email || '').toLowerCase();
@@ -246,7 +259,6 @@ async function handleGoogleLogin(credentialResponse) {
       return;
     }
 
-    // Admin always gets in — no DB lookup required
     if (email === ADMIN_EMAIL) {
       window.__userPerms = {
         email, name, picture,
@@ -254,16 +266,15 @@ async function handleGoogleLogin(credentialResponse) {
         allowedRegions: []
       };
     } else {
-      // Fetch from Supabase via our API
       const r = await fetch('/api/user-permissions?email=' + encodeURIComponent(email));
       if (!r.ok) {
-        errEl.textContent = 'Your account has not been authorized yet. Please contact suhas.s@elmeasure.com.';
+        errEl.textContent = 'Your account is not authorized. Contact suhas.s@elmeasure.com.';
         errEl.style.display = 'block';
         return;
       }
       const perms = await r.json();
       if (!perms.is_active) {
-        errEl.textContent = 'Your access has been disabled. Please contact the administrator.';
+        errEl.textContent = 'Your access has been disabled. Contact the administrator.';
         errEl.style.display = 'block';
         return;
       }
@@ -274,59 +285,52 @@ async function handleGoogleLogin(credentialResponse) {
       };
     }
 
-    // Set region cookie (empty string = no filter = all regions)
-    const regions = window.__userPerms.allowedRegions;
+    // Set region cookie
+    const regions = window.__userPerms.allowedRegions || [];
     document.cookie = 'pm_regions=' + encodeURIComponent(regions.join(',')) +
                       ';path=/;SameSite=Lax;max-age=86400';
 
-    applyPermissions();
+    // Apply tab visibility
+    const allowed = window.__userPerms.allowedTabs;
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      const t = btn.dataset.target;
+      btn.style.display = (t && allowed.includes(t)) ? '' : 'none';
+    });
+
+    // Show first allowed tab (not authorization)
+    const first = allowed.find(t => t !== 'authorization') || allowed[0];
+    if (first) showPortalTab(first);
+
+    // Hide overlay
     document.getElementById('loginOverlay').style.display = 'none';
 
-    // Show user avatar in topbar
+    // Show user info
     const bar = document.getElementById('userInfoBar');
-    document.getElementById('userAvatar').src = picture;
-    document.getElementById('userName').textContent = name.split(' ')[0];
-    bar.style.display = 'flex';
+    if (bar) {
+      const img = document.getElementById('userAvatar');
+      const nm  = document.getElementById('userName');
+      if (img) img.src = picture;
+      if (nm)  nm.textContent = name.split(' ')[0];
+      bar.style.display = 'flex';
+    }
 
   } catch(err) {
-    errEl.textContent = 'Login failed: ' + err.message;
+    errEl.textContent = 'Login error: ' + err.message;
     errEl.style.display = 'block';
   }
 }
 
-// ── Apply tab visibility based on permissions ────────────────
-function applyPermissions() {
-  const perms = window.__userPerms;
-  if (!perms) return;
+// ── Tab click handler override for Authorization tab ─────────
+document.getElementById('tabs').addEventListener('click', function(e) {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn) return;
+  const target = btn.dataset.target;
+  if (!target) return;
+  e.stopImmediatePropagation();  // prevent original handler double-firing
+  showPortalTab(target);
+}, true);  // capture phase so it runs before the original listener
 
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    const t = btn.dataset.target;
-    btn.style.display = perms.allowedTabs.includes(t) ? '' : 'none';
-  });
-
-  // Navigate to the first allowed tab
-  const first = perms.allowedTabs.find(t => t !== 'authorization') || perms.allowedTabs[0];
-  if (first) activateTab(first);
-}
-
-// ── Override activateTab so auth panel is handled correctly ───
-const _origActivateTab = window.activateTab;
-window.activateTab = function(target) {
-  const authPanel = document.getElementById('frame-authorization');
-  if (target === 'authorization') {
-    // Hide all iframes, show auth panel
-    document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.tab-btn[data-target="authorization"]')?.classList.add('active');
-    authPanel.style.display = 'block';
-    loadAuthPanel();
-  } else {
-    authPanel.style.display = 'none';
-    _origActivateTab(target);
-  }
-};
-
-// ── AUTH PANEL — admin UI ─────────────────────────────────────
+// ── AUTH PANEL — admin UI ────────────────────────────────────
 async function loadAuthPanel() {
   const panel = document.getElementById('frame-authorization');
   panel.innerHTML = '<div style="text-align:center;padding:48px;color:#7a8fb8;font-size:15px;">Loading users…</div>';
@@ -341,210 +345,187 @@ async function loadAuthPanel() {
 
 function renderAuthPanel() {
   const panel = document.getElementById('frame-authorization');
-  const rows  = __authUsers.map(u => renderUserRow(u)).join('');
-  panel.innerHTML = \`
-    <div class="auth-panel">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;">
-        <div>
-          <div style="font-size:20px;font-weight:700;color:#16264d;margin-bottom:3px;">Authorization Management</div>
-          <div style="font-size:13px;color:#7a8fb8;">Control portal access and data visibility per user</div>
-        </div>
-        <button onclick="showAddForm()" style="background:#0073C8;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">+ Add User</button>
-      </div>
+  const perms = window.__userPerms;
+  const isAdmin = perms && perms.email === ADMIN_EMAIL;
 
-      <!-- Add user form -->
-      <div id="addUserForm" style="display:none;background:#fff;border:1px solid #d8dce6;border-radius:12px;padding:22px 24px;margin-bottom:20px;">
-        <div style="font-size:14px;font-weight:700;color:#16264d;margin-bottom:14px;">Add New User</div>
-        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
-          <div>
-            <div style="font-size:12px;color:#7a8fb8;margin-bottom:4px;">Email (must be @elmeasure.com)</div>
-            <input id="newUserEmail" type="email" placeholder="devinder@elmeasure.com"
-              style="border:1px solid #d8dce6;border-radius:7px;padding:9px 13px;font-size:14px;width:290px;outline:none;"
-              onkeydown="if(event.key==='Enter')addUser()">
-          </div>
-          <button onclick="addUser()" style="background:#16a34a;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">Add</button>
-          <button onclick="document.getElementById('addUserForm').style.display='none'" style="background:#f3f4f6;color:#374151;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-size:13px;">Cancel</button>
-        </div>
-        <div id="addMsg" style="margin-top:10px;font-size:13px;display:none;"></div>
-      </div>
-
-      <!-- Users table -->
-      <div style="background:#fff;border:1px solid #d8dce6;border-radius:12px;overflow:hidden;">
-        <table style="width:100%;border-collapse:collapse;">
-          <thead>
-            <tr style="background:#f8f9fb;border-bottom:2px solid #e3e6ee;">
-              <th style="text-align:left;padding:13px 16px;font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.06em;">USER</th>
-              <th style="text-align:left;padding:13px 16px;font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.06em;">STATUS</th>
-              <th style="text-align:left;padding:13px 16px;font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.06em;">TABS VISIBLE</th>
-              <th style="text-align:left;padding:13px 16px;font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.06em;">REGIONS</th>
-              <th style="text-align:right;padding:13px 16px;font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.06em;">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>\${rows}</tbody>
-        </table>
-        \${__authUsers.length === 0 ? '<div style="text-align:center;padding:48px;color:#7a8fb8;">No users yet. Click "+ Add User" to get started.</div>' : ''}
-      </div>
-    </div>\`;
-}
-
-function renderUserRow(u) {
-  const tabLabels = (u.allowed_tabs || [])
-    .map(k => AUTH_TABS.find(t => t.key === k)?.label || k).join(', ') || '—';
-  const rc = (u.allowed_regions || []).length;
-  const regionLabel = rc === 0
-    ? '<span style="color:#16a34a;font-size:12px;font-weight:600;">All regions</span>'
-    : '<span style="font-size:12px;color:#3b5384;">' +
-        (u.allowed_regions || []).slice(0,3).join(', ') +
-        (rc > 3 ? ' <span style="color:#7a8fb8;">+' + (rc-3) + ' more</span>' : '') +
-      '</span>';
-
-  return \`<tr style="border-bottom:1px solid #f0f2f5;">
-    <td style="padding:13px 16px;">
-      <div style="font-weight:600;font-size:14px;color:#16264d;">\${u.email}</div>
-    </td>
-    <td style="padding:13px 16px;">
-      <label style="display:flex;align-items:center;gap:7px;cursor:pointer;">
-        <input type="checkbox" \${u.is_active ? 'checked' : ''}
-          onchange="toggleActive('\${u.email}',this.checked)"
-          style="width:15px;height:15px;cursor:pointer;accent-color:#0073C8;">
-        <span style="font-size:13px;color:\${u.is_active ? '#16a34a' : '#dc2626'};">
-          \${u.is_active ? 'Active' : 'Disabled'}
-        </span>
-      </label>
-    </td>
-    <td style="padding:13px 16px;font-size:13px;color:#3b5384;">\${tabLabels}</td>
-    <td style="padding:13px 16px;">\${regionLabel}</td>
-    <td style="padding:13px 16px;text-align:right;">
-      <button onclick="openEditModal('\${u.email}')"
-        style="background:#eef5fd;color:#0073C8;border:1px solid #cce0f5;padding:6px 13px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;margin-right:6px;">
-        Edit
-      </button>
-      <button onclick="deleteUser('\${u.email}')"
-        style="background:#fff4f4;color:#dc2626;border:1px solid #ffc9c9;padding:6px 13px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;">
-        Remove
-      </button>
-    </td>
-  </tr>\`;
-}
-
-// ── Add user ──────────────────────────────────────────────────
-function showAddForm() {
-  document.getElementById('addUserForm').style.display = 'block';
-  document.getElementById('newUserEmail').focus();
-}
-
-async function addUser() {
-  const email  = (document.getElementById('newUserEmail').value || '').trim().toLowerCase();
-  const msgEl  = document.getElementById('addMsg');
-  if (!email.endsWith('@elmeasure.com')) {
-    msgEl.textContent = '✗ Only @elmeasure.com emails are allowed.';
-    msgEl.style.color = '#dc2626'; msgEl.style.display = 'block'; return;
+  let html = '<div class="auth-panel">';
+  html += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;">';
+  html += '<h2 style="margin:0;font-size:20px;color:#16264d;font-weight:700;">Authorization Management</h2>';
+  if (isAdmin) {
+    html += '<button onclick="openAddUser()" style="background:#0073C8;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;">+ Add User</button>';
   }
-  msgEl.textContent = 'Adding…'; msgEl.style.color = '#7a8fb8'; msgEl.style.display = 'block';
-  try {
-    const r = await fetch('/api/user-permissions', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({
-        adminEmail: window.__userPerms.email, email,
-        allowed_tabs: ['leads','potentials','pmreview'], allowed_regions: [], is_active: true
-      })
+  html += '</div>';
+
+  if (!Array.isArray(__authUsers) || !__authUsers.length) {
+    html += '<p style="color:#7a8fb8;">No users found.</p>';
+  } else {
+    html += '<div style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(20,42,92,.07);">';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    html += '<thead><tr style="background:#f4f6fa;"><th style="padding:12px 16px;text-align:left;color:#7a8fb8;font-weight:700;font-size:11px;letter-spacing:.06em;">EMAIL</th><th style="padding:12px 16px;text-align:left;color:#7a8fb8;font-weight:700;font-size:11px;">TABS</th><th style="padding:12px 16px;text-align:left;color:#7a8fb8;font-weight:700;font-size:11px;">REGIONS</th><th style="padding:12px 16px;text-align:left;color:#7a8fb8;font-weight:700;font-size:11px;">STATUS</th>';
+    if (isAdmin) html += '<th style="padding:12px 16px;"></th>';
+    html += '</tr></thead><tbody>';
+
+    __authUsers.forEach((u, idx) => {
+      const bg = idx % 2 === 0 ? '#fff' : '#f9fafc';
+      const tabs = (u.allowed_tabs || []).join(', ') || '—';
+      const regions = (u.allowed_regions || []).length ? u.allowed_regions.join(', ') : 'All regions';
+      const status = u.is_active
+        ? '<span style="background:#dcfce7;color:#16a34a;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">Active</span>'
+        : '<span style="background:#fee2e2;color:#dc2626;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;">Disabled</span>';
+      html += `<tr style="background:${bg};border-top:1px solid #f0f2f7;">`;
+      html += `<td style="padding:13px 16px;color:#16264d;font-weight:600;">${u.email}</td>`;
+      html += `<td style="padding:13px 16px;color:#3b5384;">${tabs}</td>`;
+      html += `<td style="padding:13px 16px;color:#3b5384;max-width:280px;">${regions}</td>`;
+      html += `<td style="padding:13px 16px;">${status}</td>`;
+      if (isAdmin) {
+        const canDelete = u.email !== ADMIN_EMAIL;
+        html += `<td style="padding:13px 16px;white-space:nowrap;">`;
+        html += `<button onclick="openEditModal('${u.email}')" style="background:#f0f4ff;color:#0073C8;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;margin-right:6px;">Edit</button>`;
+        if (canDelete) {
+          html += `<button onclick="deleteUser('${u.email}')" style="background:#fff1f1;color:#dc2626;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;">Remove</button>`;
+        }
+        html += `</td>`;
+      }
+      html += '</tr>';
     });
-    if (!r.ok) throw new Error(await r.text());
-    msgEl.textContent = '✓ User added!'; msgEl.style.color = '#16a34a';
-    document.getElementById('newUserEmail').value = '';
-    setTimeout(() => { document.getElementById('addUserForm').style.display='none'; loadAuthPanel(); }, 900);
-  } catch(err) {
-    msgEl.textContent = '✗ ' + err.message; msgEl.style.color = '#dc2626';
+    html += '</tbody></table></div>';
   }
+  html += '</div>';
+  panel.innerHTML = html;
 }
 
-// ── Toggle active status ──────────────────────────────────────
-async function toggleActive(email, isActive) {
-  try {
-    await fetch('/api/user-permissions', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ adminEmail: window.__userPerms.email, email, is_active: isActive })
-    });
-    // Update local cache
-    const u = __authUsers.find(x => x.email === email);
-    if (u) u.is_active = isActive;
-    renderAuthPanel();
-  } catch(err) { alert('Failed: ' + err.message); }
+function openAddUser() {
+  __editingEmail = null;
+  document.getElementById('editModalTitle').textContent = 'Add New User';
+  renderEditModal(null);
+  document.getElementById('editModalOverlay').classList.add('open');
 }
 
-// ── Delete user ───────────────────────────────────────────────
-async function deleteUser(email) {
-  if (!confirm('Remove ' + email + ' from the portal?')) return;
-  try {
-    await fetch('/api/user-permissions?email=' + encodeURIComponent(email) +
-                '&adminEmail=' + encodeURIComponent(window.__userPerms.email),
-      { method: 'DELETE' });
-    loadAuthPanel();
-  } catch(err) { alert('Failed: ' + err.message); }
-}
-
-// ── Edit modal ────────────────────────────────────────────────
 function openEditModal(email) {
   __editingEmail = email;
-  const u = __authUsers.find(x => x.email === email);
-  if (!u) return;
-
-  document.getElementById('editModalTitle').textContent = 'Edit access for: ' + email;
-
-  // Tab checkboxes
-  document.getElementById('editTabsCheckboxes').innerHTML = AUTH_TABS.map(t => \`
-    <label style="display:flex;align-items:center;gap:8px;font-size:14px;color:#16264d;cursor:pointer;background:#f8f9fb;border:1px solid #e3e6ee;border-radius:8px;padding:9px 16px;">
-      <input type="checkbox" value="\${t.key}" \${(u.allowed_tabs||[]).includes(t.key)?'checked':''}
-        style="width:15px;height:15px;accent-color:#0073C8;">
-      \${t.label}
-    </label>
-  \`).join('');
-
-  // Region checkboxes
-  document.getElementById('editRegionsCheckboxes').innerHTML = AUTH_REGIONS.map(r => \`
-    <label style="display:flex;align-items:center;gap:7px;font-size:13px;color:#3b5384;cursor:pointer;">
-      <input type="checkbox" value="\${r}" \${(u.allowed_regions||[]).includes(r)?'checked':''}
-        style="width:14px;height:14px;accent-color:#0073C8;">
-      \${r}
-    </label>
-  \`).join('');
-
-  document.getElementById('editMsg').style.display = 'none';
+  const user = __authUsers.find(u => u.email === email);
+  document.getElementById('editModalTitle').textContent = 'Edit: ' + email;
+  renderEditModal(user);
   document.getElementById('editModalOverlay').classList.add('open');
+}
+
+function renderEditModal(user) {
+  const tabKeys = ['leads','potentials','pmreview'];
+  const allowedTabs = user ? (user.allowed_tabs || []) : ['leads','potentials','pmreview'];
+  const allowedRegions = user ? (user.allowed_regions || []) : [];
+
+  let tabHtml = tabKeys.map(k =>
+    `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:#f4f6fa;padding:8px 14px;border-radius:8px;font-size:13px;">
+      <input type="checkbox" value="${k}" ${allowedTabs.includes(k)?'checked':''} style="width:15px;height:15px;">
+      ${k.charAt(0).toUpperCase()+k.slice(1)}
+    </label>`
+  ).join('');
+  document.getElementById('editTabsCheckboxes').innerHTML = tabHtml;
+
+  let regionHtml = AUTH_REGIONS.map(r =>
+    `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
+      <input type="checkbox" value="${r}" ${allowedRegions.includes(r)?'checked':''} style="width:13px;height:13px;">
+      ${r}
+    </label>`
+  ).join('');
+  document.getElementById('editRegionsCheckboxes').innerHTML = regionHtml;
+
+  const msgEl = document.getElementById('editMsg');
+  msgEl.style.display = 'none';
+
+  // Email input for new user
+  let emailRow = '';
+  if (!__editingEmail) {
+    emailRow = `<div style="margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.07em;margin-bottom:6px;">EMAIL</div>
+      <input id="newUserEmail" type="email" placeholder="user@elmeasure.com"
+        style="width:100%;padding:9px 12px;border:1px solid #d8dce6;border-radius:8px;font-size:13px;box-sizing:border-box;">
+    </div>`;
+  }
+  // Prepend email row
+  const container = document.querySelector('#editModalOverlay > div');
+  const existing = document.getElementById('newUserEmailRow');
+  if (existing) existing.remove();
+  if (!__editingEmail) {
+    const div = document.createElement('div');
+    div.id = 'newUserEmailRow';
+    div.innerHTML = emailRow;
+    container.insertBefore(div, container.querySelector('div'));
+  }
 }
 
 function closeEditModal() {
   document.getElementById('editModalOverlay').classList.remove('open');
-  __editingEmail = null;
 }
 
 async function saveUserEdit() {
-  if (!__editingEmail) return;
-  const tabs    = [...document.querySelectorAll('#editTabsCheckboxes input:checked')].map(i => i.value);
-  const regions = [...document.querySelectorAll('#editRegionsCheckboxes input:checked')].map(i => i.value);
-  const msgEl   = document.getElementById('editMsg');
-  msgEl.textContent = 'Saving…'; msgEl.style.color = '#7a8fb8'; msgEl.style.display = 'block';
+  const msgEl = document.getElementById('editMsg');
+  msgEl.style.display = 'none';
   try {
+    const tabs = [...document.querySelectorAll('#editTabsCheckboxes input:checked')].map(i => i.value);
+    const regions = [...document.querySelectorAll('#editRegionsCheckboxes input:checked')].map(i => i.value);
+
+    let email = __editingEmail;
+    if (!email) {
+      const inp = document.getElementById('newUserEmail');
+      email = inp ? inp.value.trim().toLowerCase() : '';
+      if (!email || !email.endsWith('@elmeasure.com')) {
+        msgEl.textContent = 'Please enter a valid @elmeasure.com email.';
+        msgEl.style.color = '#dc2626'; msgEl.style.display = 'block'; return;
+      }
+    }
+
     const r = await fetch('/api/user-permissions', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
-        adminEmail: window.__userPerms.email, email: __editingEmail,
-        allowed_tabs: tabs, allowed_regions: regions
+        adminEmail: ADMIN_EMAIL,
+        email,
+        allowed_tabs: tabs,
+        allowed_regions: regions,
+        is_active: true
       })
     });
-    if (!r.ok) throw new Error(await r.text());
-    msgEl.textContent = '✓ Saved!'; msgEl.style.color = '#16a34a';
-    setTimeout(() => { closeEditModal(); loadAuthPanel(); }, 700);
+    if (!r.ok) {
+      const e = await r.json();
+      throw new Error(e.error || r.status);
+    }
+    msgEl.textContent = '✓ Saved successfully';
+    msgEl.style.color = '#16a34a'; msgEl.style.display = 'block';
+    setTimeout(() => { closeEditModal(); loadAuthPanel(); }, 800);
   } catch(err) {
     msgEl.textContent = '✗ ' + err.message; msgEl.style.color = '#dc2626';
+    msgEl.style.display = 'block';
   }
+}
+
+async function deleteUser(email) {
+  if (!confirm('Remove ' + email + '?')) return;
+  try {
+    const r = await fetch('/api/user-permissions?email=' + encodeURIComponent(email) +
+                          '&adminEmail=' + encodeURIComponent(ADMIN_EMAIL), { method: 'DELETE' });
+    if (!r.ok) throw new Error((await r.json()).error || r.status);
+    loadAuthPanel();
+  } catch(err) {
+    alert('Error: ' + err.message);
+  }
+}
+
+async function toggleActive(email, active) {
+  try {
+    await fetch('/api/user-permissions', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ adminEmail: ADMIN_EMAIL, email, is_active: active })
+    });
+    loadAuthPanel();
+  } catch(err) { alert('Error: ' + err.message); }
 }
 
 // Close modal on overlay click
 document.getElementById('editModalOverlay').addEventListener('click', function(e) {
   if (e.target === this) closeEditModal();
 });
-
 </script>
 
 </body>
