@@ -306,19 +306,23 @@ function applyPermissions() {
 
   // Navigate to the first allowed tab
   const first = perms.allowedTabs.find(t => t !== 'authorization') || perms.allowedTabs[0];
-  if (first) showTab(first);
+  if (first) activateTab(first);
 }
 
-// ── Override showTab so auth panel is handled correctly ───────
-const _origShowTab = window.showTab;
-window.showTab = function(target) {
-  _origShowTab(target);
+// ── Override activateTab so auth panel is handled correctly ───
+const _origActivateTab = window.activateTab;
+window.activateTab = function(target) {
   const authPanel = document.getElementById('frame-authorization');
   if (target === 'authorization') {
+    // Hide all iframes, show auth panel
+    document.querySelectorAll('iframe').forEach(f => f.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('.tab-btn[data-target="authorization"]')?.classList.add('active');
     authPanel.style.display = 'block';
     loadAuthPanel();
   } else {
     authPanel.style.display = 'none';
+    _origActivateTab(target);
   }
 };
 
