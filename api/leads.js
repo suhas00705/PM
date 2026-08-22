@@ -2,7 +2,7 @@
 // Reads pre-synced FY2025-26 + FY2026-27 leads from Supabase, plus the
 // current Sales Engineer name list (also auto-synced daily from Zoho, so
 // the Engineer filter never needs a manual code update again).
-// Region filtering: reads pm_regions cookie set by the auth layer.
+// Region filtering: reads pm_regions cookie set by the auth layer after Google login.
 const supabaseLeads = require('../lib/supabaseLeads');
 
 module.exports = async (req, res) => {
