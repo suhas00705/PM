@@ -8,8 +8,7 @@
     "api/sync-pm-prepaid.js": { "maxDuration": 60 },
     "api/sync-pm-baskets.js": { "maxDuration": 60 },
     "api/sync-pm-lastyear.js": { "maxDuration": 60 },
-    "api/verify-pm-month.js": { "maxDuration": 30 },
-    "api/performance.js": { "maxDuration": 30 }
+    "api/verify-pm-month.js": { "maxDuration": 30 }
   },
   "crons": [
     { "path": "/api/sync-leads", "schedule": "0 2 * * *" },
