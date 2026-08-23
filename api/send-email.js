@@ -58,6 +58,13 @@ module.exports = async (req, res) => {
           <td style="padding:10px 14px;color:#16264d;border:1px solid #d8dce6;">${regionList}</td>
         </tr>
       </table>
+      <div style="text-align:center;margin-bottom:20px;">
+        <a href="https://pm-portal-rouge.vercel.app"
+           style="display:inline-block;background:#0073C8;color:#fff;text-decoration:none;
+                  padding:11px 28px;border-radius:7px;font-size:13px;font-weight:700;">
+          🔗 Open PM Portal
+        </a>
+      </div>
       <p style="color:#7a8fb8;font-size:12px;margin:0 0 6px;">
         If you have any questions, contact <a href="mailto:${ADMIN_EMAIL}" style="color:#0073C8;">${ADMIN_EMAIL}</a>.
       </p>
