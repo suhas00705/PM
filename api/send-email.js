@@ -1,11 +1,8 @@
 // api/send-email.js
 // Sends an email notification when a user's PM Portal permissions are added or updated.
-// Uses Zoho Mail SMTP via Nodemailer.
-// Required Vercel env vars:
-//   ZOHO_USER      - your Zoho Mail address (e.g. suhas.s@elmeasure.com)
-//   ZOHO_APP_PASS  - Zoho Mail App Password (generated in accounts.zoho.in → Security → App Passwords)
-
-const nodemailer = require('nodemailer');
+// Uses Resend (https://resend.com) — no SMTP needed.
+// Required Vercel env var:
+//   RESEND_API_KEY  - API key from resend.com dashboard
 
 const ADMIN_EMAIL = 'suhas.s@elmeasure.com';
 
@@ -20,20 +17,12 @@ module.exports = async (req, res) => {
 
   if (!toEmail) return res.status(400).json({ error: 'toEmail is required' });
 
-  const zohoUser = process.env.ZOHO_USER;
-  const zohoPass = process.env.ZOHO_APP_PASS;
+  const apiKey = process.env.RESEND_API_KEY;
 
-  if (!zohoUser || !zohoPass) {
-    console.error('ZOHO_USER or ZOHO_APP_PASS env vars not set');
+  if (!apiKey) {
+    console.error('RESEND_API_KEY env var not set');
     return res.status(200).json({ skipped: true, reason: 'Email credentials not configured' });
   }
-
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.zoho.in',
-    port: 587,
-    secure: false, // STARTTLS
-    auth: { user: zohoUser, pass: zohoPass }
-  });
 
   const regionList = (regions && regions.length) ? regions.join(', ') : 'All Regions';
   const tabList    = (tabs    && tabs.length)    ? tabs.join(', ')    : 'None';
@@ -72,19 +61,34 @@ module.exports = async (req, res) => {
     </div>
   `;
 
-  const mailOptions = {
-    from: `"PM Portal Admin" <${zohoUser}>`,
-    to: toEmail,
-    cc: ADMIN_EMAIL,
-    subject: isNew
-      ? `PM Portal Access Granted — ${toEmail}`
-      : `PM Portal Permissions Updated — ${toEmail}`,
-    html
-  };
+  const subject = isNew
+    ? `PM Portal Access Granted — ${toEmail}`
+    : `PM Portal Permissions Updated — ${toEmail}`;
 
   try {
-    await transporter.sendMail(mailOptions);
-    return res.status(200).json({ sent: true });
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'PM Portal <onboarding@resend.dev>',
+        to: [toEmail],
+        cc: [ADMIN_EMAIL],
+        subject,
+        html
+      })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error('Resend error:', JSON.stringify(data));
+      return res.status(200).json({ skipped: true, reason: data.message || 'Send failed' });
+    }
+
+    return res.status(200).json({ sent: true, id: data.id });
   } catch (err) {
     console.error('Email send error:', err.message);
     return res.status(200).json({ skipped: true, reason: err.message });
