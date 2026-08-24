@@ -214,17 +214,33 @@ if (initial && document.getElementById('frame-' + initial)) {
 // ============================================================
 
 const ADMIN_EMAIL = 'suhas.s@elmeasure.com';
-const AUTH_REGIONS = [
-  'Delhi','Punjab','Haryana','UP','Uttarakhand','Himachal Pradesh','J&K',
-  'Rajasthan','MP','Bihar','Jharkhand',
-  'Maharashtra','Gujarat','Goa',
-  'Karnataka','Tamil Nadu','Andhra Pradesh','Telangana','Kerala',
-  'West Bengal','Odisha','Assam','North East'
-];
+// Auth regions are fetched live from Supabase so they always match actual data.
+// Populated by loadAuthRegions() before the edit modal opens.
+let __authRegions  = [];
 
 window.__userPerms = null;
 let __authUsers    = [];
 let __editingEmail = null;
+
+// ── Fetch distinct region names from leads_cache + potentials_cache ──────────
+async function loadAuthRegions() {
+  if (__authRegions.length) return; // already loaded
+  const SUPA_URL  = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+  const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+  const hdrs = { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY };
+  try {
+    const [lRes, pRes] = await Promise.all([
+      fetch(SUPA_URL + '/leads_cache?select=region&order=region', { headers: hdrs }),
+      fetch(SUPA_URL + '/potentials_cache?select=region&order=region', { headers: hdrs })
+    ]);
+    const [lRows, pRows] = await Promise.all([lRes.json(), pRes.json()]);
+    const all = [...(Array.isArray(lRows)?lRows:[]), ...(Array.isArray(pRows)?pRows:[])];
+    const unique = [...new Set(all.map(r => r.region).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    __authRegions = unique;
+  } catch(e) {
+    console.warn('loadAuthRegions failed:', e);
+  }
+}
 
 // ── Show a tab by directly manipulating DOM ──────────────────
 function showPortalTab(target) {
@@ -397,17 +413,19 @@ function renderAuthPanel() {
   panel.innerHTML = html;
 }
 
-function openAddUser() {
+async function openAddUser() {
   __editingEmail = null;
   document.getElementById('editModalTitle').textContent = 'Add New User';
+  await loadAuthRegions();
   renderEditModal(null);
   document.getElementById('editModalOverlay').classList.add('open');
 }
 
-function openEditModal(email) {
+async function openEditModal(email) {
   __editingEmail = email;
   const user = __authUsers.find(u => u.email === email);
   document.getElementById('editModalTitle').textContent = 'Edit: ' + email;
+  await loadAuthRegions();
   renderEditModal(user);
   document.getElementById('editModalOverlay').classList.add('open');
 }
@@ -425,7 +443,7 @@ function renderEditModal(user) {
   ).join('');
   document.getElementById('editTabsCheckboxes').innerHTML = tabHtml;
 
-  let regionHtml = AUTH_REGIONS.map(r =>
+  let regionHtml = __authRegions.map(r =>
     `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;">
       <input type="checkbox" value="${r}" ${allowedRegions.includes(r)?'checked':''} style="width:13px;height:13px;">
       ${r}
