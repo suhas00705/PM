@@ -143,8 +143,14 @@
         <div id="editTabsCheckboxes" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
       </div>
       <div style="margin-bottom:28px;">
-        <div style="font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.07em;margin-bottom:6px;">REGION ACCESS &nbsp;<span style="font-weight:400;color:#b0b8cc;font-size:11px;">(leave all unchecked = full national access)</span></div>
-        <div id="editRegionsCheckboxes" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px 14px;margin-top:10px;"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="font-size:11px;font-weight:700;color:#7a8fb8;letter-spacing:.07em;">REGION ACCESS &nbsp;<span style="font-weight:400;color:#b0b8cc;font-size:11px;">(leave all unchecked = full national access)</span></div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" onclick="toggleAllRegions(true)"  style="font-size:11px;padding:3px 10px;border:1px solid #0073C8;border-radius:5px;background:#f0f6ff;color:#0073C8;cursor:pointer;font-weight:600;">Select All</button>
+            <button type="button" onclick="toggleAllRegions(false)" style="font-size:11px;padding:3px 10px;border:1px solid #b0b8cc;border-radius:5px;background:#f4f6fa;color:#7a8fb8;cursor:pointer;font-weight:600;">Clear</button>
+          </div>
+        </div>
+        <div id="editRegionsCheckboxes" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px 14px;margin-top:6px;max-height:240px;overflow-y:auto;padding-right:4px;"></div>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button onclick="closeEditModal()" style="background:#f3f4f6;color:#374151;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:13px;">Cancel</button>
@@ -228,13 +234,29 @@ async function loadAuthRegions() {
   const SUPA_URL  = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
   const SUPA_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
   const hdrs = { apikey: SUPA_KEY, Authorization: 'Bearer ' + SUPA_KEY };
+
+  // Paginate to collect every region across both tables (handles >1000 records)
+  async function allRegions(table) {
+    const PAGE = 1000;
+    let from = 0, rows = [], total = null;
+    while (true) {
+      const res = await fetch(SUPA_URL + '/' + table + '?select=region&order=region', {
+        headers: { ...hdrs, Range: from + '-' + (from + PAGE - 1) }
+      });
+      const data = await res.json();
+      if (!Array.isArray(data) || !data.length) break;
+      rows.push(...data);
+      const cr = res.headers.get('content-range');
+      if (cr) { const [,t] = cr.split('/'); if (t && t !== '*') total = parseInt(t, 10); }
+      from += data.length;
+      if ((total !== null && from >= total) || data.length < PAGE) break;
+    }
+    return rows;
+  }
+
   try {
-    const [lRes, pRes] = await Promise.all([
-      fetch(SUPA_URL + '/leads_cache?select=region&order=region', { headers: hdrs }),
-      fetch(SUPA_URL + '/potentials_cache?select=region&order=region', { headers: hdrs })
-    ]);
-    const [lRows, pRows] = await Promise.all([lRes.json(), pRes.json()]);
-    const all = [...(Array.isArray(lRows)?lRows:[]), ...(Array.isArray(pRows)?pRows:[])];
+    const [lRows, pRows] = await Promise.all([allRegions('leads_cache'), allRegions('potentials_cache')]);
+    const all = [...lRows, ...pRows];
     const unique = [...new Set(all.map(r => r.region).filter(Boolean))].sort((a, b) => a.localeCompare(b));
     __authRegions = unique;
   } catch(e) {
@@ -473,6 +495,10 @@ function renderEditModal(user) {
     div.innerHTML = emailRow;
     container.insertBefore(div, container.querySelector('div'));
   }
+}
+
+function toggleAllRegions(checked) {
+  document.querySelectorAll('#editRegionsCheckboxes input[type=checkbox]').forEach(cb => cb.checked = checked);
 }
 
 function closeEditModal() {
