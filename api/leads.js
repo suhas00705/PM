@@ -146,10 +146,23 @@ module.exports = async (req, res) => {
       ? decodeURIComponent(regionCookie.split('=')[1].trim()).split(',').filter(Boolean)
       : [];
 
-    const [leads, engineers] = await Promise.all([
+    // Run leads and engineers fetches independently so a broken engineers_cache
+    // table never takes down the entire Leads tab.
+    let leads = [], engineers = [];
+    const [leadsResult, engResult] = await Promise.allSettled([
       supabaseLeads.getCachedLeads(allowedRegions),
       supabaseLeads.getCachedEngineers()
     ]);
+    if (leadsResult.status === 'fulfilled') {
+      leads = leadsResult.value;
+    } else {
+      // Leads fetch failed — surface the real error so it's visible in the browser
+      return res.status(500).json({ error: leadsResult.reason?.message || 'Leads fetch failed' });
+    }
+    if (engResult.status === 'fulfilled') {
+      engineers = engResult.value;
+    }
+    // engineers failure is non-fatal — return leads with empty engineers list
     res.status(200).json({ leads, count: leads.length, engineers });
   } catch (err) {
     res.status(500).json({ error: err.message });
