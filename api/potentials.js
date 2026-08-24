@@ -1,12 +1,15 @@
 // api/potentials.js
 // Reads pre-synced Deals (Potentials) from Supabase.
-// Region filtering: reads pm_regions cookie set by the auth layer after Google login.
+// Server-side region filtering via pm_regions cookie (same pattern as leads.js).
 const supabasePotentials = require('../lib/supabasePotentials');
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   try {
-    // Parse allowed regions from the pm_regions cookie (set after Google login)
     const cookieHeader = req.headers.cookie || '';
     const regionCookie = cookieHeader.split(';').find(c => c.trim().startsWith('pm_regions='));
     const allowedRegions = regionCookie
