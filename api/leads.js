@@ -124,13 +124,157 @@ async function handlePerformance(res) {
   });
 }
 
+// ── Zoho Lookup mode (GET ?mode=zoho-lookup) ─────────────────────────────────
+// Returns channel partner accounts + active CRM users for Create Lead dropdowns.
+// Reads directly from Zoho CRM using the shared zohoAuth helper.
+
+const zohoAuth = require('../lib/zohoAuth');
+
+async function handleZohoLookup(res) {
+  const ZOHO_API = process.env.ZOHO_API_DOMAIN || 'https://www.zohoapis.com';
+  const token = await zohoAuth.getZohoAccessToken();
+  const authHdr = { Authorization: `Zoho-oauthtoken ${token}` };
+
+  // Account types to pull (Channel Partners, Dealers, Distributors, Panel Builders, System Integrators)
+  const criteria = encodeURIComponent(
+    '((Account_Type:equals:Channel Partners)or' +
+    '(Account_Type:equals:Distributor)or' +
+    '(Account_Type:equals:Panel Builder)or' +
+    '(Account_Type:equals:Dealer)or' +
+    '(Account_Type:equals:System Integrators)or' +
+    '(Account_Type:equals:PB-Direct))'
+  );
+
+  const [acctRes, userRes] = await Promise.all([
+    fetch(`${ZOHO_API}/crm/v8/Accounts/search?criteria=${criteria}&fields=id,Account_Name,Account_Type,Phone,Email&per_page=200&sort_by=Account_Name&sort_order=asc`, { headers: authHdr }),
+    fetch(`${ZOHO_API}/crm/v8/users?type=ActiveUsers&per_page=200`, { headers: authHdr })
+  ]);
+
+  const acctData  = acctRes.status === 204 ? { data: [] } : await acctRes.json();
+  const userData  = userRes.ok ? await userRes.json() : { users: [] };
+
+  const accounts = (acctData.data || []).map(a => ({
+    id:    a.id,
+    name:  a.Account_Name || '',
+    type:  a.Account_Type || '',
+    phone: a.Phone || '',
+    email: a.Email || ''
+  }));
+
+  const users = (userData.users || []).map(u => ({
+    id:    u.id,
+    name:  u.full_name || '',
+    email: u.email || ''
+  })).sort((a, b) => a.name.localeCompare(b.name));
+
+  return res.status(200).json({ accounts, users, fetchedAt: new Date().toISOString() });
+}
+
+// ── Create Lead mode (POST ?mode=create) ─────────────────────────────────────
+// Inserts a new lead into Supabase `portal_leads` table.
+// Does NOT push to Zoho CRM.
+
+const PORTAL_LEADS_URL = `${SUPABASE_URL}/rest/v1/portal_leads`;
+const SUPABASE_WRITE_HDRS = {
+  apikey: SUPABASE_ANON,
+  Authorization: `Bearer ${SUPABASE_ANON}`,
+  'Content-Type': 'application/json',
+  Prefer: 'return=representation'
+};
+
+async function handleCreateLead(req, res) {
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch(e) { return res.status(400).json({ error: 'Invalid JSON' }); } }
+  if (!body) return res.status(400).json({ error: 'Empty request body' });
+  if (!body.last_name || !body.company || !body.region) {
+    return res.status(400).json({ error: 'last_name, company and region are required' });
+  }
+
+  const row = {
+    salutation:                  body.salutation || null,
+    first_name:                  body.first_name || null,
+    last_name:                   body.last_name,
+    full_name:                   body.full_name || null,
+    company:                     body.company,
+    designation:                 body.designation || null,
+    email:                       body.email || null,
+    phone:                       body.phone || null,
+    mobile:                      body.mobile || null,
+    website:                     body.website || null,
+    account_type:                body.account_type || null,
+    lead_source:                 body.lead_source || null,
+    lead_status:                 body.lead_status || 'Not Contacted',
+    priority_levels:             body.priority_levels || null,
+    region:                      body.region,
+    sub_region:                  body.sub_region || null,
+    industry:                    body.industry || null,
+    business_type:               body.business_type || null,
+    order_type:                  body.order_type || null,
+    approach_type:               body.approach_type || null,
+    enquiry_date:                body.enquiry_date || null,
+    expected_closure_date:       body.expected_closure_date || null,
+    order_value:                 (body.order_value != null && body.order_value !== '') ? parseFloat(body.order_value) : null,
+    process_stage:               body.process_stage || null,
+    product_solution:            body.product_solution || null,
+    customer_class:              body.customer_class || null,
+    product_solution_type:       Array.isArray(body.product_solution_type) ? body.product_solution_type : [],
+    estimation_status:           body.estimation_status || null,
+    estimation_support_required: body.estimation_support_required || null,
+    bms_support_required:        body.bms_support_required === true,
+    project_name:                body.project_name || null,
+    end_client_name:             body.end_client_name || null,
+    contractor:                  body.contractor || null,
+    consultant:                  body.consultant || null,
+    street:                      body.street || null,
+    city:                        body.city || null,
+    state:                       body.state || null,
+    zip_code:                    body.zip_code || null,
+    country:                     body.country || null,
+    customer_enquiry_details:    body.customer_enquiry_details || null,
+    remarks:                     body.remarks || null,
+    owner_name:                  body.owner_name || null,
+    created_by_email:            body.created_by_email || null,
+    source:                      'portal',
+    created_time:                new Date().toISOString()
+  };
+
+  const supaRes = await fetch(PORTAL_LEADS_URL, {
+    method: 'POST',
+    headers: SUPABASE_WRITE_HDRS,
+    body: JSON.stringify(row)
+  });
+
+  if (!supaRes.ok) {
+    const errText = await supaRes.text();
+    console.error('[create-lead] Supabase error:', supaRes.status, errText);
+    return res.status(500).json({ error: `Supabase insert failed: ${errText}` });
+  }
+
+  const data = await supaRes.json();
+  const created = Array.isArray(data) ? data[0] : data;
+  return res.status(200).json({ success: true, id: created?.id || null });
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
+
+  // Zoho lookup mode — GET ?mode=zoho-lookup (accounts + users for Create Lead form)
+  if (req.method === 'GET' && req.query.mode === 'zoho-lookup') {
+    try { return await handleZohoLookup(res); }
+    catch (err) { return res.status(500).json({ error: err.message }); }
+  }
+
+  // Create Lead mode — POST ?mode=create
+  if (req.method === 'POST' && req.query.mode === 'create') {
+    try { return await handleCreateLead(req, res); }
+    catch (err) { return res.status(500).json({ error: err.message }); }
+  }
 
   // Performance dashboard mode — same endpoint, different response shape
   if (req.query.mode === 'performance') {
