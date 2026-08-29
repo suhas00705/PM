@@ -146,7 +146,7 @@ async function handleZohoLookup(res) {
   );
 
   const [acctRes, userRes] = await Promise.all([
-    fetch(`${ZOHO_API}/crm/v8/Accounts/search?criteria=${criteria}&fields=id,Account_Name,Account_Type,Phone,Email&per_page=200&sort_by=Account_Name&sort_order=asc`, { headers: authHdr }),
+    fetch(`${ZOHO_API}/crm/v8/Accounts/search?criteria=${criteria}&fields=id,Account_Name,Account_Type,Phone,Email&per_page=200`, { headers: authHdr }),
     fetch(`${ZOHO_API}/crm/v8/users?type=ActiveUsers&per_page=200`, { headers: authHdr })
   ]);
 
@@ -170,7 +170,7 @@ async function handleZohoLookup(res) {
         type:  a.Account_Type || '',
         phone: a.Phone || '',
         email: a.Email || ''
-      }));
+      })).sort((a, b) => a.name.localeCompare(b.name));
     }
   }
 
@@ -248,6 +248,8 @@ async function handleCreateLead(req, res) {
     customer_enquiry_details:    body.customer_enquiry_details || null,
     remarks:                     body.remarks || null,
     owner_name:                  body.owner_name || null,
+    panel_builder:               body.panel_builder || null,
+    gp:                          (body.gp != null && body.gp !== '') ? parseFloat(body.gp) : null,
     created_by_email:            body.created_by_email || null,
     source:                      'portal',
     created_time:                new Date().toISOString()
