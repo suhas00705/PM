@@ -150,24 +150,39 @@ async function handleZohoLookup(res) {
     fetch(`${ZOHO_API}/crm/v8/users?type=ActiveUsers&per_page=200`, { headers: authHdr })
   ]);
 
-  const acctData  = acctRes.status === 204 ? { data: [] } : await acctRes.json();
-  const userData  = userRes.ok ? await userRes.json() : { users: [] };
+  // Accounts
+  let accounts = [], acctWarn = null;
+  if (acctRes.status === 204) {
+    acctWarn = 'Zoho accounts returned 204 (no content)';
+  } else if (!acctRes.ok) {
+    const errText = await acctRes.text();
+    acctWarn = `Zoho accounts fetch failed: HTTP ${acctRes.status} — ${errText}`;
+    console.error('[zoho-lookup] accounts error:', acctWarn);
+  } else {
+    const acctData = await acctRes.json();
+    if (acctData.code && acctData.code !== 'SUCCESS') {
+      acctWarn = `Zoho accounts API error: ${acctData.code} — ${acctData.message || ''}`;
+      console.error('[zoho-lookup] accounts API error:', acctWarn);
+    } else {
+      accounts = (acctData.data || []).map(a => ({
+        id:    a.id,
+        name:  a.Account_Name || '',
+        type:  a.Account_Type || '',
+        phone: a.Phone || '',
+        email: a.Email || ''
+      }));
+    }
+  }
 
-  const accounts = (acctData.data || []).map(a => ({
-    id:    a.id,
-    name:  a.Account_Name || '',
-    type:  a.Account_Type || '',
-    phone: a.Phone || '',
-    email: a.Email || ''
-  }));
-
+  // Users
+  const userData = userRes.ok ? await userRes.json() : { users: [] };
   const users = (userData.users || []).map(u => ({
     id:    u.id,
     name:  u.full_name || '',
     email: u.email || ''
   })).sort((a, b) => a.name.localeCompare(b.name));
 
-  return res.status(200).json({ accounts, users, fetchedAt: new Date().toISOString() });
+  return res.status(200).json({ accounts, users, acctWarn: acctWarn || undefined, fetchedAt: new Date().toISOString() });
 }
 
 // ── Create Lead mode (POST ?mode=create) ─────────────────────────────────────
