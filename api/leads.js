@@ -250,6 +250,8 @@ async function handleCreateLead(req, res) {
     owner_name:                  body.owner_name || null,
     panel_builder:               body.panel_builder || null,
     gp:                          (body.gp != null && body.gp !== '') ? parseFloat(body.gp) : null,
+    account_name:                body.account_name || null,
+    dealer_name:                 body.dealer_name  || null,
     created_by_email:            body.created_by_email || null,
     source:                      'portal',
     created_time:                new Date().toISOString()
