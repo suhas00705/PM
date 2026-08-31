@@ -320,6 +320,92 @@ async function handleUpdateLead(req, res) {
   return res.status(200).json({ success: true, id: updated?.id || id });
 }
 
+// ── Potentials fetch (GET ?mode=potentials) ───────────────────────────────────
+// Reads all potentials from potentials_cache for the portal dashboard.
+
+async function handlePotentials(res) {
+  const rows = [];
+  const PAGE = 1000;
+  let from = 0, total = null;
+  const select = 'id,Deal_Name,Account_Name,Amount,Stage,Closing_Date,owner_name,region,product_solution_type,created_time,Lead_Source';
+  while (true) {
+    const supaRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/potentials_cache?select=${encodeURIComponent(select)}&order=created_time.desc`,
+      { headers: { ...HDRS, Range: `${from}-${from + PAGE - 1}` } }
+    );
+    if (!supaRes.ok && supaRes.status !== 206) {
+      const txt = await supaRes.text();
+      throw new Error(`Supabase potentials: ${supaRes.status} ${txt}`);
+    }
+    const data = await supaRes.json();
+    if (!data.length) break;
+    rows.push(...data);
+    const cr = supaRes.headers.get('content-range');
+    if (cr) { const [,t] = cr.split('/'); if (t && t !== '*') total = parseInt(t, 10); }
+    from += data.length;
+    if ((total !== null && from >= total) || data.length < PAGE) break;
+  }
+  return res.status(200).json({ potentials: rows, count: rows.length, fetchedAt: new Date().toISOString() });
+}
+
+// ── Convert Lead to Potential (POST ?mode=convert&id=...) ─────────────────────
+// Creates a Zoho CRM Deal from a portal_leads row, marks lead as converted.
+
+async function handleConvertToPotential(req, res) {
+  const id = req.query.id;
+  if (!id) return res.status(400).json({ error: 'id is required' });
+
+  // Fetch the lead from Supabase
+  const leadRes = await fetch(`${PORTAL_LEADS_URL}?id=eq.${encodeURIComponent(id)}&select=*`, {
+    headers: SUPABASE_WRITE_HDRS
+  });
+  if (!leadRes.ok) return res.status(500).json({ error: 'Could not fetch lead from Supabase' });
+  const leads = await leadRes.json();
+  if (!leads.length) return res.status(404).json({ error: 'Lead not found' });
+  const lead = leads[0];
+
+  // Build Zoho Deal payload
+  const ZOHO_API = process.env.ZOHO_API_DOMAIN || 'https://www.zohoapis.com';
+  const token = await zohoAuth.getZohoAccessToken();
+  const authHdr = { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' };
+
+  const dealName = [lead.project_name, lead.company].filter(Boolean).join(' — ') || lead.company || 'New Deal';
+  const dealPayload = {
+    data: [{
+      Deal_Name:            dealName,
+      Account_Name:         lead.account_name || lead.company || null,
+      Amount:               lead.order_value || null,
+      Stage:                'Proposal/Price Quote',
+      Closing_Date:         lead.expected_closure_date || null,
+      Lead_Source:          lead.lead_source || null,
+      Description:          lead.customer_enquiry_details || null,
+      // Custom fields — add as available in your Zoho org
+      ...(lead.region    ? { Region: lead.region }   : {}),
+    }]
+  };
+
+  const zohoRes = await fetch(`${ZOHO_API}/crm/v8/Deals`, {
+    method: 'POST',
+    headers: authHdr,
+    body: JSON.stringify(dealPayload)
+  });
+  const zohoData = await zohoRes.json();
+  if (!zohoRes.ok || (zohoData.data && zohoData.data[0]?.code && zohoData.data[0].code !== 'SUCCESS')) {
+    const msg = zohoData.data?.[0]?.message || zohoData.message || `HTTP ${zohoRes.status}`;
+    return res.status(500).json({ error: `Zoho Deal creation failed: ${msg}` });
+  }
+  const dealId = zohoData.data?.[0]?.details?.id || null;
+
+  // Mark lead as converted in Supabase
+  await fetch(`${PORTAL_LEADS_URL}?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { ...SUPABASE_WRITE_HDRS, Prefer: 'return=minimal' },
+    body: JSON.stringify({ lead_status: 'Qualified', converted: true, deal_id: dealId })
+  });
+
+  return res.status(200).json({ success: true, deal_id: dealId, deal_name: dealName });
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 module.exports = async (req, res) => {
@@ -344,6 +430,18 @@ module.exports = async (req, res) => {
   // Update Lead mode — PATCH ?mode=update&id=...
   if ((req.method === 'PATCH' || req.method === 'POST') && req.query.mode === 'update') {
     try { return await handleUpdateLead(req, res); }
+    catch (err) { return res.status(500).json({ error: err.message }); }
+  }
+
+  // Potentials dashboard mode — GET ?mode=potentials
+  if (req.method === 'GET' && req.query.mode === 'potentials') {
+    try { return await handlePotentials(res); }
+    catch (err) { return res.status(500).json({ error: err.message }); }
+  }
+
+  // Convert lead to potential — POST ?mode=convert&id=...
+  if (req.method === 'POST' && req.query.mode === 'convert') {
+    try { return await handleConvertToPotential(req, res); }
     catch (err) { return res.status(500).json({ error: err.message }); }
   }
 
