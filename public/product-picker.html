@@ -543,12 +543,15 @@ footer.note{margin-top:26px; font-size:11px; color:var(--text-lo); text-align:ce
     {num: catSet.size, label:'Categories', color:'#2F9E58', cls:'c-green'},
     {num: '\u20b9' + avgPrice.toLocaleString('en-IN'), label:'Avg. MRP', color:'#2E6F95', cls:'c-steel'}
   ];
-  document.getElementById('kpiRow').innerHTML = kpis.map(function(k, i){
+  const _kpiRow = document.getElementById('kpiRow');
+  if(_kpiRow) _kpiRow.innerHTML = kpis.map(function(k, i){
     return '<div class="kpi-card '+k.cls+'">' + gaugeSVG(55 + i*9, k.color) +
       '<div><div class="num">'+k.num+'</div><div class="label">'+k.label+'</div></div></div>';
   }).join('');
-  document.getElementById('dataCount').textContent = DATA.length;
-  document.getElementById('totalCount').textContent = DATA.length;
+  const _dataCount = document.getElementById('dataCount');
+  if(_dataCount) _dataCount.textContent = DATA.length;
+  const _totalCount = document.getElementById('totalCount');
+  if(_totalCount) _totalCount.textContent = DATA.length;
 
   // ---------- Populate filter dropdowns ----------
   const basketFilter = document.getElementById('basketFilter');
@@ -597,7 +600,7 @@ footer.note{margin-top:26px; font-size:11px; color:var(--text-lo); text-align:ce
     allClasses.map(c=>'<option value="'+escapeAttr(c)+'">Cl '+escapeHtml(c)+'</option>').join('');
   const allRemarks = Array.from(new Set(DATA.map(r=>r.remarks).filter(Boolean))).sort();
   fillSelect(remarksFilter, allRemarks, 'All Remarks');
-  if(allRemarks.includes('Pricebook Item')) remarksFilter.value = 'Pricebook Item';
+  // Show all products by default — no auto-filter on remarks
 
   // ---------- Helpers ----------
   function escapeHtml(s){
@@ -1441,7 +1444,7 @@ footer.note{margin-top:26px; font-size:11px; color:var(--text-lo); text-align:ce
     allTabBtns.forEach(b=>b.classList.toggle('active', b===btn));
     allViews.forEach(v=>v.style.display = (v===view ? '' : 'none'));
     const onCatalog = (view===catalogView);
-    document.getElementById('kpiRow').style.display = (onCatalog ? '' : 'none');
+    const _kr = document.getElementById('kpiRow'); if(_kr) _kr.style.display = (onCatalog ? '' : 'none');
     document.querySelector('.bento-hero').classList.toggle('full-width', !onCatalog);
   }
   tabCatalogBtn.addEventListener('click', function(){ activateTab(tabCatalogBtn, catalogView); });
