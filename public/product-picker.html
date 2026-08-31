@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Elmeasure | Panel Meters Catcode &amp; MRP Dashboard</title>
+
+<style>
+
+:root{
+  --ink:#eef0f3;
+  --panel:#ffffff;
+  --panel-2:#f7f9fb;
+  --line:#e1e7ee;
+  --line-soft:#eceff3;
+  --navy:#1e1b4b;
+  --navy-2:#4338ca;
+  --pink:#ec4899;
+  --steel:#2E6F95;
+  --steel-soft:rgba(46,111,149,0.10);
+  --cyan:#0EA5A0;
+  --cyan-soft:rgba(14,165,160,0.10);
+  --gold:#C9962C;
+  --gold-soft:rgba(201,150,44,0.12);
+  --coral:#C0392B;
+  --coral-soft:rgba(192,57,43,0.08);
+  --green:#2F9E58;
+  --text-hi:#16264d;
+  --text-mid:#3b5384;
+  --text-lo:#7a8fb8;
+  --mono:'Calibri','Segoe UI',sans-serif;
+  --body:'Calibri','Segoe UI',sans-serif;
+  --radius:16px;
+  --shadow:0 1px 2px rgba(16,36,62,0.06), 0 4px 14px rgba(16,36,62,0.06);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--ink);
+  color:var(--text-hi);
+  font-family:var(--body);
+  min-height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+.dash{position:relative; z-index:1; max-width:1440px; margin:0 auto; padding:28px 28px 60px;}
+
+header.topbar{
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:18px;
+  margin-bottom:22px; padding:18px 26px; border-radius:18px;
+  background:linear-gradient(180deg, #3a4356 0%, var(--navy) 55%, #14121f 100%);
+  box-shadow:0 10px 26px rgba(20,20,40,0.22);
+  position:relative;
+}
+header.topbar::before{
+  content:''; position:absolute; inset:0; border-radius:18px; pointer-events:none;
+  background:repeating-linear-gradient(100deg, rgba(255,255,255,0.025) 0px, rgba(255,255,255,0.025) 1px, transparent 1px, transparent 3px);
+}
+.brand{display:flex; align-items:center; gap:16px; position:relative;}
+.logo-chip{
+  background:#ffffff; border-radius:12px; padding:8px 16px; display:flex; align-items:center;
+  box-shadow:0 3px 8px rgba(0,0,0,0.18);
+}
+.logo-img{height:28px; width:auto; display:block;}
+.brand-title{font-size:20px; font-weight:800; letter-spacing:.04em; line-height:1.2; color:#fff; text-transform:uppercase; text-shadow:0 1px 2px rgba(0,0,0,0.5);}
+.brand-sub{font-size:12.5px; color:rgba(255,255,255,0.75); margin-top:3px; letter-spacing:.02em;}
+.meta{font-size:11.5px; color:#BFD3E6; text-align:right; line-height:1.6; position:relative;}
+.meta strong{color:#fff;}
+.live-pill{
+  display:inline-flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+  color:#c7c2fa; border:1px solid rgba(199,194,250,0.4); background:rgba(199,194,250,0.14);
+  padding:4px 10px; border-radius:20px; margin-bottom:6px;
+  box-shadow:0 1px 0 rgba(255,255,255,0.1) inset, 0 -2px 4px rgba(0,0,0,0.25) inset;
+}
+.live-pill .dot{width:6px; height:6px; border-radius:50%; background:#a78bfa; box-shadow:0 0 6px #a78bfa; animation:pulse 1.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;} 50%{opacity:.35;}}
+
+.kpi-row{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-bottom:16px;}
+
+/* ---------- Bento grid layout ---------- */
+.bento-wrap{display:grid; grid-template-columns:repeat(6,1fr); grid-auto-rows:92px; gap:14px; margin-bottom:16px;}
+.bento-hero{grid-column:span 3; grid-row:span 2; margin-bottom:0 !important; flex-direction:column; align-items:flex-start; justify-content:space-between; border-radius:18px;}
+.bento-hero .meta{text-align:left;}
+.bento-kpis{grid-column:span 3; grid-row:span 2; display:grid; grid-template-columns:repeat(3,1fr); grid-auto-rows:1fr; gap:14px; margin-bottom:0 !important;}
+.bento-kpis .kpi-card{border-radius:16px;}
+.bento-kpis .kpi-card:last-child{grid-column:span 2;}
+.bento-hero.full-width{grid-column:span 6;}
+@media (max-width:900px){
+  .bento-wrap{grid-template-columns:1fr; grid-auto-rows:auto;}
+  .bento-hero{grid-column:span 1; grid-row:span 1;}
+  .bento-kpis{grid-column:span 1; grid-row:span 1; grid-template-columns:repeat(2,1fr);}
+}
+.kpi-card{
+  background:var(--panel); border:1px solid var(--line); border-radius:10px;
+  padding:10px 12px; display:flex; align-items:center; gap:9px; box-shadow:var(--shadow);
+  position:relative; overflow:hidden; transition:border-color .2s, transform .2s;
+}
+.kpi-card:hover{border-color:var(--steel); transform:translateY(-2px);}
+.kpi-card::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px;}
+.kpi-card.c-steel::before{background:var(--steel);}
+.kpi-card.c-cyan::before{background:var(--cyan);}
+.kpi-card.c-gold::before{background:var(--gold);}
+.kpi-card.c-green::before{background:var(--green);}
+.kpi-card .num{font-size:17px; font-weight:800; color:var(--navy); line-height:1; font-family:var(--mono);}
+.kpi-card .label{font-size:9px; color:var(--text-lo); margin-top:3px; text-transform:uppercase; letter-spacing:.06em;}
+.kpi-card .gauge{width:30px; height:30px; flex-shrink:0;}
+
+.search-panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:20px 22px; margin-bottom:20px;
+}
+.search-panel h2{
+  font-size:12.5px; margin:0 0 14px 0; color:var(--steel); font-weight:700;
+  text-transform:uppercase; letter-spacing:.10em; display:flex; align-items:center; gap:8px;
+}
+.search-panel h2::before{content:''; width:8px; height:8px; border-radius:2px; background:var(--cyan); display:inline-block; transform:rotate(45deg);}
+.search-box{position:relative; margin-bottom:14px;}
+.search-box svg{position:absolute; left:14px; top:50%; transform:translateY(-50%); width:18px; height:18px; color:var(--text-lo);}
+.search-box input{
+  width:100%; padding:13px 16px 13px 42px; font-size:15px; font-family:var(--body);
+  border:1px solid var(--line); border-radius:10px; background:var(--panel-2); color:var(--text-hi);
+  transition:border-color .15s, box-shadow .15s;
+}
+.search-box input::placeholder{color:var(--text-lo);}
+.search-box input:focus{outline:none; border-color:var(--steel); box-shadow:0 0 0 3px var(--steel-soft);}
+.filters-row{display:flex; gap:12px; flex-wrap:wrap; align-items:center;}
+select{
+  padding:9px 34px 9px 12px; font-size:13px; font-family:var(--body); border:1px solid var(--line);
+  border-radius:8px; background:var(--panel-2) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0 L5 6 L10 0" fill="none" stroke="%237a8fb8" stroke-width="1.5"/></svg>') no-repeat right 12px center;
+  color:var(--text-hi); appearance:none; cursor:pointer; min-width:150px;
+}
+select:focus{outline:none; border-color:var(--steel);}
+.clear-btn{
+  padding:9px 16px; font-size:12.5px; font-weight:700; border-radius:8px; border:1px solid var(--line);
+  background:transparent; color:var(--text-mid); cursor:pointer; letter-spacing:.03em; transition:all .15s;
+}
+.clear-btn:hover{border-color:var(--coral); color:var(--coral);}
+
+.results-count{font-size:12px; color:var(--text-mid); margin:16px 0 10px;}
+.results-count strong{color:var(--steel);}
+
+.offer-toggle{
+  position:fixed; right:26px; bottom:26px; z-index:40;
+  display:flex; align-items:center; gap:10px; padding:14px 22px; border-radius:50px;
+  background:linear-gradient(120deg, var(--pink), #db2777); color:#fff; cursor:pointer;
+  font-size:14px; font-weight:800; letter-spacing:.01em;
+  box-shadow:0 10px 26px rgba(236,72,153,0.4);
+  transition:transform .15s;
+}
+.offer-toggle:hover{transform:translateY(-2px) scale(1.02);}
+.count-pill{background:rgba(255,255,255,0.25); padding:2px 9px; border-radius:20px; font-size:12.5px; font-family:var(--mono); box-shadow:0 1px 2px rgba(0,0,0,0.15) inset;}
+
+.table-wrap{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
+table{width:100%; border-collapse:collapse; font-size:13px;}
+thead th{
+  text-align:left; padding:13px 16px; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
+  color:var(--steel); border-bottom:1px solid var(--line); font-weight:700; cursor:pointer; user-select:none;
+  white-space:nowrap; background:var(--panel-2); position:sticky; top:0; z-index:2;
+}
+thead th:hover{color:var(--navy);}
+thead th .arrow{font-size:9px; margin-left:4px; color:var(--gold);}
+tbody tr{border-bottom:1px solid var(--line-soft);}
+tbody tr:hover{background:var(--steel-soft);}
+tbody td{padding:11px 16px; vertical-align:top; color:var(--text-hi);}
+td.catcode{font-family:var(--mono); font-size:12px; color:var(--steel); white-space:nowrap;}
+td.mrp{font-family:var(--mono); font-weight:700; color:var(--gold); white-space:nowrap; text-align:right;}
+td.desc-cell{color:var(--text-mid); max-width:400px;}
+.tag{
+  display:inline-block; padding:3px 9px; border-radius:6px; font-size:11px; font-weight:700;
+  background:var(--steel-soft); color:var(--steel); border:1px solid rgba(46,111,149,0.25); white-space:nowrap;
+}
+.cat-cell .tag{background:var(--gold-soft); color:#8a651b; border-color:rgba(201,150,44,0.3);}
+.cls-tag{background:var(--cyan-soft); color:#0b6a66; border:1px solid rgba(14,165,160,0.3); font-family:var(--mono); font-size:10.5px; padding:2px 7px; border-radius:5px; white-space:nowrap; display:inline-block; margin-top:4px;}
+.remarks-tag{display:inline-block; padding:3px 9px; border-radius:6px; font-size:10.5px; font-weight:700; white-space:nowrap;}
+.remarks-tag.rk-price{background:rgba(47,158,88,0.12); color:#1f7a41; border:1px solid rgba(47,158,88,0.3);}
+.remarks-tag.rk-request{background:var(--gold-soft); color:#8a651b; border:1px solid rgba(201,150,44,0.3);}
+.remarks-tag.rk-nonprice{background:var(--coral-soft); color:#a12c1f; border:1px solid rgba(192,57,43,0.3);}
+.remarks-tag.rk-none{color:var(--text-lo); font-weight:400;}
+mark{background:rgba(14,165,160,0.25); color:var(--navy); border-radius:3px; padding:0 1px;}
+.add-btn{
+  width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:var(--panel-2);
+  color:var(--steel); font-size:16px; font-weight:800; cursor:pointer; transition:all .15s; line-height:1;
+}
+.add-btn:hover{border-color:var(--steel); box-shadow:0 0 0 3px var(--steel-soft);}
+.add-btn.added{background:var(--green); color:#fff; border-color:var(--green);}
+.empty-state{padding:60px 20px; text-align:center; color:var(--text-lo);}
+.empty-state svg{width:40px; height:40px; margin-bottom:12px; opacity:.5;}
+
+.drawer-overlay{position:fixed; inset:0; background:rgba(16,36,62,0.35); z-index:50; display:none;}
+.drawer-overlay.open{display:block;}
+.drawer{
+  position:fixed; right:0; top:0; bottom:0; width:460px; max-width:94vw; background:#fff;
+  border-left:1px solid var(--line); z-index:51; transform:translateX(100%); transition:transform .25s;
+  display:flex; flex-direction:column; box-shadow:-20px 0 50px rgba(16,36,62,0.18);
+}
+.drawer.open{transform:translateX(0);}
+.drawer-head{padding:18px 22px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; align-items:center;}
+.drawer-head h3{margin:0; font-size:15px; color:var(--navy); letter-spacing:.02em;}
+.drawer-head-actions{display:flex; align-items:center; gap:6px;}
+#maximizeDrawer{background:var(--panel-2); border:1px solid var(--line); border-radius:7px; color:var(--text-mid); font-size:14px; cursor:pointer; width:30px; height:30px; line-height:1; transition:all .15s;}
+#maximizeDrawer:hover{border-color:var(--steel); color:var(--steel);}
+#closeDrawer{background:none; border:none; color:var(--text-mid); font-size:22px; cursor:pointer;}
+.drawer{transition:transform .25s, width .25s, max-width .25s, border-radius .25s;}
+.drawer.maximized{width:100%; max-width:100%; border-radius:0; box-shadow:none;}
+.drawer.maximized .drawer-body{padding:20px 36px;}
+.drawer.maximized #drawerBody{display:grid; grid-template-columns:repeat(auto-fill, minmax(340px,1fr)); gap:14px; align-content:start;}
+.drawer.maximized .drawer-item{margin-bottom:0;}
+.drawer.maximized .bulk-bar,.drawer.maximized .drawer-totals,.drawer.maximized .drawer-actions{max-width:900px; margin:0 auto; width:100%;}
+.drawer.maximized .drawer-actions{display:flex;}
+.drawer-body{flex:1; overflow-y:auto; padding:14px 18px;}
+.bulk-bar{display:flex; align-items:center; gap:8px; padding:12px 22px; border-bottom:1px solid var(--line); background:var(--panel-2); font-size:12px; color:var(--text-mid);}
+.bulk-bar input{width:60px; padding:6px 8px; border:1px solid var(--line); border-radius:6px; font-size:12.5px; font-family:var(--mono); text-align:right;}
+.bulk-bar button{padding:6px 12px; border-radius:6px; border:1px solid var(--steel); background:var(--steel-soft); color:var(--steel); font-size:12px; font-weight:700; cursor:pointer;}
+.drawer-empty{color:var(--text-lo); text-align:center; padding:40px 10px; font-size:13px;}
+.drawer-item{border:1px solid #dad6f7; border-radius:10px; padding:12px 14px; margin-bottom:10px; background:#f4f2fd;}
+.drawer-item .row1{display:flex; justify-content:space-between; gap:10px;}
+.drawer-item .name{font-size:13px; color:var(--navy); font-weight:600; line-height:1.3;}
+.drawer-item .code{font-size:11px; color:#7e78b0; font-family:var(--mono); margin-top:4px;}
+.drawer-item .remove{background:none; border:none; color:var(--pink); font-size:11px; cursor:pointer; white-space:nowrap;}
+.drawer-item .row2{display:flex; justify-content:space-between; align-items:center; margin-top:10px; gap:10px; flex-wrap:wrap;}
+.qty-control{display:flex; align-items:center; gap:8px; font-family:var(--mono); color:var(--navy-2);}
+.qty-control button{width:24px; height:24px; border-radius:6px; border:1px solid #dad6f7; background:#fff; color:var(--navy); cursor:pointer;}
+.qty-control input.qty-input{width:44px; padding:4px 2px; border:1.5px solid #dad6f7; border-radius:6px; font-size:13px; font-family:var(--mono); text-align:center; color:var(--navy);}
+.disc-control{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--navy-2);}
+.disc-control input{width:48px; padding:4px 6px; border:1.5px solid #dad6f7; border-radius:6px; font-size:12px; font-family:var(--mono); text-align:right;}
+.price-control{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--navy-2);}
+.price-control input{width:70px; padding:4px 6px; border:1.5px solid #dad6f7; border-radius:6px; font-size:12px; font-family:var(--mono); text-align:right;}
+.row3{display:flex; justify-content:space-between; margin-top:8px; padding-top:8px; border-top:1px dashed #dad6f7; font-size:12px;}
+.row3 .net{color:#7e78b0;}
+.line-total{font-family:var(--mono); color:var(--gold); font-weight:700; font-size:13px;}
+.drawer-totals{padding:12px 22px; border-top:1px solid var(--line); font-size:12.5px;}
+.drawer-totals .trow{display:flex; justify-content:space-between; padding:2px 0; color:var(--text-mid);}
+.drawer-totals .trow.grand{font-size:16px; font-weight:800; color:var(--navy); border-top:1px solid var(--line); margin-top:6px; padding-top:8px;}
+.drawer-actions{display:flex; gap:8px; padding:0 22px 20px; flex-wrap:wrap;}
+.drawer-actions button{flex:1; min-width:110px; padding:11px; border-radius:9px; font-size:12.5px; font-weight:700; cursor:pointer; border:1px solid var(--line);}
+.btn-copy{background:var(--steel); color:#fff; border-color:var(--steel);}
+.btn-export{background:var(--green); color:#fff; border-color:var(--green);}
+.btn-print{background:transparent; color:var(--text-hi);}
+.btn-clear-offer{background:transparent; color:var(--coral); border-color:rgba(192,57,43,0.3);}
+
+.param-toggle{
+  width:30px; height:30px; border-radius:8px; border:1px solid var(--line); background:var(--panel-2);
+  color:var(--steel); font-size:12px; cursor:pointer; transition:all .15s; line-height:1;
+}
+.param-toggle:hover{border-color:var(--steel); box-shadow:0 0 0 3px var(--steel-soft);}
+.param-toggle.expanded{background:var(--steel); color:#fff; border-color:var(--steel);}
+.param-toggle-empty{width:30px; height:30px; display:inline-block;}
+tr.param-detail-row td{background:var(--panel-2); padding:16px 20px 20px;}
+.param-panel{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:#fff; box-shadow:var(--shadow);}
+.param-panel-head{
+  display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+  padding:12px 18px; background:linear-gradient(120deg, var(--navy), var(--navy-2) 130%); color:#fff;
+}
+.param-panel-head strong{font-size:13px; letter-spacing:.02em;}
+.param-panel-head span{font-size:11.5px; color:rgba(255,255,255,0.75);}
+.param-legend{
+  display:flex; gap:20px; padding:9px 18px; font-size:11.5px; color:var(--text-mid);
+  border-bottom:1px solid var(--line); flex-wrap:wrap; background:var(--panel-2);
+}
+.param-legend span{display:inline-flex; align-items:center; gap:6px;}
+.param-legend .sym{font-size:14px; width:14px; text-align:center; display:inline-block;}
+.param-table-wrap{overflow-x:auto;}
+.param-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+.param-table th{
+  background:var(--panel-2); text-align:left; padding:9px 14px; font-size:10px; text-transform:uppercase;
+  letter-spacing:.05em; color:var(--steel); border-bottom:1px solid var(--line); white-space:nowrap;
+}
+.param-table th.sym-head{text-align:center;}
+.param-table th.active-col{background:var(--steel); color:#fff;}
+.param-table td{padding:7px 14px; border-bottom:1px solid var(--line-soft); vertical-align:middle; color:var(--text-hi);}
+.param-table td.grp-cell{background:#e7f4ec; font-weight:700; color:#1c6b3a; font-size:11.5px; white-space:nowrap;}
+.param-table td.sym-cell{text-align:center; font-size:15px;}
+.param-table td.sym-cell.active-col{background:var(--steel-soft); font-weight:800;}
+.psym-default{color:var(--steel);}
+.psym-sel{color:var(--gold);}
+.psym-opt{color:var(--text-lo);}
+
+footer.note{margin-top:26px; font-size:11px; color:var(--text-lo); text-align:center; letter-spacing:.02em;}
+
+/* ---------- Tabs ---------- */
+.tab-bar{display:flex; gap:6px; margin-bottom:20px;}
+.tab-btn{
+  padding:10px 20px; border-radius:12px 12px 0 0; border:1px solid var(--line); border-bottom:none;
+  background:#f0f2f5; color:var(--text-mid); font-size:13.5px; font-weight:700; cursor:pointer;
+  letter-spacing:.02em;
+  box-shadow:0 1px 0 rgba(255,255,255,0.7) inset, 0 -2px 4px rgba(0,0,0,0.05) inset;
+}
+.tab-btn.active{
+  background:#ffffff; color:var(--navy);
+  box-shadow:0 1px 0 rgba(255,255,255,0.9) inset, 0 2px 5px rgba(16,36,62,0.12), 0 -3px 0 var(--gold) inset;
+}
+.tab-btn:not(.active):hover{color:var(--steel); background:#f4f6f9;}
+
+/* ---------- Adviser ---------- */
+.adv-layout{display:grid; grid-template-columns:340px 1fr; gap:20px; align-items:start;}
+.adv-panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:20px 22px; position:sticky; top:16px;
+}
+.adv-panel h2{
+  font-size:12.5px; margin:0 0 14px 0; color:var(--steel); font-weight:700;
+  text-transform:uppercase; letter-spacing:.10em; display:flex; align-items:center; gap:8px;
+}
+.adv-panel h2::before{content:''; width:8px; height:8px; border-radius:2px; background:var(--cyan); display:inline-block; transform:rotate(45deg);}
+#advFamily{width:100%; margin-bottom:16px;}
+.adv-group-label{font-size:11px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.06em; margin:14px 0 6px;}
+.adv-group-label:first-of-type{margin-top:0;}
+.adv-row{display:flex; align-items:flex-start; gap:8px; padding:5px 0; font-size:13px; color:var(--text-hi); cursor:pointer;}
+.adv-row input{margin-top:3px; cursor:pointer;}
+.adv-row:hover{color:var(--steel);}
+.adv-clear{margin-top:16px; width:100%; padding:9px; border-radius:8px; border:1px solid var(--line); background:transparent; color:var(--text-mid); font-size:12.5px; font-weight:700; cursor:pointer;}
+.adv-clear:hover{border-color:var(--coral); color:var(--coral);}
+
+.adv-results{min-height:200px;}
+.adv-score-row{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;}
+.adv-score-card{
+  background:var(--panel); border:2px solid var(--line); border-radius:12px; padding:14px 18px; min-width:150px;
+  cursor:default; transition:border-color .15s;
+}
+.adv-score-card.full-match{border-color:var(--green); background:rgba(47,158,88,0.06);}
+.adv-score-card .adv-model{font-weight:800; color:var(--navy); font-size:15px;}
+.adv-score-card .adv-fraction{font-family:var(--mono); font-size:12.5px; color:var(--text-mid); margin-top:4px;}
+.adv-score-card .adv-badge{display:inline-block; margin-top:6px; padding:2px 8px; border-radius:5px; font-size:10.5px; font-weight:700;}
+.adv-score-card.full-match .adv-badge{background:rgba(47,158,88,0.15); color:#1f7a41;}
+.adv-score-card:not(.full-match) .adv-badge{background:var(--gold-soft); color:#8a651b;}
+
+.adv-empty{color:var(--text-lo); text-align:center; padding:50px 20px; font-size:13.5px;}
+.adv-sku-table{background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; margin-bottom:16px;}
+.adv-sku-table table{width:100%; border-collapse:collapse; font-size:13px;}
+.adv-sku-table thead th{text-align:left; padding:11px 14px; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--steel); border-bottom:1px solid var(--line); background:var(--panel-2); font-weight:700;}
+.adv-sku-table tbody td{padding:10px 14px; border-bottom:1px solid var(--line-soft); vertical-align:top;}
+.adv-sku-table h3{font-size:13px; margin:0; padding:12px 14px; background:var(--panel-2); color:var(--navy); border-bottom:1px solid var(--line);}
+.comp-brand-chip{display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:8px; border:1px solid var(--line); font-size:13px; color:var(--text-hi); cursor:pointer; margin:0 6px 8px 0;}
+.comp-brand-chip input{cursor:pointer;}
+.comp-brand-chip.checked{border-color:var(--steel); background:var(--steel-soft); color:var(--steel); font-weight:700;}
+.comp-model-group-label{font-size:10.5px; font-weight:700; color:var(--gold); text-transform:uppercase; letter-spacing:.06em; margin:10px 0 4px;}
+.comp-model-group-label:first-child{margin-top:0;}
+
+/* ---------- Competitor Data compact panel ---------- */
+.comp-compact-panel{
+  background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
+  padding:18px 20px; margin-bottom:18px;
+}
+.comp-row-1{display:flex; gap:20px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px;}
+.comp-field{flex:1 1 220px; min-width:200px;}
+.comp-field select{width:100%;}
+.comp-model-panel-compact{
+  max-height:110px; overflow-y:auto; border:1px solid var(--line); border-radius:8px; padding:6px 10px;
+  column-count:4; column-gap:14px;
+}
+.comp-model-panel-compact .adv-row{padding:2px 0; font-size:12.5px; break-inside:avoid;}
+.comp-model-panel-compact .comp-model-group-label{break-inside:avoid; break-after:avoid;}
+@media (max-width:980px){
+  .comp-model-panel-compact{column-count:2;}
+}
+
+@media (max-width:980px){
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .drawer{width:100%;}
+  td.desc-cell{max-width:220px;}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation:none !important; transition:none !important;}
+}
+
+</style>
+
+<!-- No topbar/stats - embedded mode -->
+</head>
+<body style="margin:0;padding:0;background:var(--ink);">
+<div class="dash" style="padding:16px 20px 20px;">
+
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabCatalogBtn">Catalog</button>
+    <button class="tab-btn" id="tabAdviserBtn">Adviser</button>
+    <button class="tab-btn" id="tabCompetitorBtn">Competitor Data</button>
+  </div>
+
+  <div id="catalogView">
+
+  <div class="search-panel">
+    <h2>Find a product</h2>
+    <div class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Search by description, model, series, category, or catcode e.g. &quot;Frequency Meter&quot;, &quot;Alpha+&quot;, &quot;DMC&quot;, &quot;CBCT&quot;..." autocomplete="off">
+    </div>
+    <div class="filters-row">
+      <select id="basketFilter"><option value="">All Baskets</option></select>
+      <select id="seriesFilter"><option value="">All Series</option></select>
+      <select id="modelFilter"><option value="">All Models</option></select>
+      <select id="catFilter"><option value="">All Categories</option></select>
+      <select id="classFilter"><option value="">All Accuracy Classes</option></select>
+      <select id="remarksFilter"><option value="">All Remarks</option></select>
+      <button class="clear-btn" id="clearBtn">Clear filters</button>
+    </div>
+  </div>
+
+  <div class="results-count">Showing <strong id="resultCount">0</strong> of <strong id="totalCount">0</strong> line items</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th data-key="catcode">Catcode <span class="arrow"></span></th>
+          <th data-key="model">Model Name <span class="arrow"></span></th>
+          <th data-key="series">Product Series <span class="arrow">&#9650;</span></th>
+          <th>Description</th>
+          <th>Remarks</th>
+          <th data-key="category">Category <span class="arrow"></span></th>
+          <th data-key="mrp">MRP <span class="arrow"></span></th>
+          <th></th>
+          <th>Params</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+
+  </div>
+
+  <div id="adviserView" style="display:none;">
+    <div class="adv-layout">
+      <div class="adv-panel">
+        <h2>Model Adviser</h2>
+        <select id="advFamily"></select>
+        <div class="adv-group-label">Refine SKU results</div>
+        <select id="advClassFilter" style="width:100%; margin-bottom:8px;"><option value="">All Accuracy Classes</option></select>
+        <select id="advRemarksFilter" style="width:100%; margin-bottom:16px;"><option value="">All Remarks</option></select>
+        <div id="advParamsPanel"></div>
+        <button class="adv-clear" id="advClearBtn">Clear selections</button>
+      </div>
+      <div class="adv-results" id="advResults"></div>
+    </div>
+  </div>
+
+  <div id="competitorView" style="display:none;">
+    <div class="comp-compact-panel">
+      <div class="comp-row-1">
+        <div class="comp-field">
+          <div class="adv-group-label" style="margin-top:0;">Competitor Brand</div>
+          <div id="compBrandPanel"></div>
+        </div>
+        <div class="comp-field" style="min-width:180px;">
+          <div class="adv-group-label" style="margin-top:0;">Refine ELM Results</div>
+          <select id="compRemarksFilter"><option value="">All Remarks</option></select>
+        </div>
+        <div class="comp-field" style="flex:0 0 auto; align-self:flex-end;">
+          <button class="offer-toggle" id="compSearchBtn" style="position:static; padding:9px 22px;">Search</button>
+          <button class="adv-clear" id="compClearBtn" style="width:auto; padding:9px 16px; margin-top:0; margin-left:8px;">Clear</button>
+        </div>
+      </div>
+      <div class="adv-group-label">Competitor Model</div>
+      <div id="compModelPanel" class="comp-model-panel-compact">
+        <div class="adv-empty" style="padding:10px 4px;">Select a brand first.</div>
+      </div>
+    </div>
+    <div class="adv-results" id="compResults"><div class="adv-empty">Pick a competitor brand and model, then hit Search.</div></div>
+  </div>
+
+  
+
+<button class="offer-toggle" id="offerToggle">&#128221; Offer List <span class="count-pill" id="offerCountPill">0</span></button>
+
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="offerDrawer">
+  <div class="drawer-head"><h3>Offer List</h3><div class="drawer-head-actions"><button id="maximizeDrawer" title="Maximize view">&#9974;</button><button id="closeDrawer" title="Close">&times;</button></div></div>
+  <div class="bulk-bar">
+    Apply <input type="number" id="bulkDiscount" value="0" min="0" max="100" step="0.5">% discount to
+    <button id="bulkApplyBtn">all rows</button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+  <div class="drawer-totals" id="drawerTotals"></div>
+  <div class="drawer-actions">
+    <button class="btn-export" id="exportExcelBtn">Export to Excel</button>
+    <button class="btn-save-lead" id="saveToLeadBtn" style="background:var(--navy);color:#fff;border-color:var(--navy);">✅ Save to Lead</button>
+    <button class="btn-clear-offer" id="clearOfferBtn">Clear</button>
+  </div>
+</div>
+</div>
+<script id="competitor-data" type="application/json">[{"elm": "PQ 8800X", "catcode": "PQ8800T5R0NH", "lk": "", "schneider": "ION 92040", "multispan": "", "secure": ""}, {"elm": "PQ 8500", "catcode": "PQ8500O5R000", "lk": "", "schneider": "EM8240, EM 8340", "multispan": "", "secure": ""}, {"elm": "PQ 8500", "catcode": "PQ8500O5R001", "lk": "", "schneider": "PM8240", "multispan": "", "secure": ""}, {"elm": "LG 6400", "catcode": "LG6400P11008", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P11009", "lk": "", "schneider": "EM 7230", "multispan": "AVH 16-M1", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P310T9", "lk": "", "schneider": "EM 7280", "multispan": "", "secure": "MAXCHECK-400"}, {"elm": "EN 8400", "catcode": "EN8400P51009", "lk": "WL4430", "schneider": "EM 7290", "multispan": "", "secure": ""}, {"elm": "EN 7500", "catcode": "EN7500P11008", "lk": "", "schneider": "", "multispan": "PQM 16", "secure": ""}, {"elm": "PN 8700", "catcode": "PN8700P510T9", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "PN 8700", "catcode": "PN8700P5R0NN", "lk": "", "schneider": "PM5760", "multispan": "", "secure": "Elite 500"}, {"elm": "PN 8700", "catcode": "PN8700P3R0NN", "lk": "", "schneider": "PM5580", "multispan": "", "secure": "Elite 500"}, {"elm": "EN 7500", "catcode": "EN7500P110I0", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 7500", "catcode": "EN7500P310N7", "lk": "", "schneider": "", "multispan": "", "secure": "ELITE-307"}, {"elm": "EN 7500", "catcode": "EN7500P510I7", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P110I7", "lk": "WL4440", "schneider": "EM6400NG+", "multispan": "", "secure": "ELITE 102, ELITE 103, Elite 404, Elite 405, Elite 406, Elite 407, Elite 408"}, {"elm": "EN 8400", "catcode": "EN8400P310I7", "lk": "WL4440", "schneider": "PM2230, PM1125H, PM1120H", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P510I7", "lk": "WL4440", "schneider": "", "multispan": "", "secure": ""}, {"elm": "PN 8700", "catcode": "PN8700P310I7", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "PN 8700", "catcode": "PN8700P310Q7", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P12007", "lk": "", "schneider": "EM6400NG+, PM1125H, PM1120H", "multispan": "", "secure": "Elite 404, Elite 405, Elite 406, Elite 407, Elite 408"}, {"elm": "EN 8400", "catcode": "EN8400P32007", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P52007", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 7500", "catcode": "EN7500P31002", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P3100K", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P310IN", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P3100P", "lk": "", "schneider": "", "multispan": "EPM-14 class 0.5", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P3R0NN", "lk": "", "schneider": "PM5320, PM5560", "multispan": "", "secure": ""}, {"elm": "PN 8700", "catcode": "PN8700P160TH", "lk": "", "schneider": "PM5570,", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P33007", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8400", "catcode": "EN8400P37007", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 7520", "catcode": "EN7520P3100L", "lk": "", "schneider": "PM1130H, PM1230H", "multispan": "", "secure": ""}, {"elm": "EN 8420", "catcode": "EN8420P11007", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "EN 8420", "catcode": "EN8420P310I7", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 6400", "catcode": "LG6400P11000", "lk": "WL4410", "schneider": "", "multispan": "", "secure": "ELITE-4432, ELITE-443"}, {"elm": "LG 6400", "catcode": "LG6400P31000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 6400", "catcode": "LG6400P11A10", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 6435", "catcode": "LG6435P11000", "lk": "WL4405", "schneider": "EM6436H", "multispan": "", "secure": "Elite 401"}, {"elm": "LG 6435", "catcode": "LG6435P11A10", "lk": "6330", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 6435", "catcode": "LG6435P31000", "lk": "WL4405", "schneider": "EM6436H", "multispan": "", "secure": ""}, {"elm": "LG 6435", "catcode": "LG6435P11002", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 6430", "catcode": "LG6430P10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2510", "catcode": "LG2510P11000", "lk": "", "schneider": "EM6433H", "multispan": "", "secure": "ELITE-442"}, {"elm": "LG 2519", "catcode": "LG2519P10000", "lk": "WC4000", "schneider": "", "multispan": "", "secure": "E 300"}, {"elm": "LG 2519", "catcode": "LG2519P11000", "lk": "WC4000", "schneider": "EM1200", "multispan": "", "secure": "ELITE-441"}, {"elm": "LG 2519", "catcode": "LG2519P11A10", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2519", "catcode": "LG2519P21000", "lk": "WC4000", "schneider": "EM1200", "multispan": "", "secure": ""}, {"elm": "µG 1119", "catcode": "MG1119P10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µG 5110", "catcode": "MG5110P11000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG M30", "catcode": "LG0M30D11A10", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG M13", "catcode": "LG0M13D11A00", "lk": "WD4010", "schneider": "", "multispan": "", "secure": ""}, {"elm": "IoT 30", "catcode": "LG0M30P13A10", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "IoT 10", "catcode": "LG0M10P13A10", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2510D", "catcode": "LG2510D11A00", "lk": "WD4020", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2510D", "catcode": "LG2510D11000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2550D", "catcode": "LG2550D11A00", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2550D", "catcode": "LG2550D11000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2550D", "catcode": "LG2550D31000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2550D", "catcode": "LG2550D310D7", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LD 2510D", "catcode": "LD2510D11800", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LD 2510D", "catcode": "LD2510D13800", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LD 2310D", "catcode": "LD2310D11800", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LD 2310D", "catcode": "LD2310D13800", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2520", "catcode": "LG2520P11000", "lk": "WC4040", "schneider": "EM6438", "multispan": "", "secure": ""}, {"elm": "LG 2520", "catcode": "LG2520P21000", "lk": "WC4040", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2520", "catcode": "LG2520P11A10", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2599", "catcode": "LG2599P11000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2599", "catcode": "LG2599P21000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 2599", "catcode": "LG2599P11A10", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "LG 5120D", "catcode": "LG5120D11B00", "lk": "", "schneider": "", "multispan": "AVF-19D", "secure": ""}, {"elm": "SL 1300", "catcode": "SL1300S10000", "lk": "WL4110", "schneider": "EM6459H, DM 6100", "multispan": "AVF-19D", "secure": "M 310"}, {"elm": "SL 1300", "catcode": "SL1300S20000", "lk": "WL4110", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL 1300", "catcode": "SL1300S11000", "lk": "", "schneider": "DM 6300", "multispan": "AVF-19D(60A)", "secure": ""}, {"elm": "SL 1300", "catcode": "SL1300S10610", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL 1300", "catcode": "SL1300S10610", "lk": "WL4110", "schneider": "EM6459H", "multispan": "", "secure": ""}, {"elm": "SL 1340", "catcode": "SL1340S10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL 1330", "catcode": "SL1330S10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL V", "catcode": "SL000VS10000", "lk": "WL1110", "schneider": "DM1210", "multispan": "", "secure": ""}, {"elm": "SL V", "catcode": "SL000VS20000", "lk": "WL111O", "schneider": "DM1210", "multispan": "", "secure": "DPMV 100"}, {"elm": "SL A", "catcode": "SL000AS10000", "lk": "WL1120", "schneider": "DM1110", "multispan": "", "secure": ""}, {"elm": "SL A", "catcode": "SL000AS20000", "lk": "WL1120", "schneider": "DM1110", "multispan": "", "secure": "DPM 100"}, {"elm": "SL A", "catcode": "SL000AS10610", "lk": "", "schneider": "", "multispan": "VOLT-13 / 23", "secure": ""}, {"elm": "SL 3V", "catcode": "SL003VS10000", "lk": "WL1310", "schneider": "DM3210", "multispan": "", "secure": "DPM V 300"}, {"elm": "SL 3V", "catcode": "SL003VS20000", "lk": "WL1310", "schneider": "DM3210", "multispan": "AMP-13", "secure": ""}, {"elm": "SL 3A", "catcode": "SL003AS10000", "lk": "WL1320", "schneider": "DM3110", "multispan": "", "secure": "DPM I300"}, {"elm": "SL 3A", "catcode": "SL003AS20000", "lk": "WL1320", "schneider": "DM3110", "multispan": "", "secure": ""}, {"elm": "SL 3A", "catcode": "SL003AS10610", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha V", "catcode": "MA000VP10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha A", "catcode": "MA000AP10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha A", "catcode": "MA000AP10610", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha 3V", "catcode": "MA003VP10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha 3A", "catcode": "MA003AP10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha 3A", "catcode": "MA003AP10610", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL Hz", "catcode": "SL00HZS40000", "lk": "WL1130", "schneider": "DM1310", "multispan": "", "secure": "DPM F 100"}, {"elm": "µAlpha Hz", "catcode": "MA00HZP40000", "lk": "", "schneider": "", "multispan": "AV - 14 DV", "secure": ""}, {"elm": "SL ADC", "catcode": "SL0ADCS80760", "lk": "", "schneider": "", "multispan": "", "secure": "DPM I200"}, {"elm": "SL ADC", "catcode": "SL0ADCS90760", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL VDC", "catcode": "SL0VDCS80000", "lk": "", "schneider": "", "multispan": "", "secure": "DPM V200"}, {"elm": "SL VDC", "catcode": "SL0VDCS90000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha ADC", "catcode": "MA0ADCP80000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "µAlpha VDC", "catcode": "MA0VDCP80000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "Smart 3E", "catcode": "SM003EP10000", "lk": "WL4030", "schneider": "DM 5240", "multispan": "", "secure": ""}, {"elm": "Smart 3E", "catcode": "SM003EP1000C", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "GD 3110", "catcode": "GD3110P10000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL AV+", "catcode": "SL00AV+10000", "lk": "", "schneider": "", "multispan": "AV-12", "secure": ""}, {"elm": "SL AV+", "catcode": "SL00AV+20000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL 3V+", "catcode": "SL003V+10000", "lk": "", "schneider": "", "multispan": "VOLT -13", "secure": ""}, {"elm": "SL 3V+", "catcode": "SL003V+20000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL 3A+", "catcode": "SL003A+10000", "lk": "", "schneider": "", "multispan": "AMP-13", "secure": ""}, {"elm": "SL 3A+", "catcode": "SL003A+20000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL 3A+", "catcode": "SL003A+10610", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL V+", "catcode": "SL000V+10000", "lk": "", "schneider": "", "multispan": "AV-11V", "secure": ""}, {"elm": "SL V+", "catcode": "SL000V+20000", "lk": "", "schneider": "", "multispan": "", "secure": ""}, {"elm": "SL A+", "catcode": "SL000A+10000", "lk": "", "schneider": "", "multispan": "AV-14", "secure": ""}]</script>
+<script>
+(async function(){
+  // ── Load product data from portal server ─────────────────────────────────
+  let DATA;
+  try {
+    const _r = await fetch('/products.json');
+    if(!_r.ok) throw new Error('HTTP ' + _r.status);
+    DATA = await _r.json();
+  } catch(e) {
+    document.body.innerHTML = '<div style="padding:24px;text-align:center;color:#dc2626;font-family:sans-serif;">'
+      + '<p style="font-size:15px;font-weight:700;">⚠️ Could not load product catalog</p>'
+      + '<p style="font-size:13px;">' + e.message + '</p></div>';
+    return;
+  }
+  const COMP_DATA = JSON.parse(document.getElementById('competitor-data').textContent);
+
+  // ---------- Build search index + accuracy-class extraction ----------
+  const CLASS_RE = /\b(?:cl|class)\.?\s*([0-9]+(?:\.[0-9]+)?)\s*(s\b|fs\b)?/gi;
+  function extractClasses(desc){
+    const out = [];
+    if(!desc) return out;
+    let m;
+    CLASS_RE.lastIndex = 0;
+    while((m = CLASS_RE.exec(desc))){
+      let num = m[1];
+      const suf = (m[2]||'').toUpperCase();
+      let label;
+      if(suf === 'S') label = num + 'S';
+      else if(suf === 'FS') label = num + 'FS';
+      else { if(num.indexOf('.') === -1) num = num + '.0'; label = num; }
+      if(out.indexOf(label) === -1) out.push(label);
+    }
+    return out;
+  }
+
+  DATA.forEach(function(r){
+    r._search = [r.catcode, r.model, r.series, r.desc, r.category, r.basket, r.id, r.remarks]
+      .filter(Boolean).join(' ').toLowerCase();
+    r.classes = extractClasses(r.desc);
+  });
+
+  // ---------- KPI strip ----------
+  const seriesSet = new Set(DATA.map(r=>r.series).filter(Boolean));
+  const modelSet = new Set(DATA.map(r=>r.model).filter(Boolean));
+  const catSet = new Set(DATA.map(r=>r.category).filter(Boolean));
+  const prices = DATA.map(r=>r.mrp).filter(v=>typeof v === 'number');
+  const avgPrice = prices.length ? Math.round(prices.reduce((a,b)=>a+b,0)/prices.length) : 0;
+
+  function gaugeSVG(pct, color){
+    const r = 16, cx = 20, cy = 20;
+    const circumference = 2 * Math.PI * r;
+    const offset = circumference * (1 - pct/100);
+    return '<svg class="gauge" viewBox="0 0 40 40">' +
+      '<circle cx="20" cy="20" r="'+r+'" fill="none" stroke="#eceff3" stroke-width="4"/>' +
+      '<circle cx="20" cy="20" r="'+r+'" fill="none" stroke="'+color+'" stroke-width="4" stroke-linecap="round" ' +
+      'stroke-dasharray="'+circumference+'" stroke-dashoffset="'+offset+'" transform="rotate(-90 20 20)"/>' +
+      '</svg>';
+  }
+
+  const kpis = [
+    {num: DATA.length, label:'Total SKUs', color:'#2E6F95', cls:'c-steel'},
+    {num: seriesSet.size, label:'Product Series', color:'#0EA5A0', cls:'c-cyan'},
+    {num: modelSet.size, label:'Model Names', color:'#C9962C', cls:'c-gold'},
+    {num: catSet.size, label:'Categories', color:'#2F9E58', cls:'c-green'},
+    {num: '\u20b9' + avgPrice.toLocaleString('en-IN'), label:'Avg. MRP', color:'#2E6F95', cls:'c-steel'}
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(function(k, i){
+    return '<div class="kpi-card '+k.cls+'">' + gaugeSVG(55 + i*9, k.color) +
+      '<div><div class="num">'+k.num+'</div><div class="label">'+k.label+'</div></div></div>';
+  }).join('');
+  document.getElementById('dataCount').textContent = DATA.length;
+  document.getElementById('totalCount').textContent = DATA.length;
+
+  // ---------- Populate filter dropdowns ----------
+  const basketFilter = document.getElementById('basketFilter');
+  const seriesFilter = document.getElementById('seriesFilter');
+  const modelFilter = document.getElementById('modelFilter');
+  const catFilter = document.getElementById('catFilter');
+  const classFilter = document.getElementById('classFilter');
+  const remarksFilter = document.getElementById('remarksFilter');
+
+  function fillSelect(el, values, placeholder){
+    const current = el.value;
+    el.innerHTML = '<option value="">'+placeholder+'</option>' +
+      values.map(v=>'<option value="'+escapeAttr(v)+'">'+escapeHtml(v)+'</option>').join('');
+    if(values.includes(current)) el.value = current;
+  }
+
+  function refreshSeriesOptions(){
+    const b = basketFilter.value;
+    const pool = b ? DATA.filter(r=>r.basket===b) : DATA;
+    const series = Array.from(new Set(pool.map(r=>r.series).filter(Boolean))).sort();
+    fillSelect(seriesFilter, series, 'All Series');
+  }
+
+  function refreshModelOptions(){
+    const s = seriesFilter.value;
+    const pool = s ? DATA.filter(r=>r.series===s) : DATA;
+    const models = Array.from(new Set(pool.map(r=>r.model).filter(Boolean))).sort();
+    fillSelect(modelFilter, models, 'All Models');
+  }
+
+  function classSortKey(c){
+    const m = c.match(/^([0-9.]+)(S|FS)?$/);
+    const num = m ? parseFloat(m[1]) : 0;
+    const suf = (m && m[2]) || '';
+    const sufRank = suf === '' ? 0 : suf === 'S' ? 1 : 2;
+    return num*10 + sufRank;
+  }
+
+  const allBaskets = Array.from(new Set(DATA.map(r=>r.basket).filter(Boolean))).sort();
+  fillSelect(basketFilter, allBaskets, 'All Baskets');
+  refreshSeriesOptions();
+  refreshModelOptions();
+  fillSelect(catFilter, Array.from(catSet).sort(), 'All Categories');
+  const allClasses = Array.from(new Set(DATA.flatMap(r=>r.classes))).sort((a,b)=>classSortKey(a)-classSortKey(b));
+  classFilter.innerHTML = '<option value="">All Accuracy Classes</option>' +
+    allClasses.map(c=>'<option value="'+escapeAttr(c)+'">Cl '+escapeHtml(c)+'</option>').join('');
+  const allRemarks = Array.from(new Set(DATA.map(r=>r.remarks).filter(Boolean))).sort();
+  fillSelect(remarksFilter, allRemarks, 'All Remarks');
+  if(allRemarks.includes('Pricebook Item')) remarksFilter.value = 'Pricebook Item';
+
+  // ---------- Helpers ----------
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];
+    });
+  }
+  function escapeAttr(s){ return escapeHtml(s).replace(/"/g,'&quot;'); }
+
+  function highlight(text, tokens){
+    if(!text) return '';
+    let out = escapeHtml(text);
+    tokens.forEach(function(t){
+      if(!t) return;
+      const esc = t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+      out = out.replace(new RegExp('('+esc+')','ig'), '<mark>$1</mark>');
+    });
+    return out;
+  }
+
+  function fmtMoney(v){
+    if(typeof v !== 'number') return '-';
+    return '\u20b9' + v.toLocaleString('en-IN');
+  }
+  function round2(v){ return Math.round((v + Number.EPSILON) * 100) / 100; }
+
+  function remarksTag(remark){
+    if(!remark) return '<span class="remarks-tag rk-none">&mdash;</span>';
+    let cls = 'rk-nonprice';
+    if(remark.indexOf('Price On Request') !== -1) cls = 'rk-request';
+    else if(remark.indexOf('Pricebook Item') === 0) cls = 'rk-price';
+    return '<span class="remarks-tag '+cls+'">'+escapeHtml(remark)+'</span>';
+  }
+
+  // ---------- State ----------
+  let sortKey = 'series';
+  let sortDir = 1;
+  const offerItems = {}; // id (unique SAP Model ID) -> {item, qty, discount}   -- keyed by id, not catcode
+  const expandedParamRows = new Set(); // ids of rows whose parameter panel is open
+
+  // ---------- Parameter availability guides (from selection guide sheets) ----------
+  // d = DEFAULT, s = Any 3 Group User Selectable, o = OPTIONAL, '' = not available
+  const PARAM_GUIDES = [
+    { // LG 6430 / LG 6435 / LG 6400
+      familyLabel: 'LG 6430 / 6435 / 6400',
+      cols: [{label:'LG 6430'},{label:'LG 6435'},{label:'LG 6400'}],
+      match: function(r){
+        if(!r.series || r.series.indexOf('LG 64') === -1) return null;
+        const m = (r.model || '').toUpperCase();
+        if(m.indexOf('6430') !== -1) return 0;
+        if(m.indexOf('6435') !== -1) return 1;
+        if(m.indexOf('6400') !== -1) return 2;
+        return null;
+      },
+      familyNote: 'full LG 64** Series family shown for comparison',
+      groups: [
+        { name:'Group 1: Basic', rows:[
+          ['VLL & V LN avg, V1, V2, V3, V12, V23, V31','d','s','d'],
+          ['Amps - A avg, A1, A2, A3','d','s','d'],
+          ['Frequency','d','s','d'],
+          ['Phase angle - V&A','','s','d'],
+          ['Unbalance V&A','','s','d'],
+          ['Calculated Neutral Current','','','d']
+        ]},
+        { name:'Group 2: Power', rows:[
+          ['KW total, KW1, KW2, KW3','d','s','d'],
+          ['KVA total, KVA1, KVA2, KVA3','d','s','d'],
+          ['PF avg, PF1, PF2, PF3','d','s','d']
+        ]},
+        { name:'Group 3: Import Energy', rows:[
+          ['KWh','d','s','d'],
+          ['KVAh','d','s','d'],
+          ['Load hours','d','s','d'],
+          ['ON hours','','s','d'],
+          ['Power Cycles','','s','d'],
+          ['CO2','','s','d'],
+          ['Phase wise Energy through communication','','s','d']
+        ]},
+        { name:'Group 4: Reactive Import', rows:[
+          ['KVAR','','s','d'],
+          ['KVARh ind & Cap','','s','d']
+        ]},
+        { name:'Group 5: Export Energy', rows:[
+          ['Export KWh','','s','d'],
+          ['Export KVAh','','s','d'],
+          ['Load hours','','s','d']
+        ]},
+        { name:'Group 6: Reactive Export', rows:[
+          ['KVAR','','s','d'],
+          ['KVARh ind & Cap','','s','d']
+        ]},
+        { name:'Group 7: Power Quality parameter', rows:[
+          ['THD-Voltage & Current up to 15th level','','s','d']
+        ]},
+        { name:'Communication', rows:[
+          ['RS 485','','d','d']
+        ]},
+        { name:'CT', rows:[
+          ['100 A Hanging CT','','o','o']
+        ]},
+        { name:'Digital Outputs', rows:[
+          ['2DO','','o','']
+        ]}
+      ]
+    },
+    { // LG 2519 / LG 2510
+      familyLabel: 'LG 2519 / 2510',
+      cols: [{label:'LG 2519'},{label:'LG 2510'}],
+      match: function(r){
+        const m = (r.model || '').toUpperCase();
+        if(m === 'LG 2519P') return 0;
+        if(m === 'LG 2510P') return 1;
+        return null;
+      },
+      familyNote: 'LG 2519 / LG 2510 family shown for comparison',
+      groups: [
+        { name:'', rows:[
+          ['VLL & V LN avg, V1, V2, V3, V12, V23, V31','d','d'],
+          ['Amps - A avg, A1, A2, A3','d','d'],
+          ['Frequency (HZ)','d','d'],
+          ['KW total, KW1, KW2, KW3','','d'],
+          ['KVA total, KVA1, KVA2, KVA3','','d'],
+          ['PF avg, PF1, PF2, PF3','','d'],
+          ['KWh','d','d'],
+          ['KVAh','','d'],
+          ['Load hours','','d'],
+          ['ON hours','','d'],
+          ['Phase wise energy via communication','','d'],
+          ['RS485','o','d'],
+          ['100A Hanging CT','o','']
+        ]}
+      ]
+    },
+    { // LG 2599 / LG 2520
+      familyLabel: 'LG 2599 / 2520',
+      cols: [{label:'LG 2599'},{label:'LG 2520'}],
+      match: function(r){
+        const m = (r.model || '').toUpperCase();
+        if(m === 'LG 2599P') return 0;
+        if(m === 'LG 2520P') return 1;
+        return null;
+      },
+      familyNote: 'LG 2599 / LG 2520 family shown for comparison',
+      groups: [
+        { name:'', rows:[
+          ['VLL & V LN avg, V1, V2, V3, V12, V23, V31','','d'],
+          ['Amps - A avg, A1, A2, A3','d','d'],
+          ['Frequency (HZ)','','d'],
+          ['KW total, KW1, KW2, KW3','','d'],
+          ['KVA total, KVA1, KVA2, KVA3','','d'],
+          ['PF avg, PF1, PF2, PF3','','d'],
+          ['KWh - EB & DG','d','d'],
+          ['KVAh - EB & DG','d','d'],
+          ['Load hours - EB & DG','d','d'],
+          ['ON hours','d','d'],
+          ['Phase wise energy via communication','','d'],
+          ['RS485','d','d'],
+          ['100A Hanging CT','o','o']
+        ]}
+      ]
+    },
+    { // IOT 10 / IOT 30
+      familyLabel: 'IOT 10 / 30',
+      cols: [{label:'IOT 10'},{label:'IOT 30'}],
+      match: function(r){
+        const m = (r.model || '').toUpperCase();
+        if(m === 'IOT 10') return 0;
+        if(m === 'IOT 30') return 1;
+        return null;
+      },
+      familyNote: 'IOT 10 / IOT 30 family shown for comparison',
+      groups: [
+        { name:'Basic', rows:[
+          ['VLL & V LN avg, V1, V2, V3, V12, V23, V31','d','d'],
+          ['Amps - A avg, A1, A2, A3','d','d'],
+          ['Frequency','d','d'],
+          ['Phase angle - V&A','','d'],
+          ['RPM','d',''],
+          ['Unbalance V&A','','d'],
+          ['Calculated Neutral Current','','d']
+        ]},
+        { name:'Power', rows:[
+          ['KW total, KW1, KW2, KW3','d','d'],
+          ['KVA total, KVA1, KVA2, KVA3','d','d'],
+          ['PF avg, PF1, PF2, PF3','d','d']
+        ]},
+        { name:'Energy', rows:[
+          ['KWh','d','d'],
+          ['KVAh','d','d'],
+          ['Load hours','d','d'],
+          ['ON hours','d','d'],
+          ['Power Cycles','d','d'],
+          ['CO2','d','d'],
+          ['Phase wise Energy via communication','','d']
+        ]}
+      ]
+    },
+    { // SL A+ / V+ / AV+ / 3A+ / 3V+ / Hz / 1300C / 1330C / 1340C
+      familyLabel: 'SL A+ / V+ / AV+ / 3A+ / 3V+ / Hz / 1300C / 1330C / 1340C',
+      cols: [{label:'SL A+'},{label:'SL V+'},{label:'SL AV+'},{label:'SL 3A+'},{label:'SL 3V+'},{label:'SL Hz'},{label:'SL 1300C'},{label:'SL 1330C'},{label:'SL 1340C'}],
+      match: function(r){
+        const m = (r.model || '').toUpperCase();
+        if(m === 'SL A+') return 0;
+        if(m === 'SL V+') return 1;
+        if(m === 'SL AV+') return 2;
+        if(m === 'SL 3A+') return 3;
+        if(m === 'SL 3V+') return 4;
+        if(m === 'SL HZ') return 5;
+        if(m === 'SL 1300C') return 6;
+        if(m === 'SL 1330') return 7;
+        if(m === 'SL 1340') return 8;
+        return null;
+      },
+      familyNote: 'SL A+ / V+ / AV+ / 3A+ / 3V+ / Hz / 1300C / 1330C / 1340C family shown for comparison',
+      groups: [
+        { name:'', rows:[
+          ['A - Avg','d','','','d','','','d','d',''],
+          ['A1, A2, A3','','','','d','','','d','d',''],
+          ['VLN Avg','','d','d','','d','','d','','d'],
+          ['V LL - Avg','','','','','d','','d','','d'],
+          ['V1, V2, V3, V12, V23, V31','','','','','d','','d','','d'],
+          ['Hz','','','','','','d','d','','d'],
+          ['PF - Avg, PF1, PF2, PF3','','','','','','','o','',''],
+          ['RS485 Add-On Module','o','o','o','o','o','','o','o','o'],
+          ['Class 0.5','o','o','o','o','o','','o','o','o'],
+          ['60A Hanging CT','o','','','','o','','o','o','']
+        ]}
+      ]
+    },
+    { // EDC 2150P / EDC 2150D / EDC 2450D
+      familyLabel: 'EDC 2150P / 2150D / 2450D',
+      cols: [{label:'EDC 2150P'},{label:'EDC 2150D'},{label:'EDC 2450D'}],
+      match: function(r){
+        const m = (r.model || '').toUpperCase();
+        if(m === 'EDC 2150') return 0;
+        if(m === 'EDC 2150D') return 1;
+        if(m === 'EDC 2450D') return 2;
+        return null;
+      },
+      familyNote: 'EDC 2150P / EDC 2150D / EDC 2450D family shown for comparison',
+      groups: [
+        { name:'Basic', rows:[
+          ['DC Voltage','d','d','d'],
+          ['DC Current','d','d','d'],
+          ['Watts','d','d','d']
+        ]},
+        { name:'Import [Charging]', rows:[
+          ['Wh','d','d','d'],
+          ['Ah','d','d','d'],
+          ['Load Hours','d','d','d'],
+          ['Old Ah','d','d','d'],
+          ['Old Load Hours','d','d','d'],
+          ['Old Wh','d','d','d'],
+          ['Old Ah','d','d','d']
+        ]},
+        { name:'Export [Discharging]', rows:[
+          ['Wh','d','d','d'],
+          ['Ah','d','d','d'],
+          ['Load Hours','d','d','d'],
+          ['Old Ah','d','d','d'],
+          ['Old Load Hours','d','d','d'],
+          ['Old Wh','d','d','d'],
+          ['Old Ah','d','d','d']
+        ]},
+        { name:'Communication', rows:[
+          ['RS485','d','d','d']
+        ]},
+        { name:'Accuracy', rows:[
+          ['Class 1.0','d','d','d']
+        ]},
+        { name:'Number of Channels', rows:[
+          ['Channels','1','1','4']
+        ]}
+      ]
+    },
+    { // EN 8400 / EN 7500 / PN 8700 (all model variants within each family)
+      familyLabel: 'EN 8400 / EN 7500 / PN 8700',
+      cols: [{label:'EN 8400'},{label:'EN 7500'},{label:'PN 8700'}],
+      match: function(r){
+        const m = (r.model || '').toUpperCase();
+        if(m.indexOf('EN 8400') !== -1) return 0;
+        if(m.indexOf('EN 7500') !== -1) return 1;
+        if(m.indexOf('PN 8700') !== -1) return 2;
+        return null;
+      },
+      familyNote: 'EN 8400 / EN 7500 / PN 8700 families shown for comparison &mdash; every model variant within each family (e.g. EN 8400P, EN 8400N, EN 8400 LM) uses this same guide',
+      groups: [
+        { name:'Basic', rows:[
+          ['VLL & V LN avg, V1, V2, V3, V12, V23, V31','d','d','d'],
+          ['Amps - A avg, A1, A2, A3','d','d','d'],
+          ['Frequency (HZ)','d','d','d'],
+          ['Phase angle - V&A','d','d','d'],
+          ['Unbalance V&A','d','d','d'],
+          ['Calculated Neutral Current','d','d','d']
+        ]},
+        { name:'Power', rows:[
+          ['KW total, KW1, KW2, KW3','d','d','d'],
+          ['KVA total, KVA1, KVA2, KVA3','d','d','d'],
+          ['KVAr total, KVAr1, KVAr2, KVAr3','d','d','d'],
+          ['PF avg, PF1, PF2, PF3','d','d','d']
+        ]},
+        { name:'Energy', rows:[
+          ['KWh Import & Export','d','d','d'],
+          ['KVAh Import & Export','d','d','d'],
+          ['KVArh Import & Export','d','d','d'],
+          ['Load hours','d','d','d'],
+          ['ON hour','d','d','d'],
+          ['CO2','d','d','d'],
+          ['Power Cycle (Interruptions)','d','d','d'],
+          ['Net Energy','','','d'],
+          ['Voltage & Amp Squared Hours','','','d']
+        ]},
+        { name:'Power Quality Parameters', rows:[
+          ['THD-Voltage & Current','d','d','d'],
+          ['Individual Harmonics','\u25a1 31st','\u25a1 31st','\u25a1 63rd'],
+          ['Power THD & TDD, TEHD & TOHD','','','']
+        ]},
+        { name:'Min / Max value', rows:[
+          ['VLL avg & Amps avg','d','d','d']
+        ]},
+        { name:'Demand / Load Parameters', rows:[
+          ['KW, KVA, KVAr','d','d','d']
+        ]},
+        { name:'TOD', rows:[
+          ['8 TOD','o','','o']
+        ]},
+        { name:'Demand Controlling', rows:[
+          ['Demand Controller with 2 Relay','','o',''],
+          ['Demand Controller with 4 Relay','o','','o']
+        ]},
+        { name:'Communication', rows:[
+          ['RS485','d','d','d'],
+          ['Ethernet','o','',''],
+          ['Wi-Fi','o','','']
+        ]},
+        { name:'', rows:[
+          ['Ethernet + USB Data Logging (256 MB)','o','','o'],
+          ['2DO','o','o','o'],
+          ['2DI + 2DO/ 2AI+2DO','o','','o'],
+          ['Dual Source','\u25a1 EN 8420','\u25a1 EN 7520','']
+        ]}
+      ]
+    },
+    { // LG M13 / LG M30 / LG 2510D / LG 2550D
+      familyLabel: 'LG M13 / M30 / 2510D / 2550D',
+      cols: [{label:'LG M13'},{label:'LG M30'},{label:'LG 2510D'},{label:'LG 2550D'}],
+      match: function(r){
+        const m = (r.model || '').toUpperCase();
+        if(m === 'LG M13') return 0;
+        if(m === 'LG M30') return 1;
+        if(m === 'LG 2510D') return 2;
+        if(m === 'LG 2550D') return 3;
+        return null;
+      },
+      familyNote: 'LG M13 / LG M30 / LG 2510D / LG 2550D family shown for comparison &mdash; please verify against the master sheet, some cells were hard to read at source resolution',
+      groups: [
+        { name:'Group I: Basic', rows:[
+          ['VLL & V LN avg, V1, V2, V3, V12, V23, V31','s','s','d','d'],
+          ['Amps - A avg, A1, A2, A3','s','s','d','d'],
+          ['Frequency','s','s','d','d'],
+          ['Phase angle - V&A','','s','d','d'],
+          ['Unbalance V&A','','s','','d'],
+          ['Calculated Neutral Current','','s','','d']
+        ]},
+        { name:'Group II: Power', rows:[
+          ['KW total, KW1, KW2, KW3','s','s','d','d'],
+          ['KVA total, KVA1, KVA2, KVA3','s','s','d','d'],
+          ['PF avg, PF1, PF2, PF3','s','s','d','d']
+        ]},
+        { name:'Group III: Import Energy', rows:[
+          ['KWh','s','s','d','d'],
+          ['KVAh','s','s','d','d'],
+          ['Load hours','s','s','d','d'],
+          ['ON hours','s','s','','d'],
+          ['Power Cycles','s','s','','d'],
+          ['CO2','s','s','','d'],
+          ['Phase wise Energy via communication','','s','d','d'],
+        ]},
+        { name:'Group IV: Reactive Import', rows:[
+          ['KVAR','s','s','','d'],
+          ['KVARh ind & Cap','s','s','','d']
+        ]},
+        { name:'Group V: Export Energy', rows:[
+          ['Export KWh','s','s','','d'],
+          ['KVAh','s','s','','d'],
+          ['Load hours','s','s','','d']
+        ]},
+        { name:'Group VI: Reactive Export', rows:[
+          ['KVAR','s','s','','d'],
+          ['KVARh ind & Cap','s','s','','d']
+        ]},
+        { name:'Group VII: Power Quality parameter', rows:[
+          ['THD-Voltage & Current up to 15th level','s','s','','d']
+        ]},
+        { name:'Demand Parameter', rows:[
+          ['KW, KVA, KVAr','','','','o']
+        ]},
+        { name:'Communication', rows:[
+          ['RS 485','','','d','d']
+        ]},
+        { name:'Current Rating', rows:[
+          ['5A Inbuilt','','','o','o'],
+          ['100A Direct','o','','o','o'],
+          ['100A Hanging CT','','o','','']
+        ]},
+        { name:'Memory', rows:[
+          ['512KB','','','','o']
+        ]}
+      ]
+    }
+  ];
+
+  function paramSym(code){
+    if(code==='d') return '<span class="psym-default" title="Default">&#9632;</span>';
+    if(code==='s') return '<span class="psym-sel" title="Any 3 Group User Selectable">&#9650;</span>';
+    if(code==='o') return '<span class="psym-opt" title="Optional">&#9633;</span>';
+    if(code==='') return '';
+    return '<span style="font-family:var(--mono); font-weight:700; color:var(--steel);">'+escapeHtml(code)+'</span>';
+  }
+
+  // Returns {guide, colIndex} if this row belongs to any covered selection-guide family, otherwise null.
+  function getParamMatch(r){
+    for(let g = 0; g < PARAM_GUIDES.length; g++){
+      const idx = PARAM_GUIDES[g].match(r);
+      if(idx !== null) return { guide: PARAM_GUIDES[g], colIndex: idx };
+    }
+    return null;
+  }
+
+  function buildParamPanel(guide, colIndex, r){
+    const cols = guide.cols;
+    const activeLabel = cols[colIndex].label;
+    let theadCells = cols.map(function(c, i){
+      return '<th class="sym-head'+(i===colIndex?' active-col':'')+'">'+c.label+'</th>';
+    }).join('');
+    let bodyRows = '';
+    guide.groups.forEach(function(group){
+      group.rows.forEach(function(row, idx){
+        const label = row[0];
+        const vals = row.slice(1);
+        bodyRows += '<tr>';
+        if(idx === 0 && group.name){
+          bodyRows += '<td class="grp-cell" rowspan="'+group.rows.length+'">'+escapeHtml(group.name)+'</td>';
+        } else if(idx === 0){
+          bodyRows += '<td class="grp-cell" rowspan="'+group.rows.length+'"></td>';
+        }
+        bodyRows += '<td>'+escapeHtml(label)+'</td>';
+        vals.forEach(function(v, i){
+          bodyRows += '<td class="sym-cell'+(i===colIndex?' active-col':'')+'">'+paramSym(v)+'</td>';
+        });
+        bodyRows += '</tr>';
+      });
+    });
+    return '<div class="param-panel">' +
+      '<div class="param-panel-head"><strong>Parameters available &mdash; ' + escapeHtml(r.model) + '</strong>' +
+      '<span>Highlighted column shows the selected model &middot; ' + guide.familyNote + '</span></div>' +
+      '<div class="param-legend">' +
+        '<span><span class="sym psym-sel">&#9650;</span> Any 3 Group User Selectable</span>' +
+        '<span><span class="sym psym-default">&#9632;</span> Default</span>' +
+        '<span><span class="sym psym-opt">&#9633;</span> Optional</span>' +
+      '</div>' +
+      '<div class="param-table-wrap"><table class="param-table"><thead><tr><th></th><th>Parameter</th>'+theadCells+'</tr></thead>' +
+      '<tbody>'+bodyRows+'</tbody></table></div>' +
+      '<div style="padding:8px 18px; font-size:11px; color:var(--text-lo); border-top:1px solid var(--line);">Highlighted column: <strong style="color:var(--steel);">'+escapeHtml(activeLabel)+'</strong></div>' +
+      '</div>';
+  }
+
+  // ---------- Core render ----------
+  function getFiltered(){
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    const tokens = q.split(/\s+/).filter(Boolean);
+    const bk = basketFilter.value;
+    const s = seriesFilter.value;
+    const m = modelFilter.value;
+    const c = catFilter.value;
+    const cl = classFilter.value;
+    const rk = remarksFilter.value;
+
+    let rows = DATA.filter(function(r){
+      if(bk && r.basket !== bk) return false;
+      if(s && r.series !== s) return false;
+      if(m && r.model !== m) return false;
+      if(c && r.category !== c) return false;
+      if(cl && r.classes.indexOf(cl) === -1) return false;
+      if(rk && r.remarks !== rk) return false;
+      if(tokens.length){
+        return tokens.every(t => r._search.indexOf(t) !== -1);
+      }
+      return true;
+    });
+
+    if(tokens.length){
+      rows = rows.map(function(r){
+        let score = 0;
+        tokens.forEach(function(t){
+          const model = (r.model||'').toLowerCase();
+          const series = (r.series||'').toLowerCase();
+          const desc = (r.desc||'').toLowerCase();
+          const catcode = (r.catcode||'').toLowerCase();
+          if(model === t) score += 12;
+          else if(model.indexOf(t) !== -1) score += 6;
+          if(series === t) score += 10;
+          else if(series.indexOf(t) !== -1) score += 5;
+          if(catcode.indexOf(t) !== -1) score += 7;
+          if(desc.indexOf(t) !== -1) score += 3;
+        });
+        return {r, score};
+      }).sort((a,b)=> b.score - a.score).map(x=>x.r);
+    } else {
+      rows = rows.slice().sort(function(a,b){
+        const av = a[sortKey], bv = b[sortKey];
+        if(typeof av === 'number' && typeof bv === 'number') return (av-bv)*sortDir;
+        return String(av||'').localeCompare(String(bv||'')) * sortDir;
+      });
+    }
+    return {rows, tokens};
+  }
+
+  function render(){
+    const {rows, tokens} = getFiltered();
+    document.getElementById('resultCount').textContent = rows.length;
+    const body = document.getElementById('tableBody');
+
+    if(rows.length === 0){
+      body.innerHTML = '<tr><td colspan="9"><div class="empty-state">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>' +
+        '<div>No matching products. Try a different keyword, model, series, or accuracy class.</div></div></td></tr>';
+      return;
+    }
+
+    const MAX_RENDER = 400;
+    const toRender = rows.slice(0, MAX_RENDER);
+
+    body.innerHTML = toRender.map(function(r){
+      const inOffer = !!offerItems[r.id];
+      const clsTags = r.classes.length ? r.classes.map(c=>'<span class="cls-tag">Cl '+escapeHtml(c)+'</span>').join(' ') : '';
+      const paramMatch = getParamMatch(r);
+      const isOpen = expandedParamRows.has(r.id);
+      const paramCell = paramMatch !== null ?
+        '<button class="param-toggle'+(isOpen?' expanded':'')+'" data-pid="'+escapeAttr(r.id)+'" title="View available parameters for this model">'+(isOpen?'&#9660;':'&#9654;')+'</button>' :
+        '<span class="param-toggle-empty"></span>';
+      let rowHtml = '<tr>' +
+        '<td class="catcode">'+highlight(r.catcode, tokens)+'</td>' +
+        '<td>'+highlight(r.model, tokens)+'</td>' +
+        '<td class="series-cell"><span class="tag">'+highlight(r.series, tokens)+'</span></td>' +
+        '<td class="desc-cell">'+highlight(r.desc, tokens)+(clsTags?'<br>'+clsTags:'')+'</td>' +
+        '<td>'+remarksTag(r.remarks)+'</td>' +
+        '<td class="cat-cell"><span class="tag">'+highlight(r.category, tokens)+'</span></td>' +
+        '<td class="mrp">'+fmtMoney(r.mrp)+'</td>' +
+        '<td><button class="add-btn'+(inOffer?' added':'')+'" data-id="'+escapeAttr(r.id)+'" title="Add to offer list">'+(inOffer?'&#10003;':'+')+'</button></td>' +
+        '<td>'+paramCell+'</td>' +
+        '</tr>';
+      if(paramMatch !== null && isOpen){
+        rowHtml += '<tr class="param-detail-row"><td colspan="9">'+buildParamPanel(paramMatch.guide, paramMatch.colIndex, r)+'</td></tr>';
+      }
+      return rowHtml;
+    }).join('') + (rows.length > MAX_RENDER ? '<tr><td colspan="9" style="text-align:center;color:var(--text-lo);padding:14px;">Showing first '+MAX_RENDER+' of '+rows.length+' matches &mdash; refine your search or filters to narrow further.</td></tr>' : '');
+
+    body.querySelectorAll('.add-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const id = btn.getAttribute('data-id');
+        toggleOfferItem(id);
+        render();
+        renderDrawer();
+      });
+    });
+
+    body.querySelectorAll('.param-toggle').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const id = btn.getAttribute('data-pid');
+        if(expandedParamRows.has(id)) expandedParamRows.delete(id);
+        else expandedParamRows.add(id);
+        render();
+      });
+    });
+  }
+
+  // ---------- Events: search & filters ----------
+  document.getElementById('searchInput').addEventListener('input', render);
+  basketFilter.addEventListener('change', function(){ refreshSeriesOptions(); refreshModelOptions(); render(); });
+  seriesFilter.addEventListener('change', function(){ refreshModelOptions(); render(); });
+  modelFilter.addEventListener('change', render);
+  catFilter.addEventListener('change', render);
+  classFilter.addEventListener('change', render);
+  remarksFilter.addEventListener('change', render);
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    document.getElementById('searchInput').value = '';
+    basketFilter.value = '';
+    refreshSeriesOptions();
+    seriesFilter.value = '';
+    refreshModelOptions();
+    modelFilter.value = '';
+    catFilter.value = '';
+    classFilter.value = '';
+    remarksFilter.value = allRemarks.includes('Pricebook Item') ? 'Pricebook Item' : '';
+    render();
+  });
+
+  // ---------- Sorting ----------
+  document.querySelectorAll('thead th[data-key]').forEach(function(th){
+    th.addEventListener('click', function(){
+      const key = th.getAttribute('data-key');
+      if(sortKey === key) sortDir *= -1; else { sortKey = key; sortDir = 1; }
+      document.querySelectorAll('thead th .arrow').forEach(a=>a.innerHTML='');
+      th.querySelector('.arrow').innerHTML = sortDir === 1 ? '&#9650;' : '&#9660;';
+      render();
+    });
+  });
+
+  // ---------- Offer drawer ----------
+  function toggleOfferItem(id){
+    if(offerItems[id]){
+      delete offerItems[id];
+    } else {
+      const item = DATA.find(r=>r.id===id);
+      if(item) offerItems[id] = {item: item, qty: 1, discount: 0};
+    }
+    updateOfferPill();
+  }
+
+  function updateOfferPill(){
+    document.getElementById('offerCountPill').textContent = Object.keys(offerItems).length;
+  }
+
+  function lineNumbers(entry){
+    const mrp = (typeof entry.item.mrp === 'number') ? entry.item.mrp : 0;
+    const disc = Math.min(100, Math.max(0, Number(entry.discount) || 0));
+    const net = round2(mrp * (1 - disc/100));
+    const total = round2(net * entry.qty);
+    return {mrp, disc, net, total};
+  }
+
+  function renderDrawer(){
+    const body = document.getElementById('drawerBody');
+    const keys = Object.keys(offerItems);
+    if(keys.length === 0){
+      body.innerHTML = '<div class="drawer-empty">No items added yet.<br>Click the + button on any product to add it here.</div>';
+    } else {
+      body.innerHTML = keys.map(function(id){
+        const entry = offerItems[id];
+        const item = entry.item;
+        const {mrp, disc, net, total} = lineNumbers(entry);
+        return '<div class="drawer-item" data-id="'+escapeAttr(id)+'">' +
+          '<div class="row1"><div><div class="name">'+escapeHtml(item.desc)+'</div>' +
+          '<div class="code">'+escapeHtml(item.catcode || '(no catcode)')+' &middot; '+escapeHtml(item.model)+' &middot; '+escapeHtml(item.series)+'</div></div>' +
+          '<button class="remove" data-id="'+escapeAttr(id)+'">Remove</button></div>' +
+          '<div class="row2">' +
+          '<div class="qty-control"><span style="color:#7e78b0;font-size:11px;">Qty</span>' +
+          '<button class="qty-dec" data-id="'+escapeAttr(id)+'">&minus;</button>' +
+          '<input type="number" class="qty-input" data-id="'+escapeAttr(id)+'" min="1" step="1" value="'+entry.qty+'">' +
+          '<button class="qty-inc" data-id="'+escapeAttr(id)+'">+</button></div>' +
+          '<div class="price-control">Unit Price &#8377; <input type="number" class="price-input" data-id="'+escapeAttr(id)+'" min="0" step="0.01" value="'+net+'"></div>' +
+          '<div class="disc-control">Disc <input type="number" class="disc-input" data-id="'+escapeAttr(id)+'" min="0" max="100" step="0.5" value="'+disc+'">%</div>' +
+          '</div>' +
+          '<div class="row3"><span class="net">MRP '+fmtMoney(mrp)+' &rarr; Net '+fmtMoney(net)+' &times; '+entry.qty+'</span><span class="line-total">'+fmtMoney(total)+'</span></div>' +
+          '</div>';
+      }).join('');
+    }
+
+    let subtotal = 0, grand = 0;
+    keys.forEach(function(id){
+      const entry = offerItems[id];
+      const {mrp, total} = lineNumbers(entry);
+      subtotal += mrp * entry.qty;
+      grand += total;
+    });
+    const savings = round2(subtotal - grand);
+    document.getElementById('drawerTotals').innerHTML =
+      '<div class="trow"><span>MRP Subtotal</span><span>'+fmtMoney(round2(subtotal))+'</span></div>' +
+      '<div class="trow"><span>Total Discount</span><span>&minus; '+fmtMoney(savings)+'</span></div>' +
+      '<div class="trow grand"><span>Net Payable</span><span>'+fmtMoney(round2(grand))+'</span></div>';
+
+    updateOfferPill();
+
+    body.querySelectorAll('.remove').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        delete offerItems[btn.getAttribute('data-id')];
+        renderDrawer(); render();
+      });
+    });
+    body.querySelectorAll('.qty-inc').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const c = btn.getAttribute('data-id');
+        offerItems[c].qty += 1;
+        renderDrawer();
+      });
+    });
+    body.querySelectorAll('.qty-dec').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const c = btn.getAttribute('data-id');
+        if(offerItems[c].qty > 1) offerItems[c].qty -= 1;
+        renderDrawer();
+      });
+    });
+    body.querySelectorAll('.qty-input').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        const c = inp.getAttribute('data-id');
+        let v = Math.round(Number(inp.value));
+        if(isNaN(v) || v < 1) v = 1;
+        offerItems[c].qty = v;
+        renderDrawer();
+      });
+    });
+    body.querySelectorAll('.disc-input').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        const c = inp.getAttribute('data-id');
+        let v = Number(inp.value);
+        if(isNaN(v) || v < 0) v = 0;
+        if(v > 100) v = 100;
+        offerItems[c].discount = v;
+        renderDrawer();
+      });
+    });
+    body.querySelectorAll('.price-input').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        const c = inp.getAttribute('data-id');
+        const entry = offerItems[c];
+        const mrp = (typeof entry.item.mrp === 'number') ? entry.item.mrp : 0;
+        let price = Number(inp.value);
+        if(isNaN(price) || price < 0) price = 0;
+        let newDisc;
+        if(mrp <= 0){
+          newDisc = 0;
+        } else {
+          newDisc = round2(100 * (1 - price/mrp));
+          if(newDisc < 0) newDisc = 0;
+          if(newDisc > 100) newDisc = 100;
+        }
+        entry.discount = newDisc;
+        renderDrawer();
+      });
+    });
+  }
+
+  document.getElementById('bulkApplyBtn').addEventListener('click', function(){
+    let v = Number(document.getElementById('bulkDiscount').value);
+    if(isNaN(v) || v < 0) v = 0;
+    if(v > 100) v = 100;
+    Object.keys(offerItems).forEach(function(id){ offerItems[id].discount = v; });
+    renderDrawer();
+  });
+
+  const drawer = document.getElementById('offerDrawer');
+  const overlay = document.getElementById('drawerOverlay');
+  const maximizeBtn = document.getElementById('maximizeDrawer');
+
+  function setMaximized(on){
+    drawer.classList.toggle('maximized', on);
+    maximizeBtn.innerHTML = on ? '&#10529;' : '&#9974;';
+    maximizeBtn.title = on ? 'Minimize view' : 'Maximize view';
+  }
+
+  document.getElementById('offerToggle').addEventListener('click', function(){
+    drawer.classList.add('open'); overlay.classList.add('open');
+    renderDrawer();
+  });
+  maximizeBtn.addEventListener('click', function(){
+    setMaximized(!drawer.classList.contains('maximized'));
+  });
+  document.getElementById('closeDrawer').addEventListener('click', function(){
+    drawer.classList.remove('open'); overlay.classList.remove('open');
+    setMaximized(false);
+  });
+  overlay.addEventListener('click', function(){
+    drawer.classList.remove('open'); overlay.classList.remove('open');
+    setMaximized(false);
+  });
+
+  document.getElementById('clearOfferBtn').addEventListener('click', function(){
+    Object.keys(offerItems).forEach(k=>delete offerItems[k]);
+    renderDrawer(); render();
+  });
+
+  function buildOfferRows(){
+    const keys = Object.keys(offerItems);
+    const rows = keys.map(function(id){
+      const entry = offerItems[id];
+      const item = entry.item;
+      const {mrp, disc, net, total} = lineNumbers(entry);
+      return {
+        'Catcode': item.catcode || '',
+        'Model Name': item.model || '',
+        'Product Series': item.series || '',
+        'Description': item.desc || '',
+        'Category': item.category || '',
+        'Qty': entry.qty,
+        'MRP': mrp,
+        'Discount %': disc,
+        'Net Rate': net,
+        'Line Total': total
+      };
+    });
+    let subtotal = 0, grand = 0;
+    rows.forEach(function(r){ subtotal += r.MRP * r.Qty; grand += r['Line Total']; });
+    return {rows, subtotal: round2(subtotal), grand: round2(grand)};
+  }
+
+  document.getElementById('saveToLeadBtn').addEventListener('click', function(){
+    const {rows} = buildOfferRows();
+    if(rows.length === 0){ alert('Add at least one product to the Offer List first.'); return; }
+    window.parent.postMessage({ type: 'PRODUCTS_SAVED', lines: rows }, '*');
+    // Visual feedback
+    const btn = document.getElementById('saveToLeadBtn');
+    btn.textContent = '✅ Saved!';
+    btn.style.background = '#2F9E58';
+    setTimeout(function(){ btn.textContent = '✅ Save to Lead'; btn.style.background = 'var(--navy)'; }, 2000);
+  });
+
+    document.getElementById('exportExcelBtn').addEventListener('click', function(){
+    const {rows, subtotal, grand} = buildOfferRows();
+    if(rows.length === 0){ alert('Add at least one product to the offer list first.'); return; }
+    if(typeof XLSX === 'undefined'){ alert('Excel library did not load - check your internet connection and try again.'); return; }
+    const sheetRows = rows.map(function(r){
+      return {
+        'Catcode': r.Catcode, 'Model Name': r['Model Name'], 'Product Series': r['Product Series'],
+        'Description': r.Description, 'Category': r.Category, 'Qty': r.Qty, 'MRP (\u20b9)': r.MRP,
+        'Discount %': r['Discount %'], 'Net Rate (\u20b9)': r['Net Rate'], 'Line Total (\u20b9)': r['Line Total']
+      };
+    });
+    sheetRows.push({});
+    sheetRows.push({'Catcode':'', 'Model Name':'', 'Product Series':'', 'Description':'', 'Category':'', 'Qty':'', 'MRP (\u20b9)':'', 'Discount %':'MRP Subtotal', 'Net Rate (\u20b9)':'', 'Line Total (\u20b9)': subtotal});
+    sheetRows.push({'Catcode':'', 'Model Name':'', 'Product Series':'', 'Description':'', 'Category':'', 'Qty':'', 'MRP (\u20b9)':'', 'Discount %':'Net Payable', 'Net Rate (\u20b9)':'', 'Line Total (\u20b9)': grand});
+    const ws = XLSX.utils.json_to_sheet(sheetRows);
+    ws['!cols'] = [{wch:18},{wch:16},{wch:20},{wch:48},{wch:12},{wch:6},{wch:12},{wch:11},{wch:13},{wch:14}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Offer List');
+    const stamp = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, 'Elmeasure_Offer_List_'+stamp+'.xlsx');
+  });
+
+  // ---------- Tab switching ----------
+  const tabCatalogBtn = document.getElementById('tabCatalogBtn');
+  const tabAdviserBtn = document.getElementById('tabAdviserBtn');
+  const tabCompetitorBtn = document.getElementById('tabCompetitorBtn');
+  const catalogView = document.getElementById('catalogView');
+  const adviserView = document.getElementById('adviserView');
+  const competitorView = document.getElementById('competitorView');
+  const allTabBtns = [tabCatalogBtn, tabAdviserBtn, tabCompetitorBtn];
+  const allViews = [catalogView, adviserView, competitorView];
+  function activateTab(btn, view){
+    allTabBtns.forEach(b=>b.classList.toggle('active', b===btn));
+    allViews.forEach(v=>v.style.display = (v===view ? '' : 'none'));
+    const onCatalog = (view===catalogView);
+    document.getElementById('kpiRow').style.display = (onCatalog ? '' : 'none');
+    document.querySelector('.bento-hero').classList.toggle('full-width', !onCatalog);
+  }
+  tabCatalogBtn.addEventListener('click', function(){ activateTab(tabCatalogBtn, catalogView); });
+  tabAdviserBtn.addEventListener('click', function(){
+    activateTab(tabAdviserBtn, adviserView);
+    if(!adviserInitialized){ initAdviser(); adviserInitialized = true; }
+  });
+  tabCompetitorBtn.addEventListener('click', function(){
+    activateTab(tabCompetitorBtn, competitorView);
+    if(!competitorInitialized){ initCompetitor(); competitorInitialized = true; }
+  });
+
+  // ---------- Adviser (parameter-driven model finder) ----------
+  let adviserInitialized = false;
+  const advFamilySelect = document.getElementById('advFamily');
+  const advClassFilter = document.getElementById('advClassFilter');
+  const advRemarksFilter = document.getElementById('advRemarksFilter');
+  const advParamsPanel = document.getElementById('advParamsPanel');
+  const advResults = document.getElementById('advResults');
+  let advFlatRows = []; // flattened rows for the currently selected guide: {group, label, idx}
+  const advSelected = new Set(); // selected row indices (within current guide)
+
+  function initAdviser(){
+    advFamilySelect.innerHTML = PARAM_GUIDES.map(function(g, i){
+      return '<option value="'+i+'">'+escapeHtml(g.familyLabel || g.cols.map(c=>c.label).join(' / '))+'</option>';
+    }).join('');
+    advFamilySelect.addEventListener('change', function(){
+      advSelected.clear();
+      renderAdviserParams();
+      renderAdviserResults();
+    });
+    advClassFilter.innerHTML = '<option value="">All Accuracy Classes</option>' +
+      allClasses.map(c=>'<option value="'+escapeAttr(c)+'">Cl '+escapeHtml(c)+'</option>').join('');
+    advRemarksFilter.innerHTML = '<option value="">All Remarks</option>' +
+      allRemarks.map(r=>'<option value="'+escapeAttr(r)+'">'+escapeHtml(r)+'</option>').join('');
+    if(allRemarks.includes('Pricebook Item')) advRemarksFilter.value = 'Pricebook Item';
+    advClassFilter.addEventListener('change', renderAdviserResults);
+    advRemarksFilter.addEventListener('change', renderAdviserResults);
+    document.getElementById('advClearBtn').addEventListener('click', function(){
+      advSelected.clear();
+      renderAdviserParams();
+      renderAdviserResults();
+    });
+    renderAdviserParams();
+    renderAdviserResults();
+  }
+
+  function currentGuide(){
+    return PARAM_GUIDES[parseInt(advFamilySelect.value || '0')];
+  }
+
+  function renderAdviserParams(){
+    const guide = currentGuide();
+    advFlatRows = [];
+    let html = '';
+    let idx = 0;
+    guide.groups.forEach(function(group){
+      if(group.name) html += '<div class="adv-group-label">'+escapeHtml(group.name)+'</div>';
+      group.rows.forEach(function(row){
+        const myIdx = idx++;
+        advFlatRows.push({label: row[0], vals: row.slice(1)});
+        const checked = advSelected.has(myIdx) ? ' checked' : '';
+        html += '<label class="adv-row"><input type="checkbox" data-idx="'+myIdx+'"'+checked+'>'+escapeHtml(row[0])+'</label>';
+      });
+    });
+    advParamsPanel.innerHTML = html;
+    advParamsPanel.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        const i = parseInt(cb.getAttribute('data-idx'));
+        if(cb.checked) advSelected.add(i); else advSelected.delete(i);
+        renderAdviserResults();
+      });
+    });
+  }
+
+  // Extracts a short lowercase keyword from a parameter label, used to spot-check
+  // whether an individual SKU's own description actually mentions it (since the
+  // guide describes what the model FAMILY can be configured with, not a guarantee
+  // that every catalog SKU in that family already has it).
+  function advKeyword(label){
+    const l = label.toLowerCase();
+    if(l.indexOf('rs485') !== -1 || l.indexOf('rs 485') !== -1) return 'rs485';
+    if(l.indexOf('hanging') !== -1) return 'hanging';
+    if(l.indexOf('ethernet') !== -1) return 'ethernet';
+    if(l.indexOf('wi-fi') !== -1 || l.indexOf('wifi') !== -1) return 'wifi';
+    if(l.indexOf('rtc') !== -1) return 'rtc';
+    if(l.indexOf('direct') !== -1) return 'direct';
+    if(l.indexOf('inbuilt') !== -1) return 'inbuilt';
+    if(l.indexOf('demand') !== -1) return 'demand';
+    if(l.indexOf('2do') !== -1) return '2do';
+    if(l.indexOf('dual source') !== -1) return 'dual source';
+    return null;
+  }
+
+  function renderAdviserResults(){
+    const guide = currentGuide();
+    const selectedIdxs = Array.from(advSelected);
+    if(selectedIdxs.length === 0){
+      advResults.innerHTML = '<div class="adv-empty">Select the parameters you need on the left, and matching models will appear here.</div>';
+      return;
+    }
+    const selectedKeywords = selectedIdxs.map(function(i){ return advKeyword(advFlatRows[i].label); }).filter(Boolean);
+
+    // Score each column: how many of the selected params are available (any non-blank marker) in that column
+    const scores = guide.cols.map(function(col, ci){
+      let count = 0;
+      selectedIdxs.forEach(function(i){
+        if(advFlatRows[i].vals[ci]) count++;
+      });
+      return { colIndex: ci, label: col.label, count: count, total: selectedIdxs.length, full: count === selectedIdxs.length };
+    });
+    scores.sort(function(a,b){ return b.count - a.count; });
+
+    let html = '<div class="adv-empty" style="padding:14px 4px; text-align:left; font-size:12.5px; line-height:1.5;">' +
+      'Matching is based on the published selection guide for each model <strong>family</strong> &mdash; it shows what that family can be built with, not a guarantee every listed catcode already has it. ' +
+      (selectedKeywords.length ? 'Rows marked <strong style="color:var(--green);">&#10003; in description</strong> below have the feature confirmed in their own spec text; others may need the feature added at order time or a different variant chosen.' : '') +
+      '</div>';
+    html += '<div class="adv-score-row">';
+    scores.forEach(function(s){
+      html += '<div class="adv-score-card'+(s.full?' full-match':'')+'">' +
+        '<div class="adv-model">'+escapeHtml(s.label)+'</div>' +
+        '<div class="adv-fraction">'+s.count+' / '+s.total+' parameters matched</div>' +
+        '<span class="adv-badge">'+(s.full?'Full match':'Partial match')+'</span>' +
+        '</div>';
+    });
+    html += '</div>';
+
+    // For each column, list the actual SKUs matching that column (via guide.match)
+    scores.forEach(function(s){
+      if(s.count === 0) return; // skip columns with zero relevance
+      let skus = DATA.filter(function(r){
+        const m = guide.match(r);
+        if(m !== s.colIndex) return false;
+        if(advClassFilter.value && r.classes.indexOf(advClassFilter.value) === -1) return false;
+        if(advRemarksFilter.value && r.remarks !== advRemarksFilter.value) return false;
+        return true;
+      });
+      skus.forEach(function(r){
+        const descL = (r.desc || '').toLowerCase();
+        r._advConfirmed = selectedKeywords.length ? selectedKeywords.every(function(k){ return descL.indexOf(k) !== -1; }) : null;
+      });
+      skus.sort(function(a,b){
+        if(a._advConfirmed !== b._advConfirmed) return a._advConfirmed ? -1 : 1;
+        const av = (typeof a.mrp === 'number') ? a.mrp : Infinity;
+        const bv = (typeof b.mrp === 'number') ? b.mrp : Infinity;
+        return av - bv;
+      });
+      if(skus.length === 0) return;
+      html += '<div class="adv-sku-table">' +
+        '<h3>'+escapeHtml(s.label)+' &mdash; '+s.count+'/'+s.total+' matched ('+(s.full?'full match':'partial')+') &middot; '+skus.length+' SKU'+(skus.length===1?'':'s')+'</h3>' +
+        '<table><thead><tr><th>Catcode</th><th>Model</th><th>Description</th><th>MRP</th><th></th><th>Params</th></tr></thead><tbody>';
+      skus.slice(0, 50).forEach(function(r){
+        const inOffer = !!offerItems[r.id];
+        const confirmTag = r._advConfirmed === true ? ' <span style="color:var(--green); font-weight:700;">&#10003; in description</span>' :
+          (r._advConfirmed === false ? ' <span style="color:var(--text-lo);">(family-level match only)</span>' : '');
+        const isOpen = expandedParamRows.has(r.id);
+        const paramCell = '<button class="param-toggle'+(isOpen?' expanded':'')+'" data-pid="'+escapeAttr(r.id)+'" title="View available parameters for this model">'+(isOpen?'&#9660;':'&#9654;')+'</button>';
+        html += '<tr>' +
+          '<td class="catcode">'+escapeHtml(r.catcode || '')+'</td>' +
+          '<td>'+escapeHtml(r.model || '')+'</td>' +
+          '<td class="desc-cell">'+escapeHtml(r.desc || '')+confirmTag+'</td>' +
+          '<td class="mrp">'+fmtMoney(r.mrp)+'</td>' +
+          '<td><button class="add-btn adv-add-btn'+(inOffer?' added':'')+'" data-id="'+escapeAttr(r.id)+'" title="Add to offer list">'+(inOffer?'&#10003;':'+')+'</button></td>' +
+          '<td>'+paramCell+'</td>' +
+          '</tr>';
+        if(isOpen){
+          html += '<tr class="param-detail-row"><td colspan="6">'+buildParamPanel(guide, s.colIndex, r)+'</td></tr>';
+        }
+      });
+      html += '</tbody></table></div>';
+    });
+
+    advResults.innerHTML = html;
+    advResults.querySelectorAll('.adv-add-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        toggleOfferItem(btn.getAttribute('data-id'));
+        renderDrawer();
+        renderAdviserResults();
+      });
+    });
+    advResults.querySelectorAll('.param-toggle').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const pid = btn.getAttribute('data-pid');
+        if(expandedParamRows.has(pid)) expandedParamRows.delete(pid); else expandedParamRows.add(pid);
+        renderAdviserResults();
+      });
+    });
+  }
+
+  // ---------- Competitor Data (find our model by competitor brand/model) ----------
+  let competitorInitialized = false;
+  const COMP_BRANDS = [
+    {key:'lk', label:'L&K', searchName:'Lauritz Knudsen'},
+    {key:'schneider', label:'Schneider', searchName:'Schneider Electric'},
+    {key:'multispan', label:'Multispan', searchName:'Multispan'},
+    {key:'secure', label:'Secure', searchName:'Secure Meters'}
+  ];
+  function compImageSearchUrl(brandSearchName, model){
+    let q = brandSearchName + ' ' + model + ' meter';
+    if(model === 'EM8240') q = 'Schneider Electric PM8240 power meter';
+    if(model === 'EM8340') q = 'Schneider Electric PM8340 power meter';
+    if(model === 'E 300') q = 'Secure Meters DPM E-300 digital panel meter';
+    if(model === 'M 310') q = 'Secure Meters DPM M310 digital panel meter';
+    return 'https://www.google.com/search?tbm=isch&q=' + encodeURIComponent(q);
+  }
+  const compBrandPanel = document.getElementById('compBrandPanel');
+  const compModelPanel = document.getElementById('compModelPanel');
+  const compRemarksFilter = document.getElementById('compRemarksFilter');
+  const compResults = document.getElementById('compResults');
+  const compSelectedBrands = new Set();
+  const compSelectedModels = new Set(); // composite keys "brandKey||token"
+
+  function parseCompTokens(raw){
+    if(!raw) return [];
+    return raw.split(/[,\n]/).map(s=>s.trim()).filter(Boolean);
+  }
+
+  function initCompetitor(){
+    compRemarksFilter.innerHTML = '<option value="">All Remarks</option>' +
+      allRemarks.map(r=>'<option value="'+escapeAttr(r)+'">'+escapeHtml(r)+'</option>').join('');
+    if(allRemarks.includes('Pricebook Item')) compRemarksFilter.value = 'Pricebook Item';
+    compRemarksFilter.addEventListener('change', renderCompResults);
+    compBrandPanel.innerHTML = COMP_BRANDS.map(function(b){
+      return '<label class="comp-brand-chip" data-brand="'+b.key+'"><input type="checkbox" value="'+b.key+'">'+escapeHtml(b.label)+'</label>';
+    }).join('');
+    compBrandPanel.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        const key = cb.value;
+        if(cb.checked){
+          compSelectedBrands.add(key);
+        } else {
+          compSelectedBrands.delete(key);
+          // drop any model selections that belonged to the brand just unchecked
+          Array.from(compSelectedModels).forEach(function(compositeKey){
+            if(compositeKey.split('||')[0] === key) compSelectedModels.delete(compositeKey);
+          });
+        }
+        cb.closest('.comp-brand-chip').classList.toggle('checked', cb.checked);
+        renderCompModelPanel();
+      });
+    });
+    document.getElementById('compSearchBtn').addEventListener('click', renderCompResults);
+    document.getElementById('compClearBtn').addEventListener('click', function(){
+      compSelectedBrands.clear();
+      compSelectedModels.clear();
+      compBrandPanel.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+        cb.checked = false;
+        cb.closest('.comp-brand-chip').classList.remove('checked');
+      });
+      renderCompModelPanel();
+      compResults.innerHTML = '<div class="adv-empty">Pick a competitor brand and model, then hit Search.</div>';
+    });
+    renderCompModelPanel();
+  }
+
+  function renderCompModelPanel(){
+    if(compSelectedBrands.size === 0){
+      compModelPanel.innerHTML = '<div class="adv-empty" style="padding:14px 4px;">Select a brand first.</div>';
+      return;
+    }
+    let html = '';
+    COMP_BRANDS.forEach(function(b){
+      if(!compSelectedBrands.has(b.key)) return;
+      const tokens = new Set();
+      COMP_DATA.forEach(function(row){
+        parseCompTokens(row[b.key]).forEach(function(t){ tokens.add(t); });
+      });
+      const sorted = Array.from(tokens).sort();
+      if(sorted.length === 0) return;
+      html += '<div class="comp-model-group-label">'+escapeHtml(b.label)+'</div>';
+      sorted.forEach(function(t){
+        const compositeKey = b.key + '||' + t;
+        const checked = compSelectedModels.has(compositeKey) ? ' checked' : '';
+        html += '<label class="adv-row"><input type="checkbox" data-key="'+escapeAttr(compositeKey)+'"'+checked+'>'+escapeHtml(t)+'</label>';
+      });
+    });
+    compModelPanel.innerHTML = html || '<div class="adv-empty" style="padding:14px 4px;">No competitor models on file for this brand.</div>';
+    compModelPanel.querySelectorAll('input[type="checkbox"]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        const key = cb.getAttribute('data-key');
+        if(cb.checked) compSelectedModels.add(key); else compSelectedModels.delete(key);
+      });
+    });
+  }
+
+  function renderCompResults(){
+    if(compSelectedModels.size === 0){
+      compResults.innerHTML = '<div class="adv-empty">Select at least one competitor model, then hit Search.</div>';
+      return;
+    }
+    // group selected models by brand
+    const byBrand = {};
+    compSelectedModels.forEach(function(compositeKey){
+      const parts = compositeKey.split('||');
+      const brandKey = parts[0], token = parts[1];
+      (byBrand[brandKey] = byBrand[brandKey] || []).push(token);
+    });
+
+    const matches = []; // {row, matchedTokens: []}
+    COMP_DATA.forEach(function(row){
+      const matchedTokens = [];
+      Object.keys(byBrand).forEach(function(brandKey){
+        const rowTokens = parseCompTokens(row[brandKey]);
+        byBrand[brandKey].forEach(function(sel){
+          if(rowTokens.indexOf(sel) !== -1){
+            const brandObj = COMP_BRANDS.find(b=>b.key===brandKey);
+            matchedTokens.push({brand: brandObj.label, searchName: brandObj.searchName, model: sel});
+          }
+        });
+      });
+      if(matchedTokens.length > 0){
+        const r = DATA.find(function(d){ return d.catcode === row.catcode; });
+        if(!compRemarksFilter.value || !r || r.remarks === compRemarksFilter.value){
+          matches.push({row: row, matchedTokens: matchedTokens});
+        }
+      }
+    });
+
+    if(matches.length === 0){
+      compResults.innerHTML = '<div class="adv-empty">No Elmeasure model found for that competitor selection.</div>';
+      return;
+    }
+
+    let html = '<div class="adv-empty" style="padding:14px 4px; text-align:left; font-size:12.5px; line-height:1.5;">' +
+      '<strong>'+matches.length+'</strong> matching Elmeasure catcode'+(matches.length===1?'':'s')+' found, based on the competitor cross-reference sheet.</div>';
+    html += '<div class="adv-sku-table"><table><thead><tr><th>ELM Model</th><th>Catcode</th><th>Description</th><th>MRP</th><th>Matched On</th><th></th><th>Params</th></tr></thead><tbody>';
+
+    matches.forEach(function(m){
+      const r = DATA.find(function(d){ return d.catcode === m.row.catcode; });
+      const inOffer = r ? !!offerItems[r.id] : false;
+      const paramMatch = r ? getParamMatch(r) : null;
+      const isOpen = r ? expandedParamRows.has(r.id) : false;
+      html += '<tr>' +
+        '<td>'+escapeHtml(m.row.elm)+'</td>' +
+        '<td class="catcode">'+escapeHtml(m.row.catcode)+'</td>' +
+        '<td class="desc-cell">'+(r ? escapeHtml(r.desc || '') : '<span style="color:var(--coral);">Not found in current product master</span>')+'</td>' +
+        '<td class="mrp">'+(r ? fmtMoney(r.mrp) : '-')+'</td>' +
+        '<td style="font-size:11.5px; color:var(--text-mid);">'+m.matchedTokens.map(function(t){
+          return escapeHtml(t.brand + ': ' + t.model) + ' <a href="'+compImageSearchUrl(t.searchName, t.model)+'" target="_blank" rel="noopener" style="color:var(--steel); text-decoration:none;" title="View '+escapeAttr(t.model)+' images">&#128247;</a>';
+        }).join('<br>')+'</td>' +
+        '<td>'+(r ? '<button class="add-btn adv-add-btn'+(inOffer?' added':'')+'" data-id="'+escapeAttr(r.id)+'" title="Add to offer list">'+(inOffer?'&#10003;':'+')+'</button>' : '')+'</td>' +
+        '<td>'+(paramMatch !== null ? '<button class="param-toggle'+(isOpen?' expanded':'')+'" data-pid="'+escapeAttr(r.id)+'" title="View available parameters">'+(isOpen?'&#9660;':'&#9654;')+'</button>' : '')+'</td>' +
+        '</tr>';
+      if(paramMatch !== null && isOpen){
+        html += '<tr class="param-detail-row"><td colspan="7">'+buildParamPanel(paramMatch.guide, paramMatch.colIndex, r)+'</td></tr>';
+      }
+    });
+    html += '</tbody></table></div>';
+
+    compResults.innerHTML = html;
+    compResults.querySelectorAll('.adv-add-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        toggleOfferItem(btn.getAttribute('data-id'));
+        renderDrawer();
+        renderCompResults();
+      });
+    });
+    compResults.querySelectorAll('.param-toggle').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        const pid = btn.getAttribute('data-pid');
+        if(expandedParamRows.has(pid)) expandedParamRows.delete(pid); else expandedParamRows.add(pid);
+        renderCompResults();
+      });
+    });
+  }
+
+  // ---------- initial render ----------
+  render();
+})();
+</script>
+</body>
+</html>
+</script>
+</body>
+</html>
