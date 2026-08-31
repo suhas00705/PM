@@ -254,6 +254,7 @@ async function handleCreateLead(req, res) {
     dealer_name:                 body.dealer_name  || null,
     created_by_email:            body.created_by_email || null,
     source:                      'portal',
+    product_lines:               body.product_lines || null,
     created_time:                new Date().toISOString()
   };
 
@@ -274,12 +275,57 @@ async function handleCreateLead(req, res) {
   return res.status(200).json({ success: true, id: created?.id || null });
 }
 
+// ── Update Lead mode (PATCH ?mode=update&id=...) ─────────────────────────────
+// Updates an existing portal_leads row in Supabase.
+
+async function handleUpdateLead(req, res) {
+  const id = req.query.id;
+  if (!id) return res.status(400).json({ error: 'id is required' });
+
+  let body = req.body;
+  if (typeof body === 'string') { try { body = JSON.parse(body); } catch(e) { return res.status(400).json({ error: 'Invalid JSON' }); } }
+  if (!body) return res.status(400).json({ error: 'Empty request body' });
+
+  // Build update patch — only fields present in body
+  const patch = {};
+  const fields = [
+    'salutation','first_name','last_name','full_name','company','designation',
+    'email','phone','mobile','website','account_type','lead_source','lead_status',
+    'priority_levels','region','sub_region','industry','business_type','order_type',
+    'approach_type','enquiry_date','expected_closure_date','order_value','process_stage',
+    'product_solution','customer_class','product_solution_type','estimation_status',
+    'estimation_support_required','bms_support_required','project_name','end_client_name',
+    'contractor','consultant','street','city','state','zip_code','country',
+    'customer_enquiry_details','remarks','owner_name','panel_builder','gp',
+    'account_name','dealer_name','product_lines'
+  ];
+  fields.forEach(f => { if (f in body) patch[f] = body[f]; });
+
+  if (!Object.keys(patch).length) return res.status(400).json({ error: 'No fields to update' });
+
+  const supaRes = await fetch(`${PORTAL_LEADS_URL}?id=eq.${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { ...SUPABASE_WRITE_HDRS, Prefer: 'return=representation' },
+    body: JSON.stringify(patch)
+  });
+
+  if (!supaRes.ok) {
+    const errText = await supaRes.text();
+    console.error('[update-lead] Supabase error:', supaRes.status, errText);
+    return res.status(500).json({ error: `Supabase update failed: ${errText}` });
+  }
+
+  const data = await supaRes.json();
+  const updated = Array.isArray(data) ? data[0] : data;
+  return res.status(200).json({ success: true, id: updated?.id || id });
+}
+
 // ── Main handler ──────────────────────────────────────────────────────────────
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -292,6 +338,12 @@ module.exports = async (req, res) => {
   // Create Lead mode — POST ?mode=create
   if (req.method === 'POST' && req.query.mode === 'create') {
     try { return await handleCreateLead(req, res); }
+    catch (err) { return res.status(500).json({ error: err.message }); }
+  }
+
+  // Update Lead mode — PATCH ?mode=update&id=...
+  if ((req.method === 'PATCH' || req.method === 'POST') && req.query.mode === 'update') {
+    try { return await handleUpdateLead(req, res); }
     catch (err) { return res.status(500).json({ error: err.message }); }
   }
 
