@@ -11,6 +11,7 @@ const supabasePotentials = require('../lib/supabasePotentials');
 
 const N8N_BUILDER_PROJECTS_ENDPOINT = 'https://suhas00705.app.n8n.cloud/webhook/bangalore-builder-projects';
 const N8N_JARVIS_ASK_ENDPOINT = 'https://suhas00705.app.n8n.cloud/webhook/jarvis-ask';
+const N8N_ZOHO_LEAD_ENDPOINT = 'https://suhas00705.app.n8n.cloud/webhook/zoho-lead-create';
 
 async function getBuilderProjects(res) {
   try {
@@ -50,6 +51,41 @@ async function jarvisAsk(req, res) {
   }
 }
 
+async function zohoCreateLead(req, res) {
+  try {
+    const b = req.body || {};
+    const company = b.company || b.Company || '';
+    const lastName = b.lastName || b.last_name || b.name || '';
+    const firstName = b.firstName || b.first_name || '';
+    const phone = b.phone || b.Phone || '';
+    const email = b.email || b.Email || '';
+    const leadSource = b.leadSource || 'Claude AI Voice';
+    const status = b.status || 'New';
+    const description = b.description || b.notes || '';
+    const designation = b.designation || '';
+
+    if (!lastName && !company) {
+      return res.status(400).json({ error: 'At least lastName or company is required' });
+    }
+
+    const upstream = await fetch(N8N_ZOHO_LEAD_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company, lastName, firstName, phone, email, leadSource, status, description, designation })
+    });
+
+    if (!upstream.ok) {
+      const text = await upstream.text();
+      return res.status(502).json({ error: `n8n upstream ${upstream.status}: ${text}` });
+    }
+    const data = await upstream.json();
+    const message = data.message || (data.success ? `Lead created: ${firstName} ${lastName} (${company})` : 'Lead processed');
+    return res.status(200).json({ success: true, leadId: data.leadId || null, message });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -59,6 +95,21 @@ module.exports = async (req, res) => {
 
   if (req.query && req.query.mode === 'builder-projects') {
     return getBuilderProjects(res);
+  }
+
+  if (req.query && req.query.mode === 'zoho-lead') {
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'POST required for zoho-lead' });
+    }
+    if (!req.body) {
+      let raw = '';
+      await new Promise(resolve => {
+        req.on('data', chunk => { raw += chunk; });
+        req.on('end', resolve);
+      });
+      try { req.body = JSON.parse(raw); } catch { req.body = {}; }
+    }
+    return zohoCreateLead(req, res);
   }
 
   if (req.query && req.query.mode === 'jarvis-ask') {
