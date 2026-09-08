@@ -204,6 +204,7 @@ function toggleHamburger(){
   document.getElementById('tabs').classList.toggle('open');
 }
 document.addEventListener('click', e => {
+  if(e.target.tagName === 'IFRAME') return; // ignore clicks inside iframes (scroll tap on touch)
   if(!e.target.closest('#hamburgerBtn') && !e.target.closest('#tabs'))
     document.getElementById('tabs').classList.remove('open');
 }, true);
