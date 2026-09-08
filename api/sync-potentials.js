@@ -21,12 +21,16 @@ module.exports = async (req, res) => {
 
     const fyStart = new Date(FY_START);
 
+    // Support ?window=HOURS for catch-up syncs (default 48h for normal runs)
+    const windowHours = parseInt(req.query?.window || '48', 10);
+    const cutoffTime = Date.now() - windowHours * 60 * 60 * 1000;
+
     const PER_PAGE = 200;
     let records = [];
     let page = 1;
     let pageToken = null;
     let more = true;
-    const deadline = Date.now() + 45000; // 45s budget
+    const deadline = Date.now() + 55000; // 55s budget
 
     while (more && Date.now() < deadline) {
       let url = `${ZOHO_API_DOMAIN}/crm/v8/Potentials?fields=${POTENTIALS_FIELDS}&per_page=${PER_PAGE}&sort_by=Modified_Time&sort_order=desc`;
@@ -41,8 +45,7 @@ module.exports = async (req, res) => {
       const data = await r.json();
       const pageRecords = data.data || [];
 
-      // Stop when we hit records older than 48 hours
-      const cutoffTime = Date.now() - 48 * 60 * 60 * 1000;
+      // Stop when we hit records older than the window
       const cutoffHit = pageRecords.some(rec => new Date(rec.Modified_Time || rec.Created_Time) < new Date(cutoffTime));
 
       const fyFiltered = pageRecords.filter(rec =>
@@ -61,7 +64,8 @@ module.exports = async (req, res) => {
       synced: written,
       totalFetched: records.length,
       syncedAt: new Date().toISOString(),
-      mode: 'incremental-48h'
+      mode: `incremental-${windowHours}h`,
+      windowHours
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
