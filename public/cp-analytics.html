@@ -122,6 +122,11 @@
   .mtable th{position:static}
   .rmt > table > tbody > tr:not(.sub) > td:nth-child(2), .rmt > table > thead th:nth-child(2){text-align:left}
   .mtable td,.mtable th{padding:6px 10px}
+  tfoot td{position:sticky;bottom:0;background:#e9f1fc;font-weight:700;border-top:2px solid #bcd6f5}
+  .sch{white-space:normal;min-width:280px;max-width:380px;text-align:left;font-size:12.5px;line-height:1.4}
+  .sev{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;margin-right:4px;vertical-align:1px}
+  .sev.High{background:var(--bad-bg);color:var(--bad)} .sev.Medium{background:var(--warn-bg);color:#9a6400}
+  .sev.Low{background:#eef1f6;color:var(--t2)} .sev.Healthy{background:var(--good-bg);color:var(--good)}
   .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
   .loading.on{display:flex}
   .empty{padding:40px;text-align:center;color:var(--t3)}
@@ -199,7 +204,7 @@
   <!-- 5. Region table -->
   <div class="sec card">
     <div class="sec-h"><div><h2>Region view — Channel Partners, focus vs rest</h2>
-      <div class="sub">Where the shift away from the focus basket is happening</div></div>
+      <div class="sub">Where the shift away from the focus basket is happening. Avg disc = this FY (last FY in brackets). The scheme column is worked out from this data by fixed rules — hover a scheme to see why; review before launching.</div></div>
       <button class="btn" id="dlRegions">Download CSV</button></div>
     <div class="tbl-wrap" id="regionTable"></div>
   </div>
@@ -513,14 +518,14 @@ function renderMixChart(D, cy, base, focusName){
 }
 
 /* ---------- tables ---------- */
-function sortable(host, cols, rows, defaultKey, rowAttrs, afterDraw){
+function sortable(host, cols, rows, defaultKey, rowAttrs, afterDraw, footHtml){
   let key = host._sortKey || defaultKey, dir = host._sortDir || -1;
   const draw = () => {
     const sorted = [...rows].sort((a,b) => { const va = a[key], vb = b[key];
       if (typeof va === 'string' || typeof vb === 'string') return dir * String(va ?? '').localeCompare(String(vb ?? ''));
       return dir * ((va ?? -Infinity) - (vb ?? -Infinity)); });
     host.innerHTML = `<table><thead><tr>${cols.map(c => `<th data-k="${c.k}" title="Sort">${c.h}${c.k === key ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>${
-      sorted.map(r => `<tr ${rowAttrs ? rowAttrs(r) : ''}>${cols.map(c => `<td>${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="muted">No rows</td></tr>`}</tbody></table>`;
+      sorted.map(r => `<tr ${rowAttrs ? rowAttrs(r) : ''}>${cols.map(c => `<td>${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="muted">No rows</td></tr>`}</tbody>${footHtml ? `<tfoot>${footHtml}</tfoot>` : ''}</table>`;
     host.querySelectorAll('th').forEach(th => th.onclick = () => { const k = th.dataset.k; if (k === key) dir = -dir; else { key = k; dir = -1; } host._sortKey = key; host._sortDir = dir; draw(); });
     if (afterDraw) afterDraw();
   };
@@ -547,14 +552,71 @@ function renderBaskets(B, cy, base){
     B.map(r => [r.basket, r.cpB.toFixed(0), r.cpCy.toFixed(0), r.cpB ? ((r.cpCy/r.cpB-1)*100).toFixed(1) : '', (r.mixB*100).toFixed(2), (r.mixCy*100).toFixed(2), r.dB === null ? '' : (r.dB*100).toFixed(1), r.dCy === null ? '' : (r.dCy*100).toFixed(1), r.dBV.toFixed(0), r.dCyV.toFixed(0), r.ddCy === null ? '' : (r.ddCy*100).toFixed(1)]));
 }
 
+/* ---------- rule-based bundle-scheme suggestion (per region / PAN India) ---------- */
+// baskets whose list prices are placeholders: their 'discount' is meaningless, keep them out of discount maths & anchors
+const NOISY_DISC = new Set(['Software','Others','OEM','Service Item','(blank)']);
+function suggestScheme(x, baskets, focusName){
+  // x: {fB,fCy,rB,rCy,shB,shCy,dF,dR}; baskets: [{basket,cy,b,lt,g}] non-focus baskets, this region
+  const dpp = ((x.shCy ?? 0) - (x.shB ?? 0)) * 100;
+  const fg = growth(x.fCy, x.fB), rg = growth(x.rCy, x.rB);
+  let sev = dpp <= -10 || (fg !== null && fg < 0 && (rg ?? 1) > 0) ? 'High' : dpp <= -4 ? 'Medium' : dpp < 0 ? 'Low' : 'Healthy';
+  const anchors = baskets.filter(b => b.cy > 0 && !NOISY_DISC.has(b.basket)).sort((a,b) => (b.cy - b.b) - (a.cy - a.b)).slice(0, 2)
+                         .map(b => ({ ...b, d: disc(b.lt, b.g) }));
+  const dF = x.dF, dR = x.dR;
+  const pctTxt = v => v === null || v === undefined || !isFinite(v) ? '—' : (v*100).toFixed(1) + '%';
+  if (x.aCy < 1e6) return { sev:'Low', extra:0, text:'Too small for a regional scheme (under ₹10 L this year) — handle partner by partner.', why:`Total CP spend this year ${money(x.aCy)}.` };
+  if (sev === 'Healthy' || !anchors.length) {
+    return { sev, extra:0, text:`Keep current terms — ${esc(focusName)} share is ${dpp >= 0 ? 'growing' : 'stable'}. Use a volume slab, no extra discount.`,
+             why:`Focus share ${pctTxt(x.shB)} → ${pctTxt(x.shCy)}. Focus growth ${fg === null ? 'new' : pctTxt(fg)}, rest ${rg === null ? 'new' : pctTxt(rg)}.` };
+  }
+  const ancD = anchors.map(a => a.d).filter(v => v !== null && isFinite(v));
+  const refD = ancD.length ? Math.max(...ancD) : dR;   // compare with the discount on the baskets we bundle with
+  const gap = (refD !== null && dF !== null) ? (refD - dF) * 100 : 0;
+  const cap = { High:4, Medium:3, Low:2 }[sev];
+  let extra = gap > 1 ? Math.min(Math.ceil(gap), cap) : sev === 'High' ? 2 : sev === 'Medium' ? 1.5 : 1;
+  const target = Math.max(10, Math.min(40, Math.round((((x.shCy ?? 0) + ((x.shB ?? 0) - (x.shCy ?? 0)) / 2) * 100) / 5) * 5));
+  const anc = anchors.map(a => `${esc(a.basket)} (${pctTxt(a.d)})`).join(' / ');
+  const text = !x.fCy
+    ? `Win-back: no ${esc(focusName)} this year. Intro bundle with <b>${anchors.map(a => esc(a.basket)).join(' / ')}</b> — <b>+${extra}%</b> on ${esc(focusName)}${x.dFb !== null && x.dFb !== undefined ? ` over last year's ${pctTxt(x.dFb)}` : ''} for the first orders.`
+    : `Bundle <b>${anchors.map(a => esc(a.basket)).join(' / ')}</b> + ${esc(focusName)}: <b>+${extra}%</b> extra on ${esc(focusName)} when it is ≥ ${target}% of the order` +
+      (dF !== null ? ` → effective ${pctTxt(dF + extra/100)}.` : '.');
+  const why = `${esc(focusName)} share ${pctTxt(x.shB)} → ${pctTxt(x.shCy)} (${dpp.toFixed(1)} pp). Focus growth ${fg === null ? 'new' : pctTxt(fg)} vs rest ${rg === null ? 'new' : pctTxt(rg)}. ` +
+              `Avg disc: ${esc(focusName)} ${pctTxt(dF)}, bundled baskets up to ${pctTxt(refD)}${gap > 1 ? ` — ${esc(focusName)} is ${gap.toFixed(1)} pp below them, so the extra closes that gap` : ` — ${esc(focusName)} discount already at/above them, so the lever is the bundle, not a deeper cut`}. ` +
+              `Anchors = baskets these partners added most this year: ${anc}. Threshold ${target}% = halfway back to last year's share.`;
+  return { sev, extra, text, why };
+}
+
 function renderRegions(D, cy, base, focusName){
   const m = {};
-  (D.regions||[]).filter(r => r.grp === CP).forEach(r => { const k = r.region; m[k] = m[k] || {region:k, fCy:0, fB:0, aCy:0, aB:0};
-    if (r.fy === cy) { m[k].fCy = n(r.fv); m[k].aCy = n(r.v); } else { m[k].fB = n(r.fv); m[k].aB = n(r.v); } });
-  const rows = Object.values(m).map(r => ({...r, rCy:r.aCy-r.fCy, rB:r.aB-r.fB, shCy:r.aCy ? r.fCy/r.aCy : null, shB:r.aB ? r.fB/r.aB : null,
-    fg: growth(r.fCy, r.fB) ?? 9e9, rg: growth(r.aCy-r.fCy, r.aB-r.fB) ?? 9e9}));
-  rows.forEach(r => r.dsh = (r.shCy ?? 0) - (r.shB ?? 0));
-  sortable($('regionTable'), [
+  (D.regions||[]).filter(r => r.grp === CP).forEach(r => { const k = r.region; m[k] = m[k] || {region:k, fCy:0, fB:0, aCy:0, aB:0, ltC:0, gC:0, fltC:0, fgC:0, ltB:0, gB:0, fltB:0, fgB:0};
+    const c = r.fy === cy;
+    if (c) { m[k].fCy = n(r.fv); m[k].aCy = n(r.v); m[k].ltC = n(r.lt); m[k].gC = n(r.g); m[k].fltC = n(r.flt); m[k].fgC = n(r.fg); }
+    else   { m[k].fB = n(r.fv); m[k].aB = n(r.v); m[k].ltB = n(r.lt); m[k].gB = n(r.g); m[k].fltB = n(r.flt); m[k].fgB = n(r.fg); } });
+  const rb = {};   // region -> basket -> {cy,b,lt,g}
+  (D.region_baskets||[]).forEach(r => { if (S.basket.includes(r.basket)) return;
+    const x = ((rb[r.region] = rb[r.region] || {})[r.basket] = rb[r.region]?.[r.basket] || {basket:r.basket, cy:0, b:0, lt:0, g:0});
+    if (r.fy === cy) { x.cy += n(r.v); x.lt += n(r.lt); x.g += n(r.g); } else x.b += n(r.v); });
+  const enrich = r => {
+    r.rCy = r.aCy - r.fCy; r.rB = r.aB - r.fB;
+    r.shCy = r.aCy ? r.fCy/r.aCy : null; r.shB = r.aB ? r.fB/r.aB : null;
+    r.fg = growth(r.fCy, r.fB) ?? 9e9; r.rg = growth(r.rCy, r.rB) ?? 9e9;
+    r.dsh = (r.shCy ?? 0) - (r.shB ?? 0);
+    r.dF = disc(r.fltC, r.fgC); r.dR = disc(r.ltC - r.fltC, r.gC - r.fgC);
+    r.dFb = disc(r.fltB, r.fgB); r.dRb = disc(r.ltB - r.fltB, r.gB - r.fgB);
+    return r; };
+  const rows = Object.values(m).map(enrich);
+  const cleanRest = bs => { let lt = 0, g = 0; bs.forEach(x => { if (!NOISY_DISC.has(x.basket)) { lt += x.lt; g += x.g; } }); return disc(lt, g); };
+  rows.forEach(r => { r.dR = cleanRest(Object.values(rb[r.region] || {})); });
+  rows.forEach(r => { r.sch = suggestScheme(r, Object.values(rb[r.region] || {}), focusName); r.sevRank = {High:3, Medium:2, Low:1, Healthy:0}[r.sch.sev]; });
+  // PAN-India total
+  const T = enrich(rows.reduce((t, r) => { ['fCy','fB','aCy','aB','ltC','gC','fltC','fgC','ltB','gB','fltB','fgB'].forEach(k => t[k] += r[k]); return t; },
+    {region:'All regions (PAN India)', fCy:0, fB:0, aCy:0, aB:0, ltC:0, gC:0, fltC:0, fgC:0, ltB:0, gB:0, fltB:0, fgB:0}));
+  const allB = {}; Object.values(rb).forEach(bs => Object.values(bs).forEach(x => { const t = allB[x.basket] = allB[x.basket] || {basket:x.basket, cy:0, b:0, lt:0, g:0}; t.cy += x.cy; t.b += x.b; t.lt += x.lt; t.g += x.g; }));
+  T.dR = cleanRest(Object.values(allB));
+  T.sch = suggestScheme(T, Object.values(allB), focusName);
+  const discCell = (c, b) => `${pct(c)} <span class="muted">(${pct(b)})</span>`;
+  const schCell = r => `<div class="sch" title="${esc(r.sch.why.replace(/<[^>]+>/g,''))}"><span class="sev ${r.sch.sev}">${r.sch.sev}</span>${r.sch.text}</div>`;
+  const cols = [
     {k:'region', h:'U-Region', f:r => `<span class="clickable" data-region="${esc(r.region)}" title="Show channel partners in this region">${esc(r.region)} ›</span>`},
     {k:'fB',  h:`Focus ${fyLabel(base)}`, f:r => money(r.fB)},
     {k:'fCy', h:`Focus ${fyLabel(cy)}`,   f:r => money(r.fCy)},
@@ -562,12 +624,19 @@ function renderRegions(D, cy, base, focusName){
     {k:'rB',  h:`Rest ${fyLabel(base)}`, f:r => money(r.rB)},
     {k:'rCy', h:`Rest ${fyLabel(cy)}`,   f:r => money(r.rCy)},
     {k:'rg',  h:'Rest growth', f:r => gChip(r.rCy, r.rB)},
-    {k:'dsh', h:'Focus share of CP spend', f:r => `${pct(r.shB)} → <b>${pct(r.shCy)}</b> <span class="clickable" data-region="${esc(r.region)}" title="Show channel partners in this region">${ppChip(r.shB ?? NaN, r.shCy ?? NaN) || '<span class="chip flat">view</span>'}</span>`}
-  ], rows, 'aCy');
+    {k:'dsh', h:'Focus share of CP spend', f:r => `${pct(r.shB)} → <b>${pct(r.shCy)}</b> <span class="clickable" data-region="${esc(r.region)}" title="Show channel partners in this region">${ppChip(r.shB ?? NaN, r.shCy ?? NaN) || '<span class="chip flat">view</span>'}</span>`},
+    {k:'dF',  h:`Avg disc focus ${fyLabel(cy)} (LY)`, f:r => discCell(r.dF, r.dFb)},
+    {k:'dR',  h:`Avg disc rest ${fyLabel(cy)}`,  f:r => `<span title="Excludes Software, Others and OEM, whose list prices are placeholders">${pct(r.dR)}</span>`},
+    {k:'sevRank', h:'Suggested bundle scheme (auto)', f:schCell}
+  ];
+  const foot = `<tr>${cols.map(c => c.k === 'region' ? `<td>${esc(T.region)}</td>` : c.k === 'sevRank' ? `<td>${schCell(T)}</td>` : `<td>${c.f(T)}</td>`).join('')}</tr>`;
+  sortable($('regionTable'), cols, rows, 'aCy', null, null, foot);
   $('regionTable').onclick = e => { const el = e.target.closest('[data-region]'); if (el) openRegion(el.dataset.region); };
   $('dlRegions').onclick = () => csv(`region_${S.doc}_${fyLabel(cy)}.csv`,
-    ['Region', `Focus ${fyLabel(base)}`, `Focus ${fyLabel(cy)}`, `Rest ${fyLabel(base)}`, `Rest ${fyLabel(cy)}`, `Focus share ${fyLabel(base)} %`, `Focus share ${fyLabel(cy)} %`],
-    rows.map(r => [r.region, r.fB.toFixed(0), r.fCy.toFixed(0), r.rB.toFixed(0), r.rCy.toFixed(0), r.shB === null ? '' : (r.shB*100).toFixed(1), r.shCy === null ? '' : (r.shCy*100).toFixed(1)]));
+    ['Region', `Focus ${fyLabel(base)}`, `Focus ${fyLabel(cy)}`, `Rest ${fyLabel(base)}`, `Rest ${fyLabel(cy)}`, `Focus share ${fyLabel(base)} %`, `Focus share ${fyLabel(cy)} %`,
+     `Avg disc focus ${fyLabel(cy)} %`, `Avg disc focus ${fyLabel(base)} %`, `Avg disc rest ${fyLabel(cy)} %`, `Avg disc rest ${fyLabel(base)} %`, 'Priority', 'Suggested scheme', 'Reasoning'],
+    [...rows, T].map(r => [r.region, r.fB.toFixed(0), r.fCy.toFixed(0), r.rB.toFixed(0), r.rCy.toFixed(0), r.shB === null ? '' : (r.shB*100).toFixed(1), r.shCy === null ? '' : (r.shCy*100).toFixed(1),
+      ...[r.dF, r.dFb, r.dR, r.dRb].map(v => v === null ? '' : (v*100).toFixed(1)), r.sch.sev, r.sch.text.replace(/<[^>]+>/g,''), r.sch.why.replace(/<[^>]+>/g,'')]));
 }
 
 function renderPartners(all, cy, base, focusName){

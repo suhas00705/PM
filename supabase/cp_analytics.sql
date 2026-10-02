@@ -234,8 +234,14 @@ begin
                  select acct_group as grp, fy, m, sum(v) as v, sum(v) filter (where foc) as fv
                  from base group by acct_group, fy, m) x),
     'regions', (select coalesce(jsonb_agg(x), '[]') from (
-                 select acct_group as grp, fy, region, sum(v) as v, sum(v) filter (where foc) as fv
+                 select acct_group as grp, fy, region, sum(v) as v, sum(v) filter (where foc) as fv,
+                        sum(lt) as lt, sum(g) as g,
+                        sum(lt) filter (where foc) as flt, sum(g) filter (where foc) as fg
                  from base group by acct_group, fy, region) x),
+    'region_baskets', (select coalesce(jsonb_agg(x), '[]') from (
+                 select fy, region, basket, sum(v) as v, sum(lt) as lt, sum(g) as g
+                 from base where acct_group = 'Channel Partners'
+                 group by fy, region, basket) x),
     'partners', (select coalesce(jsonb_agg(x), '[]') from (
                  select card,
                         max(region) as region,
