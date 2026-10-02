@@ -127,6 +127,12 @@
   .sev{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;margin-right:4px;vertical-align:1px}
   .sev.High{background:var(--bad-bg);color:var(--bad)} .sev.Medium{background:var(--warn-bg);color:#9a6400}
   .sev.Low{background:#eef1f6;color:var(--t2)} .sev.Healthy{background:var(--good-bg);color:var(--good)}
+  .psplit{display:grid;grid-template-columns:minmax(320px,1fr) minmax(0,1.4fr);gap:18px;align-items:start}
+  @media(max-width:1000px){.psplit{grid-template-columns:minmax(0,1fr)}}
+  .ptitle{font-size:12.5px;font-weight:700;color:var(--t1);margin-bottom:8px}
+  .btable{background:#fff;border:1px solid var(--line);border-radius:8px;font-size:12.5px}
+  .btable th{position:static}
+  .psplit .card.tile .val{font-size:20px}
   .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
   .loading.on{display:flex}
   .empty{padding:40px;text-align:center;color:var(--t3)}
@@ -670,29 +676,33 @@ function renderPartners(all, cy, base, focusName){
     shown.map(r => [r.card, r.region, r.acct, r.f_base.toFixed(0), r.f_cy.toFixed(0), r.r_base.toFixed(0), r.r_cy.toFixed(0), r.shB === null ? '' : (r.shB*100).toFixed(1), r.shCy === null ? '' : (r.shCy*100).toFixed(1), r.dF === null ? '' : (r.dF*100).toFixed(1), r.dR === null ? '' : (r.dR*100).toFixed(1)]));
 }
 
+/* ---------- basket breakdown for one partner (used by the side panel and the region pop-up) ---------- */
+async function basketBlock(card, regionArr){
+  const { cy, base } = yearsCompared();
+  const rows = await rpc('cp_partner_detail', { p_doc:S.doc, p_cy:cy, p_base:base, p_card:card, p_region:regionArr, p_months:S.months });
+  const m = {}; rows.forEach(r => { m[r.basket] = m[r.basket] || {basket:r.basket};
+    const p = r.fy === cy ? 'c' : 'b'; m[r.basket][p] = n(r.v); m[r.basket][p+'d'] = disc(r.lt, r.g); m[r.basket][p+'q'] = n(r.qty); });
+  const list = Object.values(m).sort((a,b) => n(b.c) - n(a.c));
+  const tc = list.reduce((a,r) => a + n(r.c), 0), tb = list.reduce((a,r) => a + n(r.b), 0);
+  const max = Math.max(1, ...list.map(r => Math.max(n(r.c), n(r.b))));
+  return `<div class="grid g2" style="margin-bottom:12px">
+      <div class="card tile"><div class="lbl">${fyLabel(cy)}</div><div class="val">${money(tc)}</div><div class="row">${gChip(tc, tb)} vs ${money(tb)}</div></div>
+      <div class="card tile"><div class="lbl">Baskets bought</div><div class="val">${list.filter(r => n(r.c) > 0).length}</div><div class="row">was ${list.filter(r => n(r.b) > 0).length} in ${fyLabel(base)}</div></div></div>
+    <div class="legend"><span><span class="swatch" style="background:var(--focus)"></span>${fyLabel(cy)}</span><span><span class="swatch" style="background:var(--base)"></span>${fyLabel(base)}</span></div>
+    <table class="btable"><thead><tr><th style="text-align:left">Basket</th><th>Value</th><th>Mix</th><th>Avg disc</th></tr></thead><tbody>${list.map(r => `
+      <tr ${S.basket.includes(r.basket) ? 'class="hl"' : ''}><td style="text-align:left">${esc(r.basket)}<div style="margin-top:4px"><span class="bar" style="width:${Math.round(150*n(r.c)/max)}px"></span><br><span class="bar b" style="width:${Math.round(150*n(r.b)/max)}px"></span></div></td>
+      <td>${money(r.c)}<br><span class="muted">${money(r.b)}</span></td>
+      <td>${pct(tc ? n(r.c)/tc : null)}<br><span class="muted">${pct(tb ? n(r.b)/tb : null)}</span></td>
+      <td>${pct(r.cd)}<br><span class="muted">${pct(r.bd)}</span></td></tr>`).join('')}</tbody></table>`;
+}
+
 async function openPartner(card){
   const { cy, base } = yearsCompared();
   $('dTitle').textContent = card; $('dSub').textContent = `${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} · ${fyLabel(base)} vs ${fyLabel(cy)}`;
   $('dBody').innerHTML = '<div class="empty">Loading…</div>'; $('drawer').classList.add('open');
   try {
-    const rows = await rpc('cp_partner_detail', { p_doc:S.doc, p_cy:cy, p_base:base, p_card:card, p_region:S.region, p_months:S.months });
-    const m = {}; rows.forEach(r => { m[r.basket] = m[r.basket] || {basket:r.basket};
-      const p = r.fy === cy ? 'c' : 'b'; m[r.basket][p] = n(r.v); m[r.basket][p+'d'] = disc(r.lt, r.g); m[r.basket][p+'q'] = n(r.qty); });
-    const list = Object.values(m).sort((a,b) => n(b.c) - n(a.c));
-    const tc = list.reduce((a,r) => a + n(r.c), 0), tb = list.reduce((a,r) => a + n(r.b), 0);
-    const max = Math.max(1, ...list.map(r => Math.max(n(r.c), n(r.b))));
-    $('dBody').innerHTML = `<div class="grid g2" style="margin-bottom:12px">
-        <div class="card tile"><div class="lbl">${fyLabel(cy)}</div><div class="val">${money(tc)}</div><div class="row">${gChip(tc, tb)} vs ${money(tb)}</div></div>
-        <div class="card tile"><div class="lbl">Baskets bought</div><div class="val">${list.filter(r => n(r.c) > 0).length}</div><div class="row">was ${list.filter(r => n(r.b) > 0).length} in ${fyLabel(base)}</div></div></div>
-      <div class="legend"><span><span class="swatch" style="background:var(--focus)"></span>${fyLabel(cy)}</span><span><span class="swatch" style="background:var(--base)"></span>${fyLabel(base)}</span></div>
-      <table><thead><tr><th>Basket</th><th>Value</th><th>Mix</th><th>Avg disc</th></tr></thead><tbody>${list.map(r => `
-        <tr ${S.basket.includes(r.basket) ? 'class="hl"' : ''}><td>${esc(r.basket)}<div style="margin-top:4px"><span class="bar" style="width:${Math.round(150*n(r.c)/max)}px"></span><br><span class="bar b" style="width:${Math.round(150*n(r.b)/max)}px"></span></div></td>
-        <td>${money(r.c)}<br><span class="muted">${money(r.b)}</span></td>
-        <td>${pct(tc ? n(r.c)/tc : null)}<br><span class="muted">${pct(tb ? n(r.b)/tb : null)}</span></td>
-        <td>${pct(r.cd)}<br><span class="muted">${pct(r.bd)}</span></td></tr>`).join('')}</tbody></table>
-      <div id="dSeries"><div class="muted" style="margin-top:12px">Loading product series…</div></div>`;
-    if (S.basket.length) $('dSeries').innerHTML = await seriesBlock(card, S.region);
-    else $('dSeries').innerHTML = '';
+    $('dBody').innerHTML = await basketBlock(card, S.region) + `<div id="dSeries"><div class="muted" style="margin-top:12px">Loading product series…</div></div>`;
+    $('dSeries').innerHTML = S.basket.length ? await seriesBlock(card, S.region) : '';
   } catch (e) { $('dBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
 }
 $('dClose').onclick = () => $('drawer').classList.remove('open');
@@ -819,10 +829,14 @@ function drawRegion(){
       const card = tr.dataset.card; if (!RM.open.has(card)) return;
       const p = RM.rows.find(x => x.card === card); if (!p) return;
       const sub = document.createElement('tr'); sub.className = 'sub';
-      sub.innerHTML = `<td colspan="${cols.length}">${monthTable(p, cy, base)}<div class="sfill"><div class="muted" style="margin-top:10px">Loading product series…</div></div></td>`;
+      sub.innerHTML = `<td colspan="${cols.length}"><div class="psplit">
+          <div><div class="ptitle">${esc(card)} — product basket breakdown (${esc(RM.region)})</div><div class="bfill"><div class="muted">Loading baskets…</div></div></div>
+          <div><div class="ptitle">Month by month — focus vs rest</div>${monthTable(p, cy, base)}</div></div>
+        <div class="sfill"><div class="muted" style="margin-top:10px">Loading product series…</div></div></td>`;
       tr.after(sub);
-      seriesBlock(card, [RM.region]).then(h => { const f = sub.querySelector('.sfill'); if (f) f.innerHTML = h; })
-        .catch(e => { const f = sub.querySelector('.sfill'); if (f) f.innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; });
+      const fail = (sel, e) => { const f = sub.querySelector(sel); if (f) f.innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; };
+      basketBlock(card, [RM.region]).then(h => { const f = sub.querySelector('.bfill'); if (f) f.innerHTML = h; }).catch(e => fail('.bfill', e));
+      seriesBlock(card, [RM.region]).then(h => { const f = sub.querySelector('.sfill'); if (f) f.innerHTML = h; }).catch(e => fail('.sfill', e));
     });
   };
   rows.forEach(r => r.fdn = -r.fd);
