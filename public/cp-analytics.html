@@ -95,6 +95,22 @@
   .drawer .dh{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
   .drawer .db{padding:14px 18px;overflow:auto}
   .x{border:0;background:#f1f4f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--t2)}
+
+  /* region pop-up */
+  .modal-bg{position:fixed;inset:0;background:rgba(11,41,66,.45);display:none;align-items:flex-start;justify-content:center;z-index:250;padding:32px 12px;overflow:auto}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:14px;width:min(1180px,100%);box-shadow:0 24px 60px rgba(0,0,0,.25);display:flex;flex-direction:column;max-height:calc(100vh - 64px)}
+  .modal .mh{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+  .modal .mb{padding:14px 20px 20px;overflow:auto}
+  .clickable{cursor:pointer;border-radius:6px}
+  .clickable:hover{outline:2px solid #bcd6f5;outline-offset:2px}
+  .exp{border:1px solid #cfd6e3;background:#fff;border-radius:6px;width:26px;height:26px;cursor:pointer;color:var(--t2);font-weight:700;line-height:1}
+  .exp.on{background:var(--volt);border-color:var(--volt);color:#fff}
+  tr.sub td{background:#f8fafd;padding:10px 14px 14px;white-space:normal}
+  .mtable{width:auto;min-width:640px;font-size:12.5px;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .mtable th{position:static}
+  .rmt > table > tbody > tr:not(.sub) > td:nth-child(2), .rmt > table > thead th:nth-child(2){text-align:left}
+  .mtable td,.mtable th{padding:6px 10px}
   .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
   .loading.on{display:flex}
   .empty{padding:40px;text-align:center;color:var(--t3)}
@@ -201,6 +217,15 @@
 <div class="drawer" id="drawer">
   <div class="dh"><div><h2 id="dTitle"></h2><div class="sub" id="dSub"></div></div><button class="x" id="dClose">✕</button></div>
   <div class="db" id="dBody"></div>
+</div>
+<div class="modal-bg" id="regionModal">
+  <div class="modal">
+    <div class="mh"><div><h2 id="rmTitle"></h2><div class="sub" id="rmSub"></div></div>
+      <div class="tools"><div class="tabs" id="rmTabs">
+        <button data-k="all" class="on">All partners</button><button data-k="shifted">Shifted away</button><button data-k="down">Focus dropped</button><button data-k="growing">Focus growing</button></div>
+        <button class="btn" id="rmCsv">Download CSV</button><button class="x" id="rmClose">✕</button></div></div>
+    <div class="mb" id="rmBody"></div>
+  </div>
 </div>
 <div class="tip" id="tip"></div>
 <div class="loading" id="loading">Loading…</div>
@@ -476,7 +501,7 @@ function renderMixChart(D, cy, base, focusName){
 }
 
 /* ---------- tables ---------- */
-function sortable(host, cols, rows, defaultKey, rowAttrs){
+function sortable(host, cols, rows, defaultKey, rowAttrs, afterDraw){
   let key = host._sortKey || defaultKey, dir = host._sortDir || -1;
   const draw = () => {
     const sorted = [...rows].sort((a,b) => { const va = a[key], vb = b[key];
@@ -485,6 +510,7 @@ function sortable(host, cols, rows, defaultKey, rowAttrs){
     host.innerHTML = `<table><thead><tr>${cols.map(c => `<th data-k="${c.k}" title="Sort">${c.h}${c.k === key ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>${
       sorted.map(r => `<tr ${rowAttrs ? rowAttrs(r) : ''}>${cols.map(c => `<td>${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="muted">No rows</td></tr>`}</tbody></table>`;
     host.querySelectorAll('th').forEach(th => th.onclick = () => { const k = th.dataset.k; if (k === key) dir = -dir; else { key = k; dir = -1; } host._sortKey = key; host._sortDir = dir; draw(); });
+    if (afterDraw) afterDraw();
   };
   draw(); return draw;
 }
@@ -517,15 +543,16 @@ function renderRegions(D, cy, base, focusName){
     fg: growth(r.fCy, r.fB) ?? 9e9, rg: growth(r.aCy-r.fCy, r.aB-r.fB) ?? 9e9}));
   rows.forEach(r => r.dsh = (r.shCy ?? 0) - (r.shB ?? 0));
   sortable($('regionTable'), [
-    {k:'region', h:'U-Region'},
+    {k:'region', h:'U-Region', f:r => `<span class="clickable" data-region="${esc(r.region)}" title="Show channel partners in this region">${esc(r.region)} ›</span>`},
     {k:'fB',  h:`Focus ${fyLabel(base)}`, f:r => money(r.fB)},
     {k:'fCy', h:`Focus ${fyLabel(cy)}`,   f:r => money(r.fCy)},
     {k:'fg',  h:'Focus growth', f:r => gChip(r.fCy, r.fB)},
     {k:'rB',  h:`Rest ${fyLabel(base)}`, f:r => money(r.rB)},
     {k:'rCy', h:`Rest ${fyLabel(cy)}`,   f:r => money(r.rCy)},
     {k:'rg',  h:'Rest growth', f:r => gChip(r.rCy, r.rB)},
-    {k:'dsh', h:'Focus share of CP spend', f:r => `${pct(r.shB)} → <b>${pct(r.shCy)}</b> ${ppChip(r.shB ?? NaN, r.shCy ?? NaN)}`}
+    {k:'dsh', h:'Focus share of CP spend', f:r => `${pct(r.shB)} → <b>${pct(r.shCy)}</b> <span class="clickable" data-region="${esc(r.region)}" title="Show channel partners in this region">${ppChip(r.shB ?? NaN, r.shCy ?? NaN) || '<span class="chip flat">view</span>'}</span>`}
   ], rows, 'aCy');
+  $('regionTable').onclick = e => { const el = e.target.closest('[data-region]'); if (el) openRegion(el.dataset.region); };
   $('dlRegions').onclick = () => csv(`region_${S.doc}_${fyLabel(cy)}.csv`,
     ['Region', `Focus ${fyLabel(base)}`, `Focus ${fyLabel(cy)}`, `Rest ${fyLabel(base)}`, `Rest ${fyLabel(cy)}`, `Focus share ${fyLabel(base)} %`, `Focus share ${fyLabel(cy)} %`],
     rows.map(r => [r.region, r.fB.toFixed(0), r.fCy.toFixed(0), r.rB.toFixed(0), r.rCy.toFixed(0), r.shB === null ? '' : (r.shB*100).toFixed(1), r.shCy === null ? '' : (r.shCy*100).toFixed(1)]));
@@ -585,6 +612,99 @@ async function openPartner(card){
   } catch (e) { $('dBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
 }
 $('dClose').onclick = () => $('drawer').classList.remove('open');
+
+/* ---------- region pop-up: partners in a region, with monthly drill-down ---------- */
+const RM = { region:null, rows:[], tab:'all', open:new Set() };
+async function openRegion(region){
+  const { cy, base } = yearsCompared();
+  const focusName = S.basket.length ? S.basket.join(' + ') + (S.series.length ? ` (${S.series.length} series)` : '') : 'Focus';
+  RM.region = region; RM.open = new Set(); RM.tab = 'all';
+  document.querySelectorAll('#rmTabs button').forEach(b => b.classList.toggle('on', b.dataset.k === 'all'));
+  $('rmTitle').textContent = `${region} — channel partners`;
+  $('rmSub').textContent = `${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} · Focus = ${focusName} · Rest = all other baskets · ${fyLabel(base)} vs ${fyLabel(cy)}`;
+  $('rmBody').innerHTML = '<div class="empty">Loading…</div>';
+  $('regionModal').classList.add('open');
+  try {
+    const raw = await rpc('cp_region_partners', { p_doc:S.doc, p_cy:cy, p_base:base, p_region:region, p_acct:S.acct, p_focus:S.basket, p_series:S.series, p_months:S.months });
+    const m = {};
+    raw.forEach(r => {
+      const p = m[r.card] = m[r.card] || { card:r.card, f_cy:0, f_b:0, r_cy:0, r_b:0, flt:0, fg:0, months:{} };
+      const cur = r.fy === cy;
+      p[cur ? 'f_cy' : 'f_b'] += n(r.fv); p[cur ? 'r_cy' : 'r_b'] += n(r.rv);
+      if (cur) { p.flt += n(r.flt); p.fg += n(r.fg); }
+      const mm = p.months[r.m] = p.months[r.m] || { fc:0, fb:0, rc:0, rb:0 };
+      if (cur) { mm.fc += n(r.fv); mm.rc += n(r.rv); } else { mm.fb += n(r.fv); mm.rb += n(r.rv); }
+    });
+    RM.rows = Object.values(m).map(p => ({ ...p, fd:p.f_cy - p.f_b, rd:p.r_cy - p.r_b,
+      shB:(p.f_b + p.r_b) ? p.f_b/(p.f_b + p.r_b) : null, shCy:(p.f_cy + p.r_cy) ? p.f_cy/(p.f_cy + p.r_cy) : null,
+      fg_:growth(p.f_cy, p.f_b) ?? 9e9, rg_:growth(p.r_cy, p.r_b) ?? 9e9, dF:disc(p.flt, p.fg) }));
+    RM.rows.forEach(p => p.dsh = (p.shCy ?? 0) - (p.shB ?? 0));
+    drawRegion();
+  } catch (e) { $('rmBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
+}
+function drawRegion(){
+  const { cy, base } = yearsCompared();
+  const filt = { all:() => true, shifted:p => p.f_b > 0 && p.f_cy < p.f_b && p.r_cy > p.r_b,
+                 down:p => p.f_cy < p.f_b, growing:p => p.f_cy > p.f_b }[RM.tab];
+  const rows = RM.rows.filter(filt);
+  const T = k => rows.reduce((a,p) => a + p[k], 0);
+  const tFb = T('f_b'), tFc = T('f_cy'), tRb = T('r_b'), tRc = T('r_cy');
+  const head = `<div class="grid g4" style="margin-bottom:12px">
+    <div class="card tile"><div class="lbl">Partners</div><div class="val">${rows.length}</div><div class="row">of ${RM.rows.length} in region</div></div>
+    <div class="card tile"><div class="lbl"><span class="swatch" style="background:var(--focus)"></span>Focus</div><div class="val">${money(tFc)}</div><div class="row">${gChip(tFc, tFb)} vs ${money(tFb)}</div></div>
+    <div class="card tile"><div class="lbl"><span class="swatch" style="background:var(--rest)"></span>Rest</div><div class="val">${money(tRc)}</div><div class="row">${gChip(tRc, tRb)} vs ${money(tRb)}</div></div>
+    <div class="card tile"><div class="lbl">Focus share</div><div class="val">${pct((tFc+tRc) ? tFc/(tFc+tRc) : null)}</div><div class="row">${ppChip((tFb+tRb) ? tFb/(tFb+tRb) : NaN, (tFc+tRc) ? tFc/(tFc+tRc) : NaN)} was ${pct((tFb+tRb) ? tFb/(tFb+tRb) : null)}</div></div></div>`;
+  const host = document.createElement('div'); host.className = 'tbl-wrap rmt'; host.style.maxHeight = 'none';
+  $('rmBody').innerHTML = head; $('rmBody').appendChild(host);
+  const cols = [
+    {k:'_x', h:'', f:r => `<button class="exp ${RM.open.has(r.card) ? 'on' : ''}" data-exp="${esc(r.card)}" title="Monthly breakdown">${RM.open.has(r.card) ? '⌄' : '›'}</button>`},
+    {k:'card', h:'Channel partner', f:r => `<b>${esc(r.card)}</b>`},
+    {k:'f_b',  h:`Focus ${fyLabel(base)}`, f:r => money(r.f_b)},
+    {k:'f_cy', h:`Focus ${fyLabel(cy)}`, f:r => money(r.f_cy)},
+    {k:'fg_',  h:'Focus growth', f:r => gChip(r.f_cy, r.f_b)},
+    {k:'r_b',  h:`Rest ${fyLabel(base)}`, f:r => money(r.r_b)},
+    {k:'r_cy', h:`Rest ${fyLabel(cy)}`, f:r => money(r.r_cy)},
+    {k:'rg_',  h:'Rest growth', f:r => gChip(r.r_cy, r.r_b)},
+    {k:'dsh',  h:'Focus share of spend', f:r => `${pct(r.shB,0)} → <b>${pct(r.shCy,0)}</b> ${ppChip(r.shB ?? NaN, r.shCy ?? NaN)}`},
+    {k:'dF',   h:'Avg disc focus', f:r => pct(r.dF)}
+  ];
+  // sortable() draws rows; we inject the monthly sub-rows after each drawn table
+  const redrawSubs = () => {
+    host.querySelectorAll('tbody tr[data-card]').forEach(tr => {
+      const card = tr.dataset.card; if (!RM.open.has(card)) return;
+      const p = RM.rows.find(x => x.card === card); if (!p) return;
+      const sub = document.createElement('tr'); sub.className = 'sub';
+      sub.innerHTML = `<td colspan="${cols.length}">${monthTable(p, cy, base)}</td>`;
+      tr.after(sub);
+    });
+  };
+  rows.forEach(r => r.fdn = -r.fd);
+  const draw = sortable(host, cols, rows, RM.tab === 'all' ? 'f_cy' : RM.tab === 'growing' ? 'fd' : 'fdn', r => `data-card="${esc(r.card)}"`, () => redrawSubs());
+  host.onclick = e => { const b = e.target.closest('[data-exp]'); if (!b) return; const c = b.dataset.exp;
+    RM.open.has(c) ? RM.open.delete(c) : RM.open.add(c); draw(); };
+  $('rmCsv').onclick = () => csv(`${RM.region}_partners_${S.doc}_${fyLabel(cy)}.csv`,
+    ['Partner', `Focus ${fyLabel(base)}`, `Focus ${fyLabel(cy)}`, `Rest ${fyLabel(base)}`, `Rest ${fyLabel(cy)}`, `Focus share ${fyLabel(base)} %`, `Focus share ${fyLabel(cy)} %`, 'Avg disc focus %',
+     ...MONTHS.flatMap(m => [`${MNAME[m]} focus ${fyLabel(cy)}`, `${MNAME[m]} rest ${fyLabel(cy)}`])],
+    rows.map(r => [r.card, r.f_b.toFixed(0), r.f_cy.toFixed(0), r.r_b.toFixed(0), r.r_cy.toFixed(0), r.shB === null ? '' : (r.shB*100).toFixed(1), r.shCy === null ? '' : (r.shCy*100).toFixed(1), r.dF === null ? '' : (r.dF*100).toFixed(1),
+      ...MONTHS.flatMap(m => [n(r.months[m]?.fc).toFixed(0), n(r.months[m]?.rc).toFixed(0)])]));
+}
+function monthTable(p, cy, base){
+  const ms = MONTHS.filter(m => p.months[m]);
+  if (!ms.length) return '<span class="muted">No monthly data</span>';
+  const rowsHtml = ms.map(m => { const x = p.months[m]; const t = x.fc + x.rc, tb = x.fb + x.rb;
+    return `<tr><td>${MNAME[m]}</td><td>${money(x.fc)}</td><td class="muted">${money(x.fb)}</td><td>${gChip(x.fc, x.fb)}</td>
+      <td>${money(x.rc)}</td><td class="muted">${money(x.rb)}</td><td>${gChip(x.rc, x.rb)}</td>
+      <td>${pct(t ? x.fc/t : null,0)} <span class="muted">(${pct(tb ? x.fb/tb : null,0)})</span></td></tr>`; }).join('');
+  return `<div style="font-size:12px;color:var(--t2);margin-bottom:6px"><b>${esc(p.card)}</b> — month by month, ${fyLabel(cy)} (grey = same month ${fyLabel(base)})</div>
+    <table class="mtable"><thead><tr><th>Month</th><th>Focus ${fyLabel(cy)}</th><th>Focus ${fyLabel(base)}</th><th>Focus growth</th>
+    <th>Rest ${fyLabel(cy)}</th><th>Rest ${fyLabel(base)}</th><th>Rest growth</th><th>Focus share</th></tr></thead><tbody>${rowsHtml}</tbody></table>`;
+}
+$('rmClose').onclick = () => $('regionModal').classList.remove('open');
+$('regionModal').onclick = e => { if (e.target.id === 'regionModal') $('regionModal').classList.remove('open'); };
+$('rmTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; RM.tab = b.dataset.k;
+  document.querySelectorAll('#rmTabs button').forEach(x => x.classList.toggle('on', x === b)); drawRegion(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('regionModal').classList.remove('open'); $('drawer').classList.remove('open'); } });
+
 
 /* ---------------- wiring ---------------- */
 $('docToggle').onclick = async e => { const b = e.target.closest('button'); if (!b || b.dataset.doc === S.doc) return;
