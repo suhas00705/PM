@@ -52,3 +52,9 @@ desktop.ini
 # ---- Local working scratch (decoded dashboard payloads, not source of truth) ----
 extracted/
 verify/
+
+# ---- Business data — never push to the public repo ----
+data-import/*.csv
+data-import/*.csv.gz
+Claude outputs/
+*.xlsx

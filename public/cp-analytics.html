@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Channel Partner Analytics</title>
+<style>
+  :root{
+    --navy:#0B2942; --volt:#0073C8; --bg:#eef2f8; --panel:#ffffff; --line:#e3e7ef; --grid:#eceff4;
+    --t1:#16264d; --t2:#3b5384; --t3:#7a8fb8;
+    --focus:#2a78d6; --rest:#eb6834; --base:#a9b4c6;
+    --good:#0f8a3c; --good-bg:#e5f5ea; --bad:#c62828; --bad-bg:#fdecec; --warn-bg:#fff6e0;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:'Calibri','Carlito','Segoe UI',sans-serif;font-size:14px}
+  .wrap{max-width:1500px;margin:0 auto;padding:16px 16px 40px}
+  h1{font-size:20px;margin:0;letter-spacing:.01em}
+  h2{font-size:15px;margin:0 0 2px;color:var(--t1)}
+  .sub{color:var(--t3);font-size:12.5px}
+  .head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .toggle{display:inline-flex;background:#dfe6f1;border-radius:10px;padding:3px}
+  .toggle button{border:0;background:transparent;padding:7px 18px;border-radius:8px;font:inherit;font-weight:700;color:var(--t2);cursor:pointer}
+  .toggle button.on{background:var(--panel);color:var(--volt);box-shadow:0 1px 4px rgba(11,41,66,.15)}
+  .sync{font-size:12px;color:var(--t3)}
+  .sync b{color:var(--t2)}
+  .sync.err b{color:var(--bad)}
+
+  /* filters */
+  .filters{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+  .f{display:flex;flex-direction:column;gap:3px;position:relative}
+  .f label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  .ms-btn{min-width:150px;max-width:230px;text-align:left;border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 28px 7px 10px;font:inherit;color:var(--t1);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+  .ms-btn:after{content:'▾';position:absolute;right:10px;top:7px;color:var(--t3)}
+  .ms-btn.set{border-color:var(--volt);background:#f1f7ff}
+  .ms-pop{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(11,41,66,.18);width:270px;padding:8px}
+  .ms-pop.open{display:block}
+  .ms-pop input[type=search]{width:100%;padding:6px 8px;border:1px solid #cfd6e3;border-radius:6px;font:inherit;margin-bottom:6px}
+  .ms-acts{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+  .ms-acts button{font:inherit;font-size:11.5px;border:1px solid #cfd6e3;background:#f6f8fb;border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--t2)}
+  .ms-list{max-height:260px;overflow:auto}
+  .ms-list label{display:flex;gap:7px;align-items:center;padding:5px 4px;border-radius:5px;cursor:pointer;font-size:13px;color:var(--t1);text-transform:none;letter-spacing:0;font-weight:400}
+  .ms-list label:hover{background:#f1f5fb}
+  .reset{border:0;background:transparent;color:var(--volt);font:inherit;font-weight:700;cursor:pointer;padding:8px 6px}
+  .note{font-size:12.5px;color:var(--t2);margin:0 2px 14px}
+  .note b{color:var(--t1)}
+
+  /* cards */
+  .grid{display:grid;gap:12px}
+  .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  @media(max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:820px){.g3,.g2,.g4{grid-template-columns:minmax(0,1fr)}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+  .sec{margin-top:18px}
+  .sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .tile .lbl{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  .tile .val{font-size:26px;font-weight:700;margin:4px 0 2px;color:var(--t1)}
+  .tile .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12.5px;color:var(--t2)}
+  .chip{display:inline-flex;align-items:center;gap:3px;font-weight:700;font-size:12px;padding:2px 7px;border-radius:20px}
+  .up{color:var(--good);background:var(--good-bg)} .dn{color:var(--bad);background:var(--bad-bg)} .flat{color:var(--t2);background:#eef1f6}
+  .swatch{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .insight{background:#f3f8ff;border:1px solid #d5e5fb;border-radius:12px;padding:12px 16px;color:var(--t1);font-size:14px;line-height:1.5}
+  .insight ul{margin:6px 0 0;padding-left:18px}
+  .insight li{margin:3px 0}
+
+  /* tables */
+  .tbl-wrap{overflow:auto;max-height:560px;border-radius:10px}
+  table{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+  th{position:sticky;top:0;background:#f4f6fa;color:var(--t3);font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;text-align:right;padding:8px 10px;white-space:nowrap;cursor:pointer;user-select:none;z-index:1}
+  th:first-child,td:first-child{text-align:left}
+  td{padding:7px 10px;border-top:1px solid #f0f2f7;text-align:right;white-space:nowrap;color:var(--t1)}
+  tr.hl td{background:#f1f7ff}
+  tr.click{cursor:pointer} tr.click:hover td{background:#f7f9fd}
+  td.muted{color:var(--t3)}
+  .bar{display:inline-block;height:8px;border-radius:0 4px 4px 0;background:var(--focus);vertical-align:middle;margin-right:6px}
+  .bar.b{background:var(--base)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap}
+  .tabs button{font:inherit;font-size:12.5px;border:1px solid #cfd6e3;background:#fff;border-radius:20px;padding:5px 12px;cursor:pointer;color:var(--t2)}
+  .tabs button.on{background:var(--volt);border-color:var(--volt);color:#fff}
+  .tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .tools input{padding:6px 10px;border:1px solid #cfd6e3;border-radius:8px;font:inherit;min-width:200px}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--volt);color:var(--volt);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700}
+
+  /* charts */
+  .chart{position:relative;width:100%}
+  .chart svg{display:block;width:100%;height:auto;overflow:visible}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12.5px;color:var(--t2);margin:2px 0 6px}
+  .tip{position:fixed;pointer-events:none;background:#0f1f3a;color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:100;display:none;line-height:1.45;max-width:280px}
+  .tip b{color:#fff}
+
+  /* drawer */
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(560px,100%);background:#fff;box-shadow:-12px 0 40px rgba(11,41,66,.2);transform:translateX(105%);transition:transform .2s;z-index:200;display:flex;flex-direction:column}
+  .drawer.open{transform:none}
+  .drawer .dh{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
+  .drawer .db{padding:14px 18px;overflow:auto}
+  .x{border:0;background:#f1f4f9;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;color:var(--t2)}
+  .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
+  .loading.on{display:flex}
+  .empty{padding:40px;text-align:center;color:var(--t3)}
+  .err{background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div>
+      <h1>Channel Partner Analytics</h1>
+      <div class="sub">What channel partners buy, how their basket mix is shifting, and the discounts they get — value = DocTotalFC</div>
+    </div>
+    <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div class="toggle" id="docToggle">
+        <button data-doc="OB" class="on">Order Booking</button>
+        <button data-doc="INV">Invoicing</button>
+      </div>
+      <div class="sync" id="syncInfo"></div>
+    </div>
+  </div>
+
+  <div class="err" id="errBox"></div>
+
+  <div class="filters" id="filters">
+    <div class="f"><label>Financial year</label><div id="f-fy"></div></div>
+    <div class="f"><label>Month</label><div id="f-month"></div></div>
+    <div class="f"><label>Account type</label><div id="f-acct"></div></div>
+    <div class="f"><label>U-Region</label><div id="f-region"></div></div>
+    <div class="f"><label>Focus product basket</label><div id="f-basket"></div></div>
+    <div class="f"><label>Product series</label><div id="f-series"></div></div>
+    <button class="reset" id="resetBtn">Reset</button>
+  </div>
+  <div class="note" id="compareNote"></div>
+
+  <!-- 1. Channel partners vs Direct -->
+  <div class="sec">
+    <div class="sec-h"><div><h2>Who is buying — Channel Partners vs Direct</h2>
+      <div class="sub">Direct = every account type other than Channel Partners (OEM, End Customer, Panel Builder, VAR …)</div></div></div>
+    <div class="grid g3" id="groupTiles"></div>
+  </div>
+
+  <!-- 2. Focus vs rest -->
+  <div class="sec">
+    <div class="sec-h"><div><h2 id="focusTitle">Focus basket vs remaining baskets — Channel Partners</h2>
+      <div class="sub">Pick one or more baskets in “Focus product basket” (and optionally series) to compare them against everything else the same partners buy</div></div></div>
+    <div class="insight" id="insight"></div>
+    <div class="grid g4" id="focusTiles" style="margin-top:12px"></div>
+  </div>
+
+  <!-- 3. Monthly charts -->
+  <div class="sec grid g2">
+    <div class="card">
+      <h2 id="shareTitle">Focus share of channel-partner spend, by month</h2>
+      <div class="sub">If this line sits below last year, partners are moving their money to other baskets</div>
+      <div class="legend" id="shareLegend"></div>
+      <div class="chart" id="shareChart"></div>
+    </div>
+    <div class="card">
+      <h2 id="mixTitle">Channel-partner spend by month — focus vs rest</h2>
+      <div class="sub" id="mixSub"></div>
+      <div class="legend" id="mixLegend"></div>
+      <div class="chart" id="mixChart"></div>
+    </div>
+  </div>
+
+  <!-- 4. Basket table -->
+  <div class="sec card">
+    <div class="sec-h"><div><h2>Product basket mix &amp; average discount</h2>
+      <div class="sub">Mix = basket’s share of that group’s total spend. Avg discount = 1 − Line Total ÷ (List Price × Qty), value-weighted</div></div>
+      <button class="btn" id="dlBaskets">Download CSV</button></div>
+    <div class="tbl-wrap" id="basketTable"></div>
+  </div>
+
+  <!-- 5. Region table -->
+  <div class="sec card">
+    <div class="sec-h"><div><h2>Region view — Channel Partners, focus vs rest</h2>
+      <div class="sub">Where the shift away from the focus basket is happening</div></div>
+      <button class="btn" id="dlRegions">Download CSV</button></div>
+    <div class="tbl-wrap" id="regionTable"></div>
+  </div>
+
+  <!-- 6. Partner table -->
+  <div class="sec card">
+    <div class="sec-h">
+      <div><h2>Partner list — who shifted, who to target with a scheme</h2>
+        <div class="sub">Click a partner to see their full basket breakdown and discounts</div></div>
+      <div class="tools">
+        <div class="tabs" id="pTabs">
+          <button data-k="shifted" class="on">Shifted away</button>
+          <button data-k="lost">Stopped buying focus</button>
+          <button data-k="growing">Growing focus</button>
+          <button data-k="all">All partners</button>
+        </div>
+        <input type="search" id="pSearch" placeholder="Search partner…">
+        <button class="btn" id="dlPartners">Download CSV</button>
+      </div>
+    </div>
+    <div class="sub" id="pSummary" style="margin-bottom:8px"></div>
+    <div class="tbl-wrap" id="partnerTable"></div>
+  </div>
+</div>
+
+<div class="drawer" id="drawer">
+  <div class="dh"><div><h2 id="dTitle"></h2><div class="sub" id="dSub"></div></div><button class="x" id="dClose">✕</button></div>
+  <div class="db" id="dBody"></div>
+</div>
+<div class="tip" id="tip"></div>
+<div class="loading" id="loading">Loading…</div>
+
+<script>
+/* ---------------- config ---------------- */
+const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+const MONTHS = [4,5,6,7,8,9,10,11,12,1,2,3];
+const MNAME = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'};
+const CP = 'Channel Partners';
+const DEFAULT_FOCUS = ['Panel Meters'];
+
+/* ---------------- state ---------------- */
+const S = { doc:'OB', opts:null, data:null, fy:[], months:[], acct:[], region:[], basket:[...DEFAULT_FOCUS], series:[], pTab:'shifted', pSearch:'', pSort:null };
+
+/* ---------------- helpers ---------------- */
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const n = v => Number(v) || 0;
+const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
+function money(v){ v = n(v); const a = Math.abs(v);
+  if (a >= 1e7) return '₹' + (v/1e7).toFixed(a >= 1e9 ? 0 : 2) + ' Cr';
+  if (a >= 1e5) return '₹' + (v/1e5).toFixed(1) + ' L';
+  if (a >= 1e3) return '₹' + (v/1e3).toFixed(0) + 'K';
+  return '₹' + v.toFixed(0); }
+function growth(cy, base){ cy = n(cy); base = n(base); if (!base) return cy ? null : 0; return (cy - base) / base; }
+function gChip(cy, base){ const g = growth(cy, base);
+  if (g === null) return '<span class="chip up">new</span>';
+  const cls = g > 0.005 ? 'up' : g < -0.005 ? 'dn' : 'flat';
+  return `<span class="chip ${cls}">${g > 0.005 ? '▲' : g < -0.005 ? '▼' : '■'} ${Math.abs(g*100).toFixed(1)}%</span>`; }
+function pct(v, d=1){ return v === null || v === undefined || !isFinite(v) ? '—' : (v*100).toFixed(d) + '%'; }
+function ppChip(a, b){ if (!isFinite(a) || !isFinite(b)) return ''; const d = (b - a) * 100;
+  const cls = d > 0.05 ? 'up' : d < -0.05 ? 'dn' : 'flat';
+  return `<span class="chip ${cls}">${d > 0.05 ? '▲' : d < -0.05 ? '▼' : '■'} ${Math.abs(d).toFixed(1)} pp</span>`; }
+const disc = (lt, g) => n(g) > 0 ? 1 - n(lt)/n(g) : null;
+function csv(name, header, rows){
+  const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+  const blob = new Blob(['﻿' + [header, ...rows].map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); }
+async function rpc(fn, body){
+  const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer '+KEY, 'Content-Type':'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json(); }
+function showErr(e){ const b = $('errBox'); b.style.display = e ? 'block' : 'none'; b.textContent = e ? 'Could not load data — ' + e : ''; }
+const tip = $('tip');
+function showTip(e, html){ tip.innerHTML = html; tip.style.display = 'block';
+  const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+function hideTip(){ tip.style.display = 'none'; }
+
+/* ---------------- multiselect ---------------- */
+const MS = {};
+function multiSelect(host, key, getItems, placeholder, extraActs){
+  host.innerHTML = `<button class="ms-btn"></button><div class="ms-pop"><input type="search" placeholder="Search…"><div class="ms-acts"><button data-a="all">Select all</button><button data-a="none">Clear</button>${(extraActs||[]).map((x,i)=>`<button data-x="${i}">${esc(x.label)}</button>`).join('')}</div><div class="ms-list"></div></div>`;
+  const btn = host.querySelector('.ms-btn'), pop = host.querySelector('.ms-pop'), list = host.querySelector('.ms-list'), search = host.querySelector('input');
+  const render = () => {
+    const items = getItems(); const q = search.value.toLowerCase();
+    list.innerHTML = items.filter(it => String(it.label).toLowerCase().includes(q)).map(it =>
+      `<label><input type="checkbox" value="${esc(it.value)}" ${S[key].includes(it.value) ? 'checked' : ''}> ${esc(it.label)}</label>`).join('') || '<div class="sub" style="padding:6px">No options</div>';
+    const sel = S[key];
+    btn.classList.toggle('set', sel.length > 0);
+    btn.textContent = !sel.length ? placeholder : sel.length === 1 ? (items.find(i => i.value === sel[0])?.label ?? sel[0]) : `${sel.length} selected`;
+    btn.title = sel.map(v => items.find(i => i.value === v)?.label ?? v).join(', ');
+  };
+  btn.onclick = e => { e.stopPropagation(); const open = !pop.classList.contains('open'); document.querySelectorAll('.ms-pop.open').forEach(p => p.classList.remove('open')); if (open) { pop.classList.add('open'); search.value=''; render(); search.focus(); } };
+  pop.onclick = e => e.stopPropagation();
+  search.oninput = render;
+  list.onchange = e => { const v = e.target.value; const isNum = typeof getItems()[0]?.value === 'number'; const val = isNum ? Number(v) : v;
+    S[key] = e.target.checked ? [...S[key], val] : S[key].filter(x => x !== val); render(); onFilterChange(key); };
+  pop.querySelector('.ms-acts').onclick = e => { const a = e.target.dataset.a, x = e.target.dataset.x;
+    if (a === 'all') S[key] = getItems().map(i => i.value);
+    else if (a === 'none') S[key] = [];
+    else if (x !== undefined) S[key] = extraActs[+x].pick(getItems());
+    else return;
+    render(); onFilterChange(key); };
+  MS[key] = { render };
+  render();
+}
+document.addEventListener('click', () => document.querySelectorAll('.ms-pop.open').forEach(p => p.classList.remove('open')));
+
+let reloadTimer = null;
+function onFilterChange(key){
+  if (key === 'basket') { // keep only series that belong to the chosen baskets
+    const ok = new Set(seriesItems().map(i => i.value)); S.series = S.series.filter(s => ok.has(s)); MS.series?.render(); }
+  clearTimeout(reloadTimer); reloadTimer = setTimeout(load, 350);
+}
+function seriesItems(){
+  const all = S.opts?.series || []; const bs = new Set(S.basket);
+  return [...new Set(all.filter(x => !bs.size || bs.has(x.b)).map(x => x.s))].sort().map(s => ({value:s, label:s}));
+}
+
+/* ---------------- boot ---------------- */
+async function loadOptions(){
+  S.opts = await rpc('cp_filter_options', { p_doc: S.doc });
+  const fys = S.opts.fys || [];
+  if (!S.fy.length || !S.fy.every(f => fys.includes(f))) S.fy = fys.slice(0, 2);
+  const keep = (k, list) => { S[k] = S[k].filter(v => list.includes(v)); };
+  keep('acct', S.opts.account_types || []); keep('region', S.opts.regions || []); keep('basket', S.opts.baskets || []);
+  multiSelect($('f-fy'), 'fy', () => fys.map(f => ({value:f, label:fyLabel(f)})), 'Select FY');
+  multiSelect($('f-month'), 'months', () => MONTHS.map(m => ({value:m, label:MNAME[m]})), 'All months (like-for-like)',
+    [{label:'Q1', pick:()=>[4,5,6]},{label:'Q2', pick:()=>[7,8,9]},{label:'Q3', pick:()=>[10,11,12]},{label:'Q4', pick:()=>[1,2,3]},{label:'H1', pick:()=>[4,5,6,7,8,9]}]);
+  multiSelect($('f-acct'), 'acct', () => (S.opts.account_types||[]).map(a => ({value:a, label:a})), 'All account types',
+    [{label:'Channel Partners only', pick:it => it.filter(i => /^Channel Partner/.test(i.value)).map(i=>i.value)},
+     {label:'Direct only', pick:it => it.filter(i => !/^Channel Partner/.test(i.value)).map(i=>i.value)}]);
+  multiSelect($('f-region'), 'region', () => (S.opts.regions||[]).map(r => ({value:r, label:r})), 'All regions');
+  multiSelect($('f-basket'), 'basket', () => (S.opts.baskets||[]).map(b => ({value:b, label:b})), 'Choose basket(s)');
+  multiSelect($('f-series'), 'series', seriesItems, 'All series in basket');
+  const ls = S.opts.last_sync;
+  const si = $('syncInfo');
+  si.className = 'sync' + (ls && ls.status === 'error' ? ' err' : '');
+  si.innerHTML = `Data till <b>${S.opts.max_date ? new Date(S.opts.max_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'}</b>` +
+    (ls ? ` · last Zoho sync <b>${new Date(ls.at).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</b>${ls.status === 'error' ? ' (failed)' : ''}` : '');
+}
+
+function yearsCompared(){
+  const fys = [...S.fy].sort((a,b) => b - a);
+  const all = S.opts?.fys || [];
+  const cy = fys[0] ?? all[0];
+  const base = fys[1] ?? (cy - 1);
+  return { cy, base, extra: fys.length > 2 };
+}
+
+async function load(){
+  $('loading').classList.add('on');
+  try {
+    const { cy, base } = yearsCompared();
+    S.data = await rpc('cp_dashboard', { p_doc:S.doc, p_cy:cy, p_base:base, p_acct:S.acct, p_focus:S.basket, p_series:S.series, p_region:S.region, p_months:S.months });
+    showErr(null); render();
+  } catch (e) { showErr(e.message); }
+  finally { $('loading').classList.remove('on'); }
+}
+
+/* ---------------- render ---------------- */
+function render(){
+  const D = S.data, { cy, base, extra } = yearsCompared();
+  const focusName = S.basket.length ? (S.basket.length > 2 ? `${S.basket.length} baskets` : S.basket.join(' + ')) + (S.series.length ? ` (${S.series.length} series)` : '') : 'no basket selected';
+  const docName = S.doc === 'OB' ? 'Order Booking' : 'Invoicing';
+  const lfl = D.meta.base_cut;
+  $('compareNote').innerHTML = `Comparing <b>${fyLabel(cy)}</b> with <b>${fyLabel(base)}</b> · ${docName}` +
+    (S.months.length ? ` · months: <b>${MONTHS.filter(m => S.months.includes(m)).map(m => MNAME[m]).join(', ')}</b>`
+                     : lfl ? ` · like-for-like: both years up to <b>${new Date(D.meta.max_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</b>` : '') +
+    (extra ? ' · <span style="color:#c62828">more than 2 FYs selected — comparing the latest two</span>' : '');
+
+  // ---------- group tiles ----------
+  const G = {}; (D.groups||[]).forEach(r => { G[r.grp + '|' + r.fy] = r; });
+  const g = (grp, fy, k) => n(G[grp + '|' + fy]?.[k]);
+  const totCy = g(CP,cy,'v') + g('Direct',cy,'v'), totBase = g(CP,base,'v') + g('Direct',base,'v');
+  const tile = (label, sw, vcy, vbase, extraHtml) => `<div class="card tile"><div class="lbl">${sw ? `<span class="swatch" style="background:${sw}"></span>` : ''}${label}</div>
+    <div class="val">${money(vcy)}</div><div class="row">${gChip(vcy, vbase)}<span>vs ${money(vbase)} in ${fyLabel(base)}</span></div>${extraHtml||''}</div>`;
+  $('groupTiles').innerHTML =
+    tile('Total ' + docName, null, totCy, totBase, `<div class="row" style="margin-top:6px">${g(CP,cy,'cust') + g('Direct',cy,'cust')} customers</div>`) +
+    tile('Channel Partners', null, g(CP,cy,'v'), g(CP,base,'v'), `<div class="row" style="margin-top:6px">Share of total: <b>${pct(totCy ? g(CP,cy,'v')/totCy : null)}</b> ${ppChip(totBase ? g(CP,base,'v')/totBase : NaN, totCy ? g(CP,cy,'v')/totCy : NaN)} · ${g(CP,cy,'cust')} partners</div>`) +
+    tile('Direct', null, g('Direct',cy,'v'), g('Direct',base,'v'), `<div class="row" style="margin-top:6px">Share of total: <b>${pct(totCy ? g('Direct',cy,'v')/totCy : null)}</b> ${ppChip(totBase ? g('Direct',base,'v')/totBase : NaN, totCy ? g('Direct',cy,'v')/totCy : NaN)} · ${g('Direct',cy,'cust')} customers</div>`);
+
+  // ---------- focus tiles ----------
+  $('focusTitle').textContent = `${focusName} vs remaining baskets — Channel Partners`;
+  const fCy = g(CP,cy,'fv'), fB = g(CP,base,'fv'), aCy = g(CP,cy,'v'), aB = g(CP,base,'v');
+  const rCy = aCy - fCy, rB = aB - fB;
+  const shCy = aCy ? fCy/aCy : NaN, shB = aB ? fB/aB : NaN;
+  const fdCy = disc(g(CP,cy,'flt'), g(CP,cy,'fg')), fdB = disc(g(CP,base,'flt'), g(CP,base,'fg'));
+  const rdCy = disc(g(CP,cy,'lt') - g(CP,cy,'flt'), g(CP,cy,'g') - g(CP,cy,'fg'));
+  const dfCy = g('Direct',cy,'fv'), dfB = g('Direct',base,'fv');
+  $('focusTiles').innerHTML =
+    tile(focusName, 'var(--focus)', fCy, fB) +
+    tile('Remaining baskets', 'var(--rest)', rCy, rB) +
+    `<div class="card tile"><div class="lbl">Focus share of CP spend</div><div class="val">${pct(shCy)}</div>
+      <div class="row">${ppChip(shB, shCy)}<span>was ${pct(shB)} in ${fyLabel(base)}</span></div></div>` +
+    `<div class="card tile"><div class="lbl">Avg discount — CP on focus</div><div class="val">${pct(fdCy)}</div>
+      <div class="row">${ppChip(fdB, fdCy)}<span>was ${pct(fdB)} · rest of baskets ${pct(rdCy)}</span></div></div>`;
+
+  // ---------- insight ----------
+  const partners = (D.partners||[]).map(p => ({...p, f_cy:n(p.f_cy), f_base:n(p.f_base), r_cy:n(p.r_cy), r_base:n(p.r_base)}));
+  const shifted = partners.filter(isShifted), lost = partners.filter(p => p.f_base > 0 && p.f_cy <= 0);
+  const lossF = shifted.reduce((a,p) => a + (p.f_base - p.f_cy), 0), gainR = shifted.reduce((a,p) => a + (p.r_cy - p.r_base), 0);
+  const gAll = growth(aCy, aB), gF = growth(fCy, fB);
+  const B = basketRows(D, cy, base).filter(r => r.basket !== '(blank)');
+  const winners = [...B].filter(r => !S.basket.includes(r.basket)).sort((a,b) => (b.cpCy - b.cpB) - (a.cpCy - a.cpB)).slice(0,3);
+  if (!S.basket.length) {
+    $('insight').innerHTML = 'Choose one or more baskets in <b>Focus product basket</b> to see where channel-partner spend is moving.';
+  } else {
+    $('insight').innerHTML = `<b>${focusName}</b>: channel-partner ${docName.toLowerCase()} ${gF === null ? 'is new this year' : (gF >= 0 ? 'grew ' : 'fell ') + pct(Math.abs(gF))} (${money(fB)} → ${money(fCy)}), while their total spend ${gAll === null ? 'started this year' : (gAll >= 0 ? 'grew ' : 'fell ') + pct(Math.abs(gAll))}.
+      The focus basket’s share of the partner wallet moved from <b>${pct(shB)}</b> to <b>${pct(shCy)}</b>.
+      <ul>
+        <li><b>${shifted.length}</b> partners bought less ${esc(focusName)} (−${money(lossF)}) but more of other baskets (+${money(gainR)}) — they are the first list for a bundled scheme.</li>
+        <li><b>${lost.length}</b> partners who bought ${esc(focusName)} last year have bought none this year.</li>
+        ${winners.length ? `<li>Biggest channel-partner growth elsewhere: ${winners.map(w => `<b>${esc(w.basket)}</b> (+${money(w.cpCy - w.cpB)}, avg disc ${pct(w.dCy)})`).join(', ')} — natural anchors to bundle with ${esc(focusName)}.</li>` : ''}
+      </ul>`;
+  }
+
+  renderShareChart(D, cy, base, focusName);
+  renderMixChart(D, cy, base, focusName);
+  renderBaskets(B, cy, base);
+  renderRegions(D, cy, base, focusName);
+  renderPartners(partners, cy, base, focusName);
+}
+
+function isShifted(p){ return p.f_base > 0 && p.f_cy < p.f_base && p.r_cy > p.r_base; }
+
+function basketRows(D, cy, base){
+  const m = {};
+  (D.baskets||[]).forEach(r => { const k = r.basket; m[k] = m[k] || {basket:k};
+    const pre = (r.grp === CP ? 'cp' : 'd') + (r.fy === cy ? 'Cy' : 'B');
+    m[k][pre] = n(r.v); m[k][pre + 'lt'] = n(r.lt); m[k][pre + 'g'] = n(r.g); m[k][pre + 'n'] = n(r.cust); });
+  const tot = k => Object.values(m).reduce((a,r) => a + n(r[k]), 0);
+  const T = {cpCy:tot('cpCy'), cpB:tot('cpB'), dCy:tot('dCy'), dB:tot('dB')};
+  return Object.values(m).map(r => ({...r, cpCy:n(r.cpCy), cpB:n(r.cpB), dCyV:n(r.dCy), dBV:n(r.dB),
+    mixCy: T.cpCy ? n(r.cpCy)/T.cpCy : 0, mixB: T.cpB ? n(r.cpB)/T.cpB : 0,
+    dCy: disc(r.cpCylt, r.cpCyg), dB: disc(r.cpBlt, r.cpBg), ddCy: disc(r.dCylt, r.dCyg), cust:n(r.cpCyn)
+  })).sort((a,b) => b.cpCy - a.cpCy);
+}
+
+/* ---------- charts (plain SVG) ---------- */
+function axisMonths(D, cy){
+  const have = new Set((D.monthly||[]).map(r => r.m));
+  return MONTHS.filter(m => have.has(m));
+}
+function axisMoney(v){ if (v >= 1e7) return (v/1e7).toFixed(v/1e7 % 1 ? 1 : 0) + ' Cr'; if (v >= 1e5) return (v/1e5).toFixed(0) + ' L'; return v ? (v/1e3).toFixed(0) + 'K' : '0'; }
+function niceMax(v){ if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const f = v/p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; }
+
+function renderShareChart(D, cy, base, focusName){
+  $('shareTitle').textContent = `${focusName} — share of channel-partner spend, by month`;
+  const ms = axisMonths(D, cy);
+  const get = (fy, m) => { const r = (D.monthly||[]).find(x => x.grp === CP && x.fy === fy && x.m === m); return r && n(r.v) ? n(r.fv)/n(r.v) : null; };
+  const series = [{fy:base, color:'var(--base)', label:fyLabel(base)}, {fy:cy, color:'var(--focus)', label:fyLabel(cy)}];
+  $('shareLegend').innerHTML = series.slice().reverse().map(s => `<span><span class="swatch" style="background:${s.color}"></span>${s.label}</span>`).join('');
+  const W = 640, H = 260, L = 44, R = 14, T = 12, Bm = 28;
+  const vals = series.flatMap(s => ms.map(m => get(s.fy, m))).filter(v => v !== null);
+  const max = Math.min(1, Math.ceil(Math.max(0.05, ...vals) * 1.1 * 10) / 10);
+  const x = i => L + (ms.length <= 1 ? (W-L-R)/2 : i * (W-L-R)/(ms.length-1));
+  const y = v => T + (H-T-Bm) * (1 - v/max);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Focus share by month">`;
+  for (let k = 0; k <= 4; k++) { const v = max*k/4; svg += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--t3)">${(v*100).toFixed(0)}%</text>`; }
+  ms.forEach((m,i) => svg += `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--t3)">${MNAME[m]}</text>`);
+  series.forEach(s => {
+    const pts = ms.map((m,i) => [i, get(s.fy, m)]).filter(p => p[1] !== null);
+    if (pts.length > 1) svg += `<polyline fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" points="${pts.map(p => x(p[0]) + ',' + y(p[1])).join(' ')}"/>`;
+    pts.forEach(p => svg += `<circle cx="${x(p[0])}" cy="${y(p[1])}" r="4" fill="${s.color}" stroke="#fff" stroke-width="2"/>`);
+  });
+  ms.forEach((m,i) => svg += `<rect class="hit" data-i="${i}" x="${x(i) - (W-L-R)/Math.max(ms.length,1)/2}" y="${T}" width="${(W-L-R)/Math.max(ms.length,1)}" height="${H-T-Bm}" fill="transparent"/>`);
+  svg += '</svg>';
+  const el = $('shareChart'); el.innerHTML = ms.length ? svg : '<div class="empty">No data</div>';
+  el.querySelectorAll('.hit').forEach(h => { const m = ms[+h.dataset.i];
+    h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br>${series.slice().reverse().map(s => `<span class="swatch" style="background:${s.color}"></span>${s.label}: ${pct(get(s.fy,m))}`).join('<br>')}`);
+    h.onmouseleave = hideTip; });
+}
+
+function renderMixChart(D, cy, base, focusName){
+  $('mixTitle').textContent = `Channel-partner spend by month — ${focusName} vs rest`;
+  $('mixSub').textContent = `${fyLabel(cy)}. Hover a month to compare with ${fyLabel(base)}.`;
+  $('mixLegend').innerHTML = `<span><span class="swatch" style="background:var(--focus)"></span>${esc(focusName)}</span><span><span class="swatch" style="background:var(--rest)"></span>Remaining baskets</span>`;
+  const ms = axisMonths(D, cy);
+  const row = (fy, m) => (D.monthly||[]).find(x => x.grp === CP && x.fy === fy && x.m === m) || {v:0, fv:0};
+  const W = 640, H = 260, L = 52, R = 10, T = 12, Bm = 28;
+  const raw = Math.max(1, ...ms.map(m => n(row(cy,m).v))); const step = niceMax(raw/4); const max = Math.ceil(raw/step)*step;
+  const band = (W-L-R)/Math.max(ms.length,1), bw = Math.min(42, band*0.6);
+  const y = v => T + (H-T-Bm) * (1 - v/max);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Monthly spend focus vs rest">`;
+  for (let v = 0; v <= max + 1; v += step) { svg += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--t3)">${axisMoney(v)}</text>`; }
+  ms.forEach((m,i) => {
+    const r = row(cy,m), f = n(r.fv), t = n(r.v), rest = Math.max(0, t - f), cx = L + band*i + band/2;
+    const yf = y(f), yt = y(t);
+    if (f > 0) svg += `<path d="M${cx-bw/2},${H-Bm} V${yf+ (rest>0?0:4)} ${rest>0?'':`Q${cx-bw/2},${yf} ${cx-bw/2+4},${yf} H${cx+bw/2-4} Q${cx+bw/2},${yf} ${cx+bw/2},${yf+4}`} H${cx+bw/2} V${H-Bm} Z" fill="var(--focus)"/>`;
+    if (rest > 0) { const top = yt, bot = yf - (f > 0 ? 2 : 0); if (bot - top > 0.5) svg += `<path d="M${cx-bw/2},${bot} V${top+4} Q${cx-bw/2},${top} ${cx-bw/2+4},${top} H${cx+bw/2-4} Q${cx+bw/2},${top} ${cx+bw/2},${top+4} V${bot} Z" fill="var(--rest)"/>`; }
+    svg += `<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--t3)">${MNAME[m]}</text>`;
+    svg += `<rect class="hit" data-i="${i}" x="${cx-band/2}" y="${T}" width="${band}" height="${H-T-Bm}" fill="transparent"/>`;
+  });
+  svg += '</svg>';
+  const el = $('mixChart'); el.innerHTML = ms.length ? svg : '<div class="empty">No data</div>';
+  el.querySelectorAll('.hit').forEach(h => { const m = ms[+h.dataset.i]; const a = row(cy,m), b = row(base,m);
+    h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br><span class="swatch" style="background:var(--focus)"></span>${esc(focusName)}: ${money(a.fv)} <span style="opacity:.7">(${fyLabel(base)}: ${money(b.fv)})</span><br><span class="swatch" style="background:var(--rest)"></span>Rest: ${money(n(a.v)-n(a.fv))} <span style="opacity:.7">(${money(n(b.v)-n(b.fv))})</span><br>Total: ${money(a.v)} ${gChip(a.v,b.v)}`);
+    h.onmouseleave = hideTip; });
+}
+
+/* ---------- tables ---------- */
+function sortable(host, cols, rows, defaultKey, rowAttrs){
+  let key = host._sortKey || defaultKey, dir = host._sortDir || -1;
+  const draw = () => {
+    const sorted = [...rows].sort((a,b) => { const va = a[key], vb = b[key];
+      if (typeof va === 'string' || typeof vb === 'string') return dir * String(va ?? '').localeCompare(String(vb ?? ''));
+      return dir * ((va ?? -Infinity) - (vb ?? -Infinity)); });
+    host.innerHTML = `<table><thead><tr>${cols.map(c => `<th data-k="${c.k}" title="Sort">${c.h}${c.k === key ? (dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>${
+      sorted.map(r => `<tr ${rowAttrs ? rowAttrs(r) : ''}>${cols.map(c => `<td>${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') || `<tr><td colspan="${cols.length}" class="muted">No rows</td></tr>`}</tbody></table>`;
+    host.querySelectorAll('th').forEach(th => th.onclick = () => { const k = th.dataset.k; if (k === key) dir = -dir; else { key = k; dir = -1; } host._sortKey = key; host._sortDir = dir; draw(); });
+  };
+  draw(); return draw;
+}
+
+function renderBaskets(B, cy, base){
+  const maxMix = Math.max(0.0001, ...B.map(r => Math.max(r.mixCy, r.mixB)));
+  const mixCell = r => `<span class="bar" style="width:${Math.round(70*r.mixCy/maxMix)}px"></span>${pct(r.mixCy)} ${ppChip(r.mixB, r.mixCy)}`;
+  sortable($('basketTable'), [
+    {k:'basket', h:'Product basket', f:r => `${S.basket.includes(r.basket) ? '<span class="swatch" style="background:var(--focus)"></span>' : ''}${esc(r.basket)}`},
+    {k:'cpB',  h:`CP ${fyLabel(base)}`, f:r => money(r.cpB)},
+    {k:'cpCy', h:`CP ${fyLabel(cy)}`,   f:r => money(r.cpCy)},
+    {k:'g',    h:'CP growth', f:r => gChip(r.cpCy, r.cpB)},
+    {k:'mixCy',h:'CP mix (share of CP spend)', f:mixCell},
+    {k:'dCy',  h:'CP avg disc', f:r => `${pct(r.dCy)} <span class="muted">(${pct(r.dB)})</span>`},
+    {k:'cust', h:'CP buyers', f:r => r.cust || '—'},
+    {k:'dCyV', h:`Direct ${fyLabel(cy)}`, f:r => money(r.dCyV)},
+    {k:'dg',   h:'Direct growth', f:r => gChip(r.dCyV, r.dBV)},
+    {k:'ddCy', h:'Direct avg disc', f:r => pct(r.ddCy)}
+  ], B.map(r => ({...r, g: growth(r.cpCy, r.cpB) ?? 9e9, dg: growth(r.dCyV, r.dBV) ?? 9e9})), 'cpCy', r => S.basket.includes(r.basket) ? 'class="hl"' : '');
+  $('dlBaskets').onclick = () => csv(`basket_mix_${S.doc}_${fyLabel(cy)}.csv`,
+    ['Basket', `CP ${fyLabel(base)}`, `CP ${fyLabel(cy)}`, 'CP growth %', `CP mix ${fyLabel(base)} %`, `CP mix ${fyLabel(cy)} %`, `CP avg disc ${fyLabel(base)} %`, `CP avg disc ${fyLabel(cy)} %`, `Direct ${fyLabel(base)}`, `Direct ${fyLabel(cy)}`, `Direct avg disc ${fyLabel(cy)} %`],
+    B.map(r => [r.basket, r.cpB.toFixed(0), r.cpCy.toFixed(0), r.cpB ? ((r.cpCy/r.cpB-1)*100).toFixed(1) : '', (r.mixB*100).toFixed(2), (r.mixCy*100).toFixed(2), r.dB === null ? '' : (r.dB*100).toFixed(1), r.dCy === null ? '' : (r.dCy*100).toFixed(1), r.dBV.toFixed(0), r.dCyV.toFixed(0), r.ddCy === null ? '' : (r.ddCy*100).toFixed(1)]));
+}
+
+function renderRegions(D, cy, base, focusName){
+  const m = {};
+  (D.regions||[]).filter(r => r.grp === CP).forEach(r => { const k = r.region; m[k] = m[k] || {region:k, fCy:0, fB:0, aCy:0, aB:0};
+    if (r.fy === cy) { m[k].fCy = n(r.fv); m[k].aCy = n(r.v); } else { m[k].fB = n(r.fv); m[k].aB = n(r.v); } });
+  const rows = Object.values(m).map(r => ({...r, rCy:r.aCy-r.fCy, rB:r.aB-r.fB, shCy:r.aCy ? r.fCy/r.aCy : null, shB:r.aB ? r.fB/r.aB : null,
+    fg: growth(r.fCy, r.fB) ?? 9e9, rg: growth(r.aCy-r.fCy, r.aB-r.fB) ?? 9e9}));
+  rows.forEach(r => r.dsh = (r.shCy ?? 0) - (r.shB ?? 0));
+  sortable($('regionTable'), [
+    {k:'region', h:'U-Region'},
+    {k:'fB',  h:`Focus ${fyLabel(base)}`, f:r => money(r.fB)},
+    {k:'fCy', h:`Focus ${fyLabel(cy)}`,   f:r => money(r.fCy)},
+    {k:'fg',  h:'Focus growth', f:r => gChip(r.fCy, r.fB)},
+    {k:'rB',  h:`Rest ${fyLabel(base)}`, f:r => money(r.rB)},
+    {k:'rCy', h:`Rest ${fyLabel(cy)}`,   f:r => money(r.rCy)},
+    {k:'rg',  h:'Rest growth', f:r => gChip(r.rCy, r.rB)},
+    {k:'dsh', h:'Focus share of CP spend', f:r => `${pct(r.shB)} → <b>${pct(r.shCy)}</b> ${ppChip(r.shB ?? NaN, r.shCy ?? NaN)}`}
+  ], rows, 'aCy');
+  $('dlRegions').onclick = () => csv(`region_${S.doc}_${fyLabel(cy)}.csv`,
+    ['Region', `Focus ${fyLabel(base)}`, `Focus ${fyLabel(cy)}`, `Rest ${fyLabel(base)}`, `Rest ${fyLabel(cy)}`, `Focus share ${fyLabel(base)} %`, `Focus share ${fyLabel(cy)} %`],
+    rows.map(r => [r.region, r.fB.toFixed(0), r.fCy.toFixed(0), r.rB.toFixed(0), r.rCy.toFixed(0), r.shB === null ? '' : (r.shB*100).toFixed(1), r.shCy === null ? '' : (r.shCy*100).toFixed(1)]));
+}
+
+function renderPartners(all, cy, base, focusName){
+  const rows = all.map(p => ({...p, fd:p.f_cy - p.f_base, rd:p.r_cy - p.r_base,
+    shB:(p.f_base + p.r_base) ? p.f_base/(p.f_base + p.r_base) : null, shCy:(p.f_cy + p.r_cy) ? p.f_cy/(p.f_cy + p.r_cy) : null,
+    dF:disc(p.f_lt, p.f_g), dR:disc(p.r_lt, p.r_g), tot:p.f_cy + p.r_cy}));
+  const filt = {shifted:isShifted, lost:p => p.f_base > 0 && p.f_cy <= 0, growing:p => p.f_cy > p.f_base, all:() => true}[S.pTab];
+  const q = S.pSearch.toLowerCase();
+  const shown = rows.filter(filt).filter(p => !q || p.card.toLowerCase().includes(q) || String(p.region||'').toLowerCase().includes(q));
+  const defKey = {shifted:'fdAbs', lost:'f_base', growing:'fd', all:'tot'}[S.pTab];
+  shown.forEach(p => p.fdAbs = -p.fd);
+  $('pSummary').innerHTML = `${shown.length} partners · focus ${money(shown.reduce((a,p)=>a+p.f_base,0))} → ${money(shown.reduce((a,p)=>a+p.f_cy,0))} · rest ${money(shown.reduce((a,p)=>a+p.r_base,0))} → ${money(shown.reduce((a,p)=>a+p.r_cy,0))}`;
+  const host = $('partnerTable');
+  if (host._tab !== S.pTab) { host._sortKey = null; host._sortDir = null; host._tab = S.pTab; }
+  sortable(host, [
+    {k:'card', h:'Partner', f:r => `<b>${esc(r.card)}</b>`},
+    {k:'region', h:'Region', f:r => `<span class="muted">${esc(r.region || '')}</span>`},
+    {k:'f_base', h:`Focus ${fyLabel(base)}`, f:r => money(r.f_base)},
+    {k:'f_cy',   h:`Focus ${fyLabel(cy)}`, f:r => money(r.f_cy)},
+    {k:'fd',     h:'Focus change', f:r => `${r.fd >= 0 ? '+' : '−'}${money(Math.abs(r.fd))}`},
+    {k:'r_base', h:`Rest ${fyLabel(base)}`, f:r => money(r.r_base)},
+    {k:'r_cy',   h:`Rest ${fyLabel(cy)}`, f:r => money(r.r_cy)},
+    {k:'rd',     h:'Rest change', f:r => `${r.rd >= 0 ? '+' : '−'}${money(Math.abs(r.rd))}`},
+    {k:'shCy',   h:'Focus share', f:r => `${pct(r.shB,0)} → <b>${pct(r.shCy,0)}</b>`},
+    {k:'dF',     h:'Avg disc focus', f:r => pct(r.dF)},
+    {k:'dR',     h:'Avg disc rest', f:r => pct(r.dR)}
+  ], shown, defKey, r => `class="click" data-card="${esc(r.card)}"`);
+  host.onclick = e => { const tr = e.target.closest('tr[data-card]'); if (tr) openPartner(tr.dataset.card); };
+  $('dlPartners').onclick = () => csv(`partners_${S.pTab}_${S.doc}_${fyLabel(cy)}.csv`,
+    ['Partner','Region','Account type',`Focus ${fyLabel(base)}`,`Focus ${fyLabel(cy)}`,`Rest ${fyLabel(base)}`,`Rest ${fyLabel(cy)}`,`Focus share ${fyLabel(base)} %`,`Focus share ${fyLabel(cy)} %`,'Avg disc focus %','Avg disc rest %'],
+    shown.map(r => [r.card, r.region, r.acct, r.f_base.toFixed(0), r.f_cy.toFixed(0), r.r_base.toFixed(0), r.r_cy.toFixed(0), r.shB === null ? '' : (r.shB*100).toFixed(1), r.shCy === null ? '' : (r.shCy*100).toFixed(1), r.dF === null ? '' : (r.dF*100).toFixed(1), r.dR === null ? '' : (r.dR*100).toFixed(1)]));
+}
+
+async function openPartner(card){
+  const { cy, base } = yearsCompared();
+  $('dTitle').textContent = card; $('dSub').textContent = `${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} · ${fyLabel(base)} vs ${fyLabel(cy)}`;
+  $('dBody').innerHTML = '<div class="empty">Loading…</div>'; $('drawer').classList.add('open');
+  try {
+    const rows = await rpc('cp_partner_detail', { p_doc:S.doc, p_cy:cy, p_base:base, p_card:card, p_region:S.region, p_months:S.months });
+    const m = {}; rows.forEach(r => { m[r.basket] = m[r.basket] || {basket:r.basket};
+      const p = r.fy === cy ? 'c' : 'b'; m[r.basket][p] = n(r.v); m[r.basket][p+'d'] = disc(r.lt, r.g); m[r.basket][p+'q'] = n(r.qty); });
+    const list = Object.values(m).sort((a,b) => n(b.c) - n(a.c));
+    const tc = list.reduce((a,r) => a + n(r.c), 0), tb = list.reduce((a,r) => a + n(r.b), 0);
+    const max = Math.max(1, ...list.map(r => Math.max(n(r.c), n(r.b))));
+    $('dBody').innerHTML = `<div class="grid g2" style="margin-bottom:12px">
+        <div class="card tile"><div class="lbl">${fyLabel(cy)}</div><div class="val">${money(tc)}</div><div class="row">${gChip(tc, tb)} vs ${money(tb)}</div></div>
+        <div class="card tile"><div class="lbl">Baskets bought</div><div class="val">${list.filter(r => n(r.c) > 0).length}</div><div class="row">was ${list.filter(r => n(r.b) > 0).length} in ${fyLabel(base)}</div></div></div>
+      <div class="legend"><span><span class="swatch" style="background:var(--focus)"></span>${fyLabel(cy)}</span><span><span class="swatch" style="background:var(--base)"></span>${fyLabel(base)}</span></div>
+      <table><thead><tr><th>Basket</th><th>Value</th><th>Mix</th><th>Avg disc</th></tr></thead><tbody>${list.map(r => `
+        <tr ${S.basket.includes(r.basket) ? 'class="hl"' : ''}><td>${esc(r.basket)}<div style="margin-top:4px"><span class="bar" style="width:${Math.round(150*n(r.c)/max)}px"></span><br><span class="bar b" style="width:${Math.round(150*n(r.b)/max)}px"></span></div></td>
+        <td>${money(r.c)}<br><span class="muted">${money(r.b)}</span></td>
+        <td>${pct(tc ? n(r.c)/tc : null)}<br><span class="muted">${pct(tb ? n(r.b)/tb : null)}</span></td>
+        <td>${pct(r.cd)}<br><span class="muted">${pct(r.bd)}</span></td></tr>`).join('')}</tbody></table>`;
+  } catch (e) { $('dBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
+}
+$('dClose').onclick = () => $('drawer').classList.remove('open');
+
+/* ---------------- wiring ---------------- */
+$('docToggle').onclick = async e => { const b = e.target.closest('button'); if (!b || b.dataset.doc === S.doc) return;
+  S.doc = b.dataset.doc; document.querySelectorAll('#docToggle button').forEach(x => x.classList.toggle('on', x === b));
+  try { await loadOptions(); await load(); } catch (err) { showErr(err.message); } };
+$('pTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.pTab = b.dataset.k;
+  document.querySelectorAll('#pTabs button').forEach(x => x.classList.toggle('on', x === b)); render(); };
+$('pSearch').oninput = e => { S.pSearch = e.target.value; render(); };
+$('resetBtn').onclick = () => { S.fy = (S.opts.fys||[]).slice(0,2); S.months = []; S.acct = []; S.region = []; S.basket = [...DEFAULT_FOCUS].filter(b => (S.opts.baskets||[]).includes(b)); S.series = [];
+  Object.values(MS).forEach(m => m.render()); load(); };
+
+(async () => { try { await loadOptions(); await load(); } catch (e) { showErr(e.message); $('loading').classList.remove('on'); } })();
+</script>
+</body>
+</html>

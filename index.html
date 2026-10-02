@@ -94,6 +94,7 @@
         <div class="seg" id="tabs">
           <button class="tab-btn active" data-target="leads">📊 Leads</button>
           <button class="tab-btn" data-target="potentials">📈 Potentials</button>
+          <button class="tab-btn" data-target="cpanalytics">🤝 Channel Partner Analytics</button>
           <button class="tab-btn" data-target="aiagents">🤖 AI Agents</button>
           <button class="tab-btn" data-target="createleads">➕ Create Lead</button>
           <button class="tab-btn" data-target="authorization" id="authTabBtn" style="display:none">⚙️ Authorization</button>
@@ -110,6 +111,7 @@
     <div class="boot-msg" id="bootMsg">Loading dashboards…</div>
     <iframe id="frame-leads" class="active" title="Leads Dashboard"></iframe>
     <iframe id="frame-potentials" title="Potentials Dashboard"></iframe>
+    <iframe id="frame-cpanalytics" title="Channel Partner Analytics" src="/cp-analytics.html"></iframe>
     <iframe id="frame-cumulative" title="Cumulative Dashboard"></iframe>
     <iframe id="frame-geoleads" title="Geo-Leads Dashboard"></iframe>
     <iframe id="frame-geopotentials" title="Geo-Potentials Dashboard"></iframe>
@@ -320,7 +322,7 @@ async function handleGoogleLogin(credentialResponse) {
     if (email === ADMIN_EMAIL) {
       window.__userPerms = {
         email, name, picture,
-        allowedTabs:    ['leads','potentials','aiagents','createleads','authorization'],
+        allowedTabs:    ['leads','potentials','cpanalytics','aiagents','createleads','authorization'],
         allowedRegions: []
       };
     } else {
@@ -470,11 +472,11 @@ async function openEditModal(email) {
 }
 
 function renderEditModal(user) {
-  const tabKeys = ['leads','potentials','aiagents','createleads'];
+  const tabKeys = ['leads','potentials','cpanalytics','aiagents','createleads'];
   const allowedTabs = user ? (user.allowed_tabs || []) : ['leads','potentials'];
   const allowedRegions = user ? (user.allowed_regions || []) : [];
 
-  const TAB_LABELS = {leads:'📊 Leads',potentials:'📈 Potentials',aiagents:'🤖 AI Agents',createleads:'➕ Create Lead'};
+  const TAB_LABELS = {leads:'📊 Leads',potentials:'📈 Potentials',cpanalytics:'🤝 CP Analytics',aiagents:'🤖 AI Agents',createleads:'➕ Create Lead'};
   let tabHtml = tabKeys.map(k =>
     `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:#f4f6fa;padding:8px 14px;border-radius:8px;font-size:13px;">
       <input type="checkbox" value="${k}" ${allowedTabs.includes(k)?'checked':''} style="width:15px;height:15px;">
