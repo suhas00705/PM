@@ -712,9 +712,20 @@ $('dClose').onclick = () => $('drawer').classList.remove('open');
 const SERIES_CACHE = {};
 async function seriesBlock(card, regionArr){
   const { cy, base } = yearsCompared();
-  const key = JSON.stringify([S.doc, cy, base, card, regionArr, S.basket, S.series, S.months]);
+  const key = JSON.stringify(['p', S.doc, cy, base, card, regionArr, S.basket, S.series, S.months]);
   let raw = SERIES_CACHE[key];
   if (!raw) raw = SERIES_CACHE[key] = await rpc('cp_partner_series', { p_doc:S.doc, p_cy:cy, p_base:base, p_card:card, p_region:regionArr, p_focus:S.basket, p_series:S.series, p_months:S.months });
+  return renderSeries(raw, `${esc(S.basket.join(' + '))} — product series breakup`);
+}
+async function regionSeriesBlock(region){
+  const { cy, base } = yearsCompared();
+  const key = JSON.stringify(['r', S.doc, cy, base, region, S.acct, S.basket, S.series, S.months]);
+  let raw = SERIES_CACHE[key];
+  if (!raw) raw = SERIES_CACHE[key] = await rpc('cp_region_series', { p_doc:S.doc, p_cy:cy, p_base:base, p_region:[region], p_acct:S.acct, p_focus:S.basket, p_series:S.series, p_months:S.months });
+  return renderSeries(raw, `${esc(region)} — ${esc(S.basket.join(' + '))} product series breakup (all channel partners)`);
+}
+function renderSeries(raw, title){
+  const { cy, base } = yearsCompared();
   const m = {};
   raw.forEach(r => { const x = m[r.series] = m[r.series] || { series:r.series, qc:0, vc:0, qb:0, vb:0, mon:{} };
     if (r.fy === cy) { x.qc += n(r.qty); x.vc += n(r.v); const mm = x.mon[r.m] = x.mon[r.m] || {q:0, v:0}; mm.q += n(r.qty); mm.v += n(r.v); }
@@ -729,10 +740,30 @@ async function seriesBlock(card, regionArr){
   const row = (x, label, b) => `<tr${b ? ' style="font-weight:700;background:#f4f6fa"' : ''}><td style="text-align:left">${label}</td>
     <td>${money(x.vb)}<small>${Math.round(x.qb).toLocaleString('en-IN')} pcs</small></td>
     <td>${money(x.vc)}<small>${Math.round(x.qc).toLocaleString('en-IN')} pcs</small></td>
-    <td>${gChip(x.vc, x.vb)}</td>${ms.map(mo => `<td>${cell(x.mon[mo])}</td>`).join('')}</tr>`;
-  return `<div style="font-size:12px;color:var(--t2);margin:14px 0 4px"><b>${esc(S.basket.join(' + '))} — product series breakup</b> (value and qty; months = ${fyLabel(cy)})</div>
-    <div class="sbox"><table class="stable"><thead><tr><th style="text-align:left">Product series</th><th>${fyLabel(base)}</th><th>${fyLabel(cy)}</th><th>Growth</th>
+    <td>${gChip(x.vc, x.vb)}</td><td>${pct(tot.vc ? x.vc/tot.vc : null)}</td>${ms.map(mo => `<td>${cell(x.mon[mo])}</td>`).join('')}</tr>`;
+  return `<div style="font-size:12.5px;color:var(--t2);margin:14px 0 4px"><b>${title}</b> (value and qty; months = ${fyLabel(cy)})</div>
+    <div class="sbox"><table class="stable"><thead><tr><th style="text-align:left">Product series</th><th>${fyLabel(base)}</th><th>${fyLabel(cy)}</th><th>Growth</th><th>Share</th>
     ${ms.map(mo => `<th>${MNAME[mo]}</th>`).join('')}</tr></thead><tbody>${list.map(x => row(x, esc(x.series))).join('')}${row(tot, 'Total', true)}</tbody></table></div>`;
+}
+
+/* ---------- region-level basket breakdown (all channel partners in the region) ---------- */
+function regionBasketBlock(region){
+  const { cy, base } = yearsCompared();
+  const m = {};
+  (S.data.region_baskets || []).filter(r => r.region === region).forEach(r => { const x = m[r.basket] = m[r.basket] || {basket:r.basket, c:0, b:0, lc:0, gc:0, lb:0, gb:0};
+    if (r.fy === cy) { x.c += n(r.v); x.lc += n(r.lt); x.gc += n(r.g); } else { x.b += n(r.v); x.lb += n(r.lt); x.gb += n(r.g); } });
+  const list = Object.values(m).sort((a,b) => b.c - a.c);
+  const tc = list.reduce((a,r) => a + r.c, 0), tb = list.reduce((a,r) => a + r.b, 0);
+  const max = Math.max(1, ...list.map(r => Math.max(r.c, r.b)));
+  return `<div class="ptitle">${esc(region)} — product basket breakdown (all channel partners)</div>
+    <div class="legend"><span><span class="swatch" style="background:var(--focus)"></span>${fyLabel(cy)}</span><span><span class="swatch" style="background:var(--base)"></span>${fyLabel(base)}</span></div>
+    <table class="btable"><thead><tr><th style="text-align:left">Basket</th><th>Value</th><th>Growth</th><th>Mix</th><th>Avg disc</th></tr></thead><tbody>${list.map(r => `
+      <tr ${S.basket.includes(r.basket) ? 'class="hl"' : ''}><td style="text-align:left">${esc(r.basket)}<div style="margin-top:4px"><span class="bar" style="width:${Math.round(150*r.c/max)}px"></span><br><span class="bar b" style="width:${Math.round(150*r.b/max)}px"></span></div></td>
+      <td>${money(r.c)}<br><span class="muted">${money(r.b)}</span></td>
+      <td>${gChip(r.c, r.b)}</td>
+      <td>${pct(tc ? r.c/tc : null)}<br><span class="muted">${pct(tb ? r.b/tb : null)}</span></td>
+      <td>${NOISY_DISC.has(r.basket) ? '<span class="muted" title="List price is a placeholder">n/a</span>' : `${pct(disc(r.lc, r.gc))}<br><span class="muted">${pct(disc(r.lb, r.gb))}</span>`}</td></tr>`).join('')}
+      <tr style="font-weight:700;background:#f4f6fa"><td style="text-align:left">Total</td><td>${money(tc)}<br><span class="muted">${money(tb)}</span></td><td>${gChip(tc, tb)}</td><td>100%</td><td></td></tr></tbody></table>`;
 }
 
 /* ---------- donut: each partner's share of the focus basket ---------- */
@@ -773,7 +804,7 @@ const RM = { region:null, rows:[], tab:'all', open:new Set() };
 async function openRegion(region){
   const { cy, base } = yearsCompared();
   const focusName = S.basket.length ? S.basket.join(' + ') + (S.series.length ? ` (${S.series.length} series)` : '') : 'Focus';
-  RM.region = region; RM.open = new Set(); RM.tab = 'all';
+  RM.region = region; RM.open = new Set(); RM.tab = 'all'; RM.seriesHtml = null;
   document.querySelectorAll('#rmTabs button').forEach(b => b.classList.toggle('on', b.dataset.k === 'all'));
   $('rmTitle').textContent = `${region} — channel partners`;
   $('rmSub').textContent = `${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} · Focus = ${focusName} · Rest = all other baskets · ${fyLabel(base)} vs ${fyLabel(cy)}`;
@@ -795,6 +826,8 @@ async function openRegion(region){
       fg_:growth(p.f_cy, p.f_b) ?? 9e9, rg_:growth(p.r_cy, p.r_b) ?? 9e9, dF:disc(p.flt, p.fg) }));
     RM.rows.forEach(p => p.dsh = (p.shCy ?? 0) - (p.shB ?? 0));
     drawRegion();
+    regionSeriesBlock(region).then(h => { RM.seriesHtml = h; const f = $('rmSeries'); if (f) f.innerHTML = h; })
+      .catch(e => { RM.seriesHtml = `<div class="err" style="display:block">${esc(e.message)}</div>`; const f = $('rmSeries'); if (f) f.innerHTML = RM.seriesHtml; });
   } catch (e) { $('rmBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
 }
 function drawRegion(){
@@ -809,8 +842,11 @@ function drawRegion(){
     <div class="card tile"><div class="lbl"><span class="swatch" style="background:var(--focus)"></span>Focus</div><div class="val">${money(tFc)}</div><div class="row">${gChip(tFc, tFb)} vs ${money(tFb)}</div></div>
     <div class="card tile"><div class="lbl"><span class="swatch" style="background:var(--rest)"></span>Rest</div><div class="val">${money(tRc)}</div><div class="row">${gChip(tRc, tRb)} vs ${money(tRb)}</div></div>
     <div class="card tile"><div class="lbl">Focus share</div><div class="val">${pct((tFc+tRc) ? tFc/(tFc+tRc) : null)}</div><div class="row">${ppChip((tFb+tRb) ? tFb/(tFb+tRb) : NaN, (tFc+tRc) ? tFc/(tFc+tRc) : NaN)} was ${pct((tFb+tRb) ? tFb/(tFb+tRb) : null)}</div></div></div>`;
+  const regionHtml = `<div class="card" style="margin-bottom:14px">${regionBasketBlock(RM.region)}
+      <div id="rmSeries">${RM.seriesHtml || '<div class="muted" style="margin-top:12px">Loading product series…</div>'}</div></div>
+    <div class="ptitle" style="margin:6px 0 8px">Channel partners in ${esc(RM.region)} — click › for a partner's own breakdown</div>`;
   const host = document.createElement('div'); host.className = 'tbl-wrap rmt'; host.style.maxHeight = 'none';
-  $('rmBody').innerHTML = head; $('rmBody').appendChild(host);
+  $('rmBody').innerHTML = head + regionHtml; $('rmBody').appendChild(host);
   const cols = [
     {k:'_x', h:'', f:r => `<button class="exp ${RM.open.has(r.card) ? 'on' : ''}" data-exp="${esc(r.card)}" title="Monthly + product series breakdown">${RM.open.has(r.card) ? '⌄' : '›'}</button>`},
     {k:'card', h:'Channel partner', f:r => `<b>${esc(r.card)}</b>`},
