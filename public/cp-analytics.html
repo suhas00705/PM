@@ -49,8 +49,19 @@
   .g3{grid-template-columns:repeat(3,minmax(0,1fr))}
   .g2{grid-template-columns:repeat(2,minmax(0,1fr))}
   .g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+  @media(max-width:1300px){.g5{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  .donuts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px}
+  @media(max-width:820px){.donuts{grid-template-columns:minmax(0,1fr)}}
+  .dleg{display:grid;grid-template-columns:auto 1fr auto auto;gap:4px 10px;font-size:12.5px;align-items:center;margin-top:8px}
+  .dleg .h{font-size:10.5px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+  .sbox{overflow:auto;margin-top:12px}
+  .stable{font-size:12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  .stable th{position:static;font-size:10px}
+  .stable td,.stable th{padding:5px 8px}
+  .stable td small{display:block;color:var(--t3);font-size:11px}
   @media(max-width:1100px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}}
-  @media(max-width:820px){.g3,.g2,.g4{grid-template-columns:minmax(0,1fr)}}
+  @media(max-width:820px){.g3,.g2,.g4,.g5{grid-template-columns:minmax(0,1fr)}}
   .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
   .sec{margin-top:18px}
   .sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;flex-wrap:wrap;margin-bottom:8px}
@@ -90,7 +101,7 @@
   .tip b{color:#fff}
 
   /* drawer */
-  .drawer{position:fixed;top:0;right:0;height:100%;width:min(560px,100%);background:#fff;box-shadow:-12px 0 40px rgba(11,41,66,.2);transform:translateX(105%);transition:transform .2s;z-index:200;display:flex;flex-direction:column}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:min(760px,100%);background:#fff;box-shadow:-12px 0 40px rgba(11,41,66,.2);transform:translateX(105%);transition:transform .2s;z-index:200;display:flex;flex-direction:column}
   .drawer.open{transform:none}
   .drawer .dh{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px}
   .drawer .db{padding:14px 18px;overflow:auto}
@@ -158,7 +169,7 @@
     <div class="sec-h"><div><h2 id="focusTitle">Focus basket vs remaining baskets — Channel Partners</h2>
       <div class="sub">Pick one or more baskets in “Focus product basket” (and optionally series) to compare them against everything else the same partners buy</div></div></div>
     <div class="insight" id="insight"></div>
-    <div class="grid g4" id="focusTiles" style="margin-top:12px"></div>
+    <div class="grid g5" id="focusTiles" style="margin-top:12px"></div>
   </div>
 
   <!-- 3. Monthly charts -->
@@ -390,8 +401,9 @@ function render(){
   const rdCy = disc(g(CP,cy,'lt') - g(CP,cy,'flt'), g(CP,cy,'g') - g(CP,cy,'fg'));
   const dfCy = g('Direct',cy,'fv'), dfB = g('Direct',base,'fv');
   $('focusTiles').innerHTML =
-    tile(focusName, 'var(--focus)', fCy, fB) +
-    tile('Remaining baskets', 'var(--rest)', rCy, rB) +
+    tile(focusName + ' — Channel Partners', 'var(--focus)', fCy, fB) +
+    tile(focusName + ' — Direct', null, dfCy, dfB, `<div class="row" style="margin-top:6px">Direct = ${pct((fCy+dfCy) ? dfCy/(fCy+dfCy) : null)} of all ${esc(focusName)} (was ${pct((fB+dfB) ? dfB/(fB+dfB) : null)})</div>`) +
+    tile('Remaining baskets — CP', 'var(--rest)', rCy, rB) +
     `<div class="card tile"><div class="lbl">Focus share of CP spend</div><div class="val">${pct(shCy)}</div>
       <div class="row">${ppChip(shB, shCy)}<span>was ${pct(shB)} in ${fyLabel(base)}</span></div></div>` +
     `<div class="card tile"><div class="lbl">Avg discount — CP on focus</div><div class="val">${pct(fdCy)}</div>
@@ -608,10 +620,74 @@ async function openPartner(card){
         <tr ${S.basket.includes(r.basket) ? 'class="hl"' : ''}><td>${esc(r.basket)}<div style="margin-top:4px"><span class="bar" style="width:${Math.round(150*n(r.c)/max)}px"></span><br><span class="bar b" style="width:${Math.round(150*n(r.b)/max)}px"></span></div></td>
         <td>${money(r.c)}<br><span class="muted">${money(r.b)}</span></td>
         <td>${pct(tc ? n(r.c)/tc : null)}<br><span class="muted">${pct(tb ? n(r.b)/tb : null)}</span></td>
-        <td>${pct(r.cd)}<br><span class="muted">${pct(r.bd)}</span></td></tr>`).join('')}</tbody></table>`;
+        <td>${pct(r.cd)}<br><span class="muted">${pct(r.bd)}</span></td></tr>`).join('')}</tbody></table>
+      <div id="dSeries"><div class="muted" style="margin-top:12px">Loading product series…</div></div>`;
+    if (S.basket.length) $('dSeries').innerHTML = await seriesBlock(card, S.region);
+    else $('dSeries').innerHTML = '';
   } catch (e) { $('dBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
 }
 $('dClose').onclick = () => $('drawer').classList.remove('open');
+
+
+/* ---------- product-series breakup of the focus basket for one partner ---------- */
+const SERIES_CACHE = {};
+async function seriesBlock(card, regionArr){
+  const { cy, base } = yearsCompared();
+  const key = JSON.stringify([S.doc, cy, base, card, regionArr, S.basket, S.series, S.months]);
+  let raw = SERIES_CACHE[key];
+  if (!raw) raw = SERIES_CACHE[key] = await rpc('cp_partner_series', { p_doc:S.doc, p_cy:cy, p_base:base, p_card:card, p_region:regionArr, p_focus:S.basket, p_series:S.series, p_months:S.months });
+  const m = {};
+  raw.forEach(r => { const x = m[r.series] = m[r.series] || { series:r.series, qc:0, vc:0, qb:0, vb:0, mon:{} };
+    if (r.fy === cy) { x.qc += n(r.qty); x.vc += n(r.v); const mm = x.mon[r.m] = x.mon[r.m] || {q:0, v:0}; mm.q += n(r.qty); mm.v += n(r.v); }
+    else { x.qb += n(r.qty); x.vb += n(r.v); } });
+  const list = Object.values(m).sort((a,b) => (b.vc + b.vb) - (a.vc + a.vb));
+  if (!list.length) return `<div class="sub" style="margin-top:10px">No ${esc(S.basket.join(' + '))} purchases in these years.</div>`;
+  const ms = MONTHS.filter(mo => list.some(x => x.mon[mo]));
+  const cell = c => c ? `${money(c.v)}<small>${Math.round(c.q).toLocaleString('en-IN')} pcs</small>` : '<span class="muted">—</span>';
+  const tot = { qc:0, vc:0, qb:0, vb:0, mon:{} };
+  list.forEach(x => { tot.qc += x.qc; tot.vc += x.vc; tot.qb += x.qb; tot.vb += x.vb;
+    ms.forEach(mo => { if (x.mon[mo]) { const t = tot.mon[mo] = tot.mon[mo] || {q:0, v:0}; t.q += x.mon[mo].q; t.v += x.mon[mo].v; } }); });
+  const row = (x, label, b) => `<tr${b ? ' style="font-weight:700;background:#f4f6fa"' : ''}><td style="text-align:left">${label}</td>
+    <td>${money(x.vb)}<small>${Math.round(x.qb).toLocaleString('en-IN')} pcs</small></td>
+    <td>${money(x.vc)}<small>${Math.round(x.qc).toLocaleString('en-IN')} pcs</small></td>
+    <td>${gChip(x.vc, x.vb)}</td>${ms.map(mo => `<td>${cell(x.mon[mo])}</td>`).join('')}</tr>`;
+  return `<div style="font-size:12px;color:var(--t2);margin:14px 0 4px"><b>${esc(S.basket.join(' + '))} — product series breakup</b> (value and qty; months = ${fyLabel(cy)})</div>
+    <div class="sbox"><table class="stable"><thead><tr><th style="text-align:left">Product series</th><th>${fyLabel(base)}</th><th>${fyLabel(cy)}</th><th>Growth</th>
+    ${ms.map(mo => `<th>${MNAME[mo]}</th>`).join('')}</tr></thead><tbody>${list.map(x => row(x, esc(x.series))).join('')}${row(tot, 'Total', true)}</tbody></table></div>`;
+}
+
+/* ---------- donut: each partner's share of the focus basket ---------- */
+const DONUT_COLORS = ['#2a78d6','#eb6834','#1baf7a','#eda100','#e87ba4','#008300'];
+function donutSvg(parts, total, label){
+  const R = 80, r = 50, C = 100; let a0 = -Math.PI/2; let out = '';
+  const live = parts.filter(p => p.v > 0);
+  if (!total || !live.length) return `<div class="empty">No ${label} purchases</div>`;
+  live.forEach(p => {
+    const frac = p.v/total, a1 = a0 + frac*2*Math.PI;
+    if (frac >= 0.9999) { out += `<circle cx="${C}" cy="${C}" r="${(R+r)/2}" fill="none" stroke="${p.color}" stroke-width="${R-r}" data-k="${esc(p.name)}"/>`; }
+    else {
+      const large = (a1 - a0) > Math.PI ? 1 : 0;
+      const pt = (rad, a) => `${(C + rad*Math.cos(a)).toFixed(2)},${(C + rad*Math.sin(a)).toFixed(2)}`;
+      out += `<path d="M${pt(R,a0)} A${R},${R} 0 ${large} 1 ${pt(R,a1)} L${pt(r,a1)} A${r},${r} 0 ${large} 0 ${pt(r,a0)} Z" fill="${p.color}" stroke="#fff" stroke-width="2" data-k="${esc(p.name)}"/>`;
+    }
+    a0 = a1; });
+  return `<svg viewBox="0 0 200 200" style="max-width:220px;margin:0 auto">${out}
+    <text x="100" y="96" text-anchor="middle" font-size="11" fill="var(--t3)">${label}</text>
+    <text x="100" y="114" text-anchor="middle" font-size="15" font-weight="700" fill="var(--t1)">${money(total)}</text></svg>`;
+}
+function donutsHtml(rows, cy, base, focusName){
+  const ranked = [...rows].sort((a,b) => (b.f_cy + b.f_b) - (a.f_cy + a.f_b));
+  const top = ranked.slice(0, 6), rest = ranked.slice(6);
+  const parts = top.map((p,i) => ({ name:p.card, color:DONUT_COLORS[i], c:p.f_cy, b:p.f_b }));
+  if (rest.length) parts.push({ name:`Other ${rest.length} partners`, color:'#a9b4c6', c:rest.reduce((a,p)=>a+p.f_cy,0), b:rest.reduce((a,p)=>a+p.f_b,0) });
+  const tc = parts.reduce((a,p)=>a+p.c,0), tb = parts.reduce((a,p)=>a+p.b,0);
+  const card = (fy, key, tot) => `<div class="card"><h2 style="font-size:14px">${esc(focusName)} — partner share, ${fyLabel(fy)}</h2>
+      <div class="chart donut" data-fy="${key}">${donutSvg(parts.map(p => ({ name:p.name, color:p.color, v:p[key] })), tot, fyLabel(fy))}</div></div>`;
+  const legend = `<div class="card" style="grid-column:1/-1"><div class="dleg"><span></span><span class="h">Partner</span><span class="h">${fyLabel(base)}</span><span class="h">${fyLabel(cy)}</span>
+    ${parts.map(p => `<span class="swatch" style="background:${p.color}"></span><span>${esc(p.name)}</span>
+      <span>${pct(tb ? p.b/tb : null)} <span class="muted">${money(p.b)}</span></span><span><b>${pct(tc ? p.c/tc : null)}</b> <span class="muted">${money(p.c)}</span></span>`).join('')}</div></div>`;
+  return { html:`<div class="donuts">${card(base,'b',tb)}${card(cy,'c',tc)}${legend}</div>`, parts, tc, tb };
+}
 
 /* ---------- region pop-up: partners in a region, with monthly drill-down ---------- */
 const RM = { region:null, rows:[], tab:'all', open:new Set() };
@@ -657,7 +733,7 @@ function drawRegion(){
   const host = document.createElement('div'); host.className = 'tbl-wrap rmt'; host.style.maxHeight = 'none';
   $('rmBody').innerHTML = head; $('rmBody').appendChild(host);
   const cols = [
-    {k:'_x', h:'', f:r => `<button class="exp ${RM.open.has(r.card) ? 'on' : ''}" data-exp="${esc(r.card)}" title="Monthly breakdown">${RM.open.has(r.card) ? '⌄' : '›'}</button>`},
+    {k:'_x', h:'', f:r => `<button class="exp ${RM.open.has(r.card) ? 'on' : ''}" data-exp="${esc(r.card)}" title="Monthly + product series breakdown">${RM.open.has(r.card) ? '⌄' : '›'}</button>`},
     {k:'card', h:'Channel partner', f:r => `<b>${esc(r.card)}</b>`},
     {k:'f_b',  h:`Focus ${fyLabel(base)}`, f:r => money(r.f_b)},
     {k:'f_cy', h:`Focus ${fyLabel(cy)}`, f:r => money(r.f_cy)},
@@ -674,11 +750,19 @@ function drawRegion(){
       const card = tr.dataset.card; if (!RM.open.has(card)) return;
       const p = RM.rows.find(x => x.card === card); if (!p) return;
       const sub = document.createElement('tr'); sub.className = 'sub';
-      sub.innerHTML = `<td colspan="${cols.length}">${monthTable(p, cy, base)}</td>`;
+      sub.innerHTML = `<td colspan="${cols.length}">${monthTable(p, cy, base)}<div class="sfill"><div class="muted" style="margin-top:10px">Loading product series…</div></div></td>`;
       tr.after(sub);
+      seriesBlock(card, [RM.region]).then(h => { const f = sub.querySelector('.sfill'); if (f) f.innerHTML = h; })
+        .catch(e => { const f = sub.querySelector('.sfill'); if (f) f.innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; });
     });
   };
   rows.forEach(r => r.fdn = -r.fd);
+  const focusName = S.basket.join(' + ') || 'Focus';
+  const D2 = donutsHtml(rows, cy, base, focusName);
+  const dwrap = document.createElement('div'); dwrap.innerHTML = D2.html; $('rmBody').appendChild(dwrap);
+  dwrap.querySelectorAll('.donut').forEach(el => { const key = el.dataset.fy, tot = key === 'c' ? D2.tc : D2.tb;
+    el.querySelectorAll('[data-k]').forEach(seg => { const p = D2.parts.find(x => x.name === seg.dataset.k);
+      seg.onmousemove = e => showTip(e, `<b>${esc(p.name)}</b><br>${money(p[key])} · ${pct(tot ? p[key]/tot : null)} of ${esc(focusName)}`); seg.onmouseleave = hideTip; }); });
   const draw = sortable(host, cols, rows, RM.tab === 'all' ? 'f_cy' : RM.tab === 'growing' ? 'fd' : 'fdn', r => `data-card="${esc(r.card)}"`, () => redrawSubs());
   host.onclick = e => { const b = e.target.closest('[data-exp]'); if (!b) return; const c = b.dataset.exp;
     RM.open.has(c) ? RM.open.delete(c) : RM.open.add(c); draw(); };
