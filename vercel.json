@@ -1,1 +1,6 @@
-{}
+{
+  "crons": [
+    { "path": "/api/sync-ob?days=10", "schedule": "20 1 * * *" },
+    { "path": "/api/sync-invoice?days=10", "schedule": "30 1 * * *" }
+  ]
+}

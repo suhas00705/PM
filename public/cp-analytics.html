@@ -411,12 +411,19 @@ function render(){
   const fdCy = disc(g(CP,cy,'flt'), g(CP,cy,'fg')), fdB = disc(g(CP,base,'flt'), g(CP,base,'fg'));
   const rdCy = disc(g(CP,cy,'lt') - g(CP,cy,'flt'), g(CP,cy,'g') - g(CP,cy,'fg'));
   const dfCy = g('Direct',cy,'fv'), dfB = g('Direct',base,'fv');
+  // What the focus basket would be if partners had kept last year's share of their spend
+  const expF = isFinite(shB) ? shB * aCy : NaN, gapF = fCy - expF;
+  const expRow = isFinite(expF) && aCy
+    ? `<div class="row" style="margin-top:6px" title="Last year's share (${pct(shB)}) × this year's channel-partner spend (${money(aCy)})">Expected value at ${pct(shB)}: <b>${money(expF)}</b>
+       ${Math.abs(gapF) < 1e5 ? '<span class="chip flat">on track</span>'
+         : `<span class="chip ${gapF < 0 ? 'dn' : 'up'}">${money(Math.abs(gapF))} ${gapF < 0 ? 'short' : 'ahead'}</span>`}</div>`
+    : '';
   $('focusTiles').innerHTML =
     tile(focusName + ' — Channel Partners', 'var(--focus)', fCy, fB) +
     tile(focusName + ' — Direct', null, dfCy, dfB, `<div class="row" style="margin-top:6px">Direct = ${pct((fCy+dfCy) ? dfCy/(fCy+dfCy) : null)} of all ${esc(focusName)} (was ${pct((fB+dfB) ? dfB/(fB+dfB) : null)})</div>`) +
     tile('Remaining baskets — CP', 'var(--rest)', rCy, rB) +
     `<div class="card tile"><div class="lbl">Focus share of CP spend</div><div class="val">${pct(shCy)}</div>
-      <div class="row">${ppChip(shB, shCy)}<span>was ${pct(shB)} in ${fyLabel(base)}</span></div></div>` +
+      <div class="row">${ppChip(shB, shCy)}<span>was ${pct(shB)} in ${fyLabel(base)}</span></div>${expRow}</div>` +
     `<div class="card tile"><div class="lbl">Avg discount — CP on focus</div><div class="val">${pct(fdCy)}</div>
       <div class="row">${ppChip(fdB, fdCy)}<span>was ${pct(fdB)} · rest of baskets ${pct(rdCy)}</span></div></div>`;
 
@@ -472,14 +479,18 @@ function niceMax(v){ if (v <= 0) return 1; const p = Math.pow(10, Math.floor(Mat
 function renderShareChart(D, cy, base, focusName){
   $('shareTitle').textContent = `${focusName} — share of channel-partner spend, by month`;
   const ms = axisMonths(D, cy);
-  const get = (fy, m) => { const r = (D.monthly||[]).find(x => x.grp === CP && x.fy === fy && x.m === m); return r && n(r.v) ? n(r.fv)/n(r.v) : null; };
-  const series = [{fy:base, color:'var(--base)', label:fyLabel(base)}, {fy:cy, color:'var(--focus)', label:fyLabel(cy)}];
-  $('shareLegend').innerHTML = series.slice().reverse().map(s => `<span><span class="swatch" style="background:${s.color}"></span>${s.label}</span>`).join('');
-  const W = 640, H = 260, L = 44, R = 14, T = 12, Bm = 28;
+  const row = (fy, m) => (D.monthly||[]).find(x => x.grp === CP && x.fy === fy && x.m === m);
+  const get = (fy, m) => { const r = row(fy, m); return r && n(r.v) ? n(r.fv)/n(r.v) : null; };
+  const amt = (fy, m) => n(row(fy, m)?.fv);
+  const series = [{fy:base, color:'var(--base)', ink:'#6f7c92', label:fyLabel(base)}, {fy:cy, color:'var(--focus)', ink:'var(--focus)', label:fyLabel(cy)}];
+  $('shareLegend').innerHTML = series.slice().reverse().map(s => `<span><span class="swatch" style="background:${s.color}"></span>${s.label}</span>`).join('') +
+    `<span style="color:var(--t3)">Labels: share · ${esc(focusName)} amount</span>`;
+  const W = 640, H = 300, L = 44, R = 14, T = 36, Bm = 28, PAD = 30;
   const vals = series.flatMap(s => ms.map(m => get(s.fy, m))).filter(v => v !== null);
   const max = Math.min(1, Math.ceil(Math.max(0.05, ...vals) * 1.1 * 10) / 10);
-  const x = i => L + (ms.length <= 1 ? (W-L-R)/2 : i * (W-L-R)/(ms.length-1));
+  const x = i => L + PAD + (ms.length <= 1 ? (W-L-R-2*PAD)/2 : i * (W-L-R-2*PAD)/(ms.length-1));
   const y = v => T + (H-T-Bm) * (1 - v/max);
+  const halo = 'stroke="#fff" stroke-width="3" stroke-linejoin="round" paint-order="stroke"';
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Focus share by month">`;
   for (let k = 0; k <= 4; k++) { const v = max*k/4; svg += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="var(--t3)">${(v*100).toFixed(0)}%</text>`; }
   ms.forEach((m,i) => svg += `<text x="${x(i)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--t3)">${MNAME[m]}</text>`);
@@ -488,11 +499,27 @@ function renderShareChart(D, cy, base, focusName){
     if (pts.length > 1) svg += `<polyline fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" points="${pts.map(p => x(p[0]) + ',' + y(p[1])).join(' ')}"/>`;
     pts.forEach(p => svg += `<circle cx="${x(p[0])}" cy="${y(p[1])}" r="4" fill="${s.color}" stroke="#fff" stroke-width="2"/>`);
   });
-  ms.forEach((m,i) => svg += `<rect class="hit" data-i="${i}" x="${x(i) - (W-L-R)/Math.max(ms.length,1)/2}" y="${T}" width="${(W-L-R)/Math.max(ms.length,1)}" height="${H-T-Bm}" fill="transparent"/>`);
+  // Point labels: share % + focus amount. The higher point of the month is labelled above, the lower one below, so they never overlap.
+  ms.forEach((m,i) => {
+    const vc = get(cy, m), vb = get(base, m);
+    series.forEach(s => {
+      const v = s.fy === cy ? vc : vb; if (v === null) return;
+      const other = s.fy === cy ? vb : vc;
+      let above = other === null || v > other || (v === other && s.fy === cy);
+      if (!above && y(v) + 30 > H - Bm) above = true;   // no room below, near the axis
+      const py = y(v), y1 = above ? py - 21 : py + 16, y2 = above ? py - 9 : py + 28;
+      svg += `<text x="${x(i)}" y="${y1}" text-anchor="middle" font-size="11" font-weight="700" fill="${s.ink}" ${halo}>${pct(v, 0)}</text>` +
+             `<text x="${x(i)}" y="${y2}" text-anchor="middle" font-size="10" fill="var(--t2)" ${halo}>${money(amt(s.fy, m))}</text>`;
+    });
+  });
+  ms.forEach((m,i) => svg += `<rect class="hit" data-i="${i}" x="${x(i) - (W-L-R-2*PAD)/Math.max(ms.length-1,1)/2}" y="${T}" width="${(W-L-R-2*PAD)/Math.max(ms.length-1,1)}" height="${H-T-Bm}" fill="transparent"/>`);
   svg += '</svg>';
   const el = $('shareChart'); el.innerHTML = ms.length ? svg : '<div class="empty">No data</div>';
   el.querySelectorAll('.hit').forEach(h => { const m = ms[+h.dataset.i];
-    h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br>${series.slice().reverse().map(s => `<span class="swatch" style="background:${s.color}"></span>${s.label}: ${pct(get(s.fy,m))}`).join('<br>')}`);
+    const line = s => { const r = row(s.fy, m); return `<span class="swatch" style="background:${s.color}"></span>${s.label}: <b>${pct(get(s.fy,m))}</b> · ${esc(focusName)} ${money(r?.fv)} of ${money(r?.v)}`; };
+    const sb = get(base, m), tc = n(row(cy, m)?.v), exp = sb !== null && tc ? sb * tc : null, gap = exp === null ? null : amt(cy, m) - exp;
+    h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br>${series.slice().reverse().map(line).join('<br>')}` +
+      (exp !== null ? `<br>Expected value at ${pct(sb)}: ${money(exp)} → <b>${money(Math.abs(gap))} ${gap < 0 ? 'short' : 'ahead'}</b>` : ''));
     h.onmouseleave = hideTip; });
 }
 
