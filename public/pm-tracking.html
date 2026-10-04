@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PM Cumulative Tracking</title>
+<style>
+  :root{
+    --navy:#0B2942; --head:#1a5f9e; --volt:#0073C8; --bg:#eef2f8; --panel:#fff; --line:#e3e7ef;
+    --t1:#16264d; --t2:#3b5384; --t3:#7a8fb8; --pm:#8a7a9c;
+    --good:#0f7a36; --good-bg:#e3f4e8; --warn:#9a5b00; --warn-bg:#fff1d9; --bad:#b42323; --bad-bg:#fde8e8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:'Calibri','Carlito','Segoe UI',sans-serif;font-size:14px}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px 16px 40px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+  .ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .f{display:flex;flex-direction:column;gap:3px;position:relative}
+  .f label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  select,.ms-btn{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 10px;font:inherit;color:var(--t1);cursor:pointer}
+  .ms-btn{min-width:210px;text-align:left;padding-right:28px;position:relative}
+  .ms-btn:after{content:'▾';position:absolute;right:10px;top:7px;color:var(--t3)}
+  .ms-pop{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(11,41,66,.18);width:260px;padding:8px}
+  .ms-pop.open{display:block}
+  .ms-acts{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+  .ms-acts button{font:inherit;font-size:11.5px;border:1px solid #cfd6e3;background:#f6f8fb;border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--t2)}
+  .ms-list{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+  .ms-list label{display:flex;gap:6px;align-items:center;padding:5px 4px;border-radius:5px;cursor:pointer;font-size:13px}
+  .ms-list label:hover{background:#f1f5fb}
+  .ms-list label.future{color:var(--t3)}
+  .sync{font-size:12px;color:var(--t3);text-align:right}
+  .sync b{color:var(--t2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  h1{font-size:17px;margin:0}
+  h2{font-size:15px;margin:0}
+  .sub{font-size:12px;color:var(--t3)}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--volt);color:var(--volt);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700}
+  .tbl{overflow:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{background:var(--head);color:#fff;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;text-align:right;padding:10px 12px;white-space:nowrap}
+  th:first-child,th:nth-child(2),td:first-child,td:nth-child(2){text-align:left}
+  td{padding:10px 12px;border-bottom:1px solid #edf0f5;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  td.pm{color:var(--pm);font-size:12px}
+  tr.tot td{color:var(--volt);font-weight:700;background:#f7faff}
+  tr.grand td{border-top:2px solid #cfe0f5}
+  tr.prod{cursor:pointer}
+  tr.prod:hover td{background:#f7f9fd}
+  tr.det td{background:#fafbfd;padding:6px 12px 10px 34px;font-size:12px;color:var(--t2);text-align:left;white-space:normal}
+  .caret{display:inline-block;width:14px;color:var(--t3);font-size:11px}
+  .chip{display:inline-block;min-width:54px;text-align:center;font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:20px}
+  .c-good{color:var(--good);background:var(--good-bg)} .c-warn{color:var(--warn);background:var(--warn-bg)} .c-bad{color:var(--bad);background:var(--bad-bg)} .c-na{color:var(--t3);background:#eceff4}
+  .mini{width:100%;font-size:12px;margin-top:4px}
+  .mini td,.mini th{padding:4px 8px;border-bottom:1px solid #eef1f6}
+  .mini th{background:#eef2f8;color:var(--t3)}
+  .mini td,.mini th{text-align:right!important}
+  .mini td:first-child,.mini th:first-child{text-align:left!important}
+  .note{font-size:12px;color:var(--t2);line-height:1.55;margin-top:12px}
+  .note b{color:var(--t1)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--t3);margin-top:8px}
+  .err{background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:none}
+  .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
+  .loading.on{display:flex}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="ctrls">
+      <div class="f"><label>Financial year</label><select id="fySel"></select></div>
+      <div class="f"><label>Months</label>
+        <button class="ms-btn" id="mBtn"></button>
+        <div class="ms-pop" id="mPop">
+          <div class="ms-acts">
+            <button data-q="ytd">Apr → latest</button><button data-q="all">All 12</button>
+            <button data-q="q1">Q1</button><button data-q="q2">Q2</button><button data-q="q3">Q3</button><button data-q="q4">Q4</button>
+            <button data-q="h1">H1</button><button data-q="h2">H2</button><button data-q="none">Clear</button>
+          </div>
+          <div class="ms-list" id="mList"></div>
+        </div>
+      </div>
+      <button class="btn" id="csvBtn">Download CSV</button>
+    </div>
+    <div class="sync" id="syncInfo"></div>
+  </div>
+
+  <div class="err" id="errBox"></div>
+
+  <div class="card">
+    <div class="card-h">
+      <h1 id="title">Cumulative Performance (Rs-L) — Product Management Tracking</h1>
+      <span class="sub" id="period"></span>
+    </div>
+    <div class="tbl" id="mainTable"></div>
+    <div class="legend">
+      <span><span class="chip c-good">≥ 100%</span> on / above target</span>
+      <span><span class="chip c-warn">80–99%</span> close</span>
+      <span><span class="chip c-bad">&lt; 80%</span> behind</span>
+      <span>Click a product to see which baskets it includes.</span>
+    </div>
+    <div class="note" id="note"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Not counted in any product above</h2>
+      <div class="sub">OB and billing in the same period that do not map to a product row — check whether any of these should be added</div></div></div>
+    <div class="tbl" id="otherTable"></div>
+  </div>
+</div>
+<div class="loading" id="loading">Loading…</div>
+
+<script>
+/* ================= CONFIG — edit here ================= */
+const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+
+// Product rows. baskets = Zoho/SAP "Product Basket" values counted in the row. exclGovt = leave out account type "Govt Projects".
+// target = full-year target in Rs Lakhs (null = no target). group 'core' rows make the first TOTAL; OEM is added for the grand TOTAL.
+const PRODUCTS = [
+  { name:'Panel Meters',  pm:'Manikanda S', baskets:['Panel Meters','High End MFM','Nano VIP','Power Quality'], target:{2026:8960},  group:'core' },
+  { name:'ACCL',          pm:'Gurubaran N', baskets:['ACCL'],                                    target:{2026:2680},  group:'core' },
+  { name:'ATES',          pm:'Gurubaran N', baskets:['Transfer Switch'],                         target:{2026:9550},  group:'core' },
+  { name:'Prepaid/Smart', pm:'Suhas G',     baskets:['Prepaid & Smart Meters','Prepaid','Smart Meters'], exclGovt:true, target:{2026:5150}, group:'core' },
+  { name:'LVS',           pm:'Nirmal B',    baskets:['SWITCHGEAR'],                              target:{2026:7610},  group:'core' },
+  { name:'FDP',           pm:'Nirmal B',    baskets:['FDP'],                                     target:{2026:3000},           group:'core' },
+  { name:'OEM',           pm:'Krishna KN',  baskets:['OEM'],                                     target:{2026:10000}, group:'oem' }
+];
+// Share of the yearly target in each quarter (Q1 20%, Q2 25%, Q3 25%, Q4 30%), spread evenly over the quarter's 3 months.
+const QUARTER_SHARE = { 1:0.20, 2:0.25, 3:0.25, 4:0.30 };
+/* ====================================================== */
+
+const MONTHS = [4,5,6,7,8,9,10,11,12,1,2,3];
+const MNAME = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'};
+const QOF = m => m >= 4 && m <= 6 ? 1 : m >= 7 && m <= 9 ? 2 : m >= 10 ? 3 : 4;
+const QM = {q1:[4,5,6], q2:[7,8,9], q3:[10,11,12], q4:[1,2,3], h1:[4,5,6,7,8,9], h2:[10,11,12,1,2,3]};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const L = v => (v / 1e5);                       // rupees -> lakhs
+const f2 = v => v === null || v === undefined ? '—' : v.toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
+const S = { fy:null, months:[], data:null, open:new Set() };
+
+async function rpc(fn, body){
+  const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer '+KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json();
+}
+function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').textContent = e ? 'Could not load data — ' + e : ''; }
+
+function monthTarget(p, m){ const t = p.target[S.fy]; return t == null ? null : t * QUARTER_SHARE[QOF(m)] / 3; }
+function latestMonthIdx(){
+  const md = S.data?.max_date; if (!md) return MONTHS.length - 1;
+  const m = new Date(md).getMonth() + 1; return MONTHS.indexOf(m);
+}
+function ytdMonths(){ return MONTHS.slice(0, latestMonthIdx() + 1); }
+function periodLabel(){
+  const sel = MONTHS.filter(m => S.months.includes(m));
+  if (!sel.length) return 'No months';
+  const idx = sel.map(m => MONTHS.indexOf(m));
+  const contiguous = idx.every((v,i) => i === 0 || v === idx[i-1] + 1);
+  if (sel.length === 1) return MNAME[sel[0]];
+  return contiguous ? `${MNAME[sel[0]]}–${MNAME[sel[sel.length-1]]}` : sel.map(m => MNAME[m]).join(', ');
+}
+
+/* ---------- month multiselect ---------- */
+function drawMonths(){
+  const li = latestMonthIdx();
+  $('mList').innerHTML = MONTHS.map((m,i) => `<label class="${i > li ? 'future' : ''}"><input type="checkbox" value="${m}" ${S.months.includes(m) ? 'checked' : ''}> ${MNAME[m]}</label>`).join('');
+  $('mBtn').textContent = S.months.length === 12 ? 'All months' : S.months.length ? periodLabel() : 'Choose months';
+}
+$('mBtn').onclick = e => { e.stopPropagation(); $('mPop').classList.toggle('open'); };
+$('mPop').onclick = e => e.stopPropagation();
+document.addEventListener('click', () => $('mPop').classList.remove('open'));
+$('mList').onchange = e => { const m = +e.target.value; S.months = e.target.checked ? [...S.months, m] : S.months.filter(x => x !== m); drawMonths(); render(); };
+$('mPop').querySelector('.ms-acts').onclick = e => { const q = e.target.dataset.q; if (!q) return;
+  S.months = q === 'ytd' ? ytdMonths() : q === 'all' ? [...MONTHS] : q === 'none' ? [] : [...QM[q]]; drawMonths(); render(); };
+$('fySel').onchange = async e => { S.fy = +e.target.value; await load(true); };
+
+/* ---------- data ---------- */
+async function load(resetMonths){
+  $('loading').classList.add('on');
+  try {
+    S.data = await rpc('pm_tracking', { p_fy: S.fy });
+    if (!$('fySel').options.length) {
+      $('fySel').innerHTML = (S.data.fys || []).map(f => `<option value="${f}">${fyLabel(f)}</option>`).join('');
+      $('fySel').value = S.fy;
+    }
+    if (resetMonths) S.months = ytdMonths();
+    const ls = S.data.last_sync, md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+    $('syncInfo').innerHTML = `OB data till <b>${md(S.data.max_date_ob)}</b> · Invoices till <b>${md(S.data.max_date_inv)}</b>` +
+      (ls ? `<br>Last Zoho sync <b>${new Date(ls.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</b>${ls.status === 'error' ? ' (failed)' : ''}` : '');
+    showErr(null); drawMonths(); render();
+  } catch (e) { showErr(e.message); }
+  finally { $('loading').classList.remove('on'); }
+}
+
+function compute(){
+  const rows = S.data?.rows || [], sel = new Set(S.months);
+  const byB = {};   // basket -> {ob, inv, gob, ginv}
+  rows.forEach(r => { if (!sel.has(r.m)) return; const x = byB[r.b] = byB[r.b] || {ob:0, inv:0, gob:0, ginv:0};
+    const k = (r.gov ? 'g' : '') + (r.d === 'OB' ? 'ob' : 'inv'); x[k] += Number(r.v) || 0; });
+  const used = new Set();
+  const prods = PRODUCTS.map(p => {
+    let ob = 0, inv = 0; const parts = [];
+    p.baskets.forEach(b => { const x = byB[b]; used.add(b); if (!x) return;
+      const o = x.ob + (p.exclGovt ? 0 : x.gob), i = x.inv + (p.exclGovt ? 0 : x.ginv);
+      ob += o; inv += i; parts.push({b, ob:o, inv:i, gob:p.exclGovt ? x.gob : 0, ginv:p.exclGovt ? x.ginv : 0}); });
+    const fyT = p.target[S.fy] ?? null;
+    const perT = fyT == null ? null : S.months.reduce((a,m) => a + monthTarget(p, m), 0);
+    return { ...p, ob:L(ob), inv:L(inv), fyT, perT, parts };
+  });
+  const others = Object.entries(byB).filter(([b]) => !used.has(b)).map(([b,x]) => ({b, ob:L(x.ob + x.gob), inv:L(x.inv + x.ginv), gov:false}));
+  // Govt part of excluded products
+  prods.filter(p => p.exclGovt).forEach(p => { const g = p.parts.reduce((a,x) => ({ob:a.ob + x.gob, inv:a.inv + x.ginv}), {ob:0, inv:0});
+    if (g.ob || g.inv) others.push({b:`${p.name} — Govt Projects (excluded by rule)`, ob:L(g.ob), inv:L(g.inv), gov:true}); });
+  others.sort((a,b) => (b.ob + b.inv) - (a.ob + a.inv));
+  return { prods, others };
+}
+
+function chip(a, t){
+  if (t == null || !t) return '<span class="chip c-na">—</span>';
+  const p = a / t * 100, c = p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad';
+  return `<span class="chip ${c}" title="${f2(a)} of ${f2(t)}">${p.toFixed(1)}%</span>`;
+}
+
+function render(){
+  if (!S.data) return;
+  const per = periodLabel(), { prods, others } = compute();
+  const contiguousFromApr = S.months.length && MONTHS.slice(0, S.months.length).every(m => S.months.includes(m));
+  $('title').textContent = `${per} ${contiguousFromApr && S.months.length > 1 ? 'Cumulative ' : ''}Performance (Rs-L) — Product Management Tracking`;
+  $('period').textContent = `${fyLabel(S.fy)} · ${per}`;
+  const sum = (list, k) => list.reduce((a,p) => p[k] == null ? a : a + p[k], 0);
+  const core = prods.filter(p => p.group === 'core'), oem = prods.filter(p => p.group === 'oem');
+  const totRow = (label, list, cls) => { const t = {fyT:sum(list,'fyT'), perT:sum(list,'perT'), ob:sum(list,'ob'), inv:sum(list,'inv')};
+    return { html:`<tr class="tot ${cls||''}"><td>${label}</td><td></td><td>${f2(t.fyT)}</td><td>${f2(t.perT)}</td><td>${f2(t.ob)}</td><td>${chip(t.ob, t.perT)}</td><td>${f2(t.perT)}</td><td>${f2(t.inv)}</td><td>${chip(t.inv, t.perT)}</td></tr>`, t }; };
+  const rowHtml = p => {
+    const open = S.open.has(p.name);
+    let h = `<tr class="prod" data-p="${esc(p.name)}"><td><span class="caret">${open ? '▾' : '▸'}</span>${esc(p.name)}</td><td class="pm">${esc(p.pm)}</td>
+      <td>${f2(p.fyT)}</td><td>${f2(p.perT)}</td><td>${f2(p.ob)}</td><td>${chip(p.ob, p.perT)}</td><td>${f2(p.perT)}</td><td>${f2(p.inv)}</td><td>${chip(p.inv, p.perT)}</td></tr>`;
+    if (open) h += `<tr class="det"><td colspan="9"><b>${esc(p.name)}</b> counts product basket${p.baskets.length > 1 ? 's' : ''}: ${p.baskets.map(esc).join(', ')}${p.exclGovt ? ' · <b>excludes account type “Govt Projects”</b>' : ''}
+      <table class="mini"><thead><tr><th>Basket</th><th>Order booked</th><th>Billed</th>${p.exclGovt ? '<th>Govt OB (excluded)</th><th>Govt billed (excluded)</th>' : ''}</tr></thead><tbody>
+      ${p.parts.map(x => `<tr><td>${esc(x.b)}</td><td>${f2(L(x.ob))}</td><td>${f2(L(x.inv))}</td>${p.exclGovt ? `<td>${f2(L(x.gob))}</td><td>${f2(L(x.ginv))}</td>` : ''}</tr>`).join('') || '<tr><td colspan="5">No sales in these months</td></tr>'}</tbody></table></td></tr>`;
+    return h;
+  };
+  const T1 = totRow('TOTAL', core), T2 = totRow('TOTAL', prods, 'grand');
+  $('mainTable').innerHTML = `<table><thead><tr><th>Product</th><th>PM</th><th>Target ${fyLabel(S.fy).replace('FY ','FY ')}</th><th>${per} OB target</th><th>Order booked</th><th>OB % achieved</th>
+      <th>${per} INV target</th><th>Billed</th><th>Billing % achieved</th></tr></thead>
+    <tbody>${core.map(rowHtml).join('')}${T1.html}${oem.map(rowHtml).join('')}${T2.html}</tbody></table>`;
+  $('mainTable').querySelectorAll('tr.prod').forEach(tr => tr.onclick = () => { const k = tr.dataset.p; S.open.has(k) ? S.open.delete(k) : S.open.add(k); render(); });
+
+  const md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : '—';
+  const hasTargets = PRODUCTS.some(p => p.target[S.fy] != null);
+  $('note').innerHTML = `Values are <b>DocTotalFC in Rs Lakhs</b>, from the OB and invoice line items (Excel history up to 28-Sep-2026, Zoho CRM after that; synced daily).
+    Period target = yearly target × quarter share (Q1 20%, Q2 25%, Q3 25%, Q4 30%) ÷ 3 for each selected month; OB and invoice targets are the same.
+    A month that is still running counts its full target (data till ${md(S.data.max_date)}).
+    Panel Meters = Panel Meters + High End MFM + Nano VIP + Power Quality baskets. Prepaid/Smart excludes Govt Projects.` +
+    (hasTargets ? '' : ` <b style="color:#b42323">No targets entered for ${fyLabel(S.fy)} yet.</b>`) +
+    ` Not mapped to any product: <b>${f2(others.filter(o => !o.gov).reduce((a,o) => a + o.ob, 0))} L</b> OB and <b>${f2(others.filter(o => !o.gov).reduce((a,o) => a + o.inv, 0))} L</b> billed (listed below).`;
+
+  $('otherTable').innerHTML = `<table><thead><tr><th>Product basket</th><th></th><th>Order booked</th><th>Billed</th></tr></thead><tbody>${
+    others.map(o => `<tr><td>${esc(o.b)}</td><td></td><td>${f2(o.ob)}</td><td>${f2(o.inv)}</td></tr>`).join('') || '<tr><td colspan="4">Everything is mapped</td></tr>'}
+    <tr class="tot"><td>TOTAL not counted</td><td></td><td>${f2(others.reduce((a,o) => a + o.ob, 0))}</td><td>${f2(others.reduce((a,o) => a + o.inv, 0))}</td></tr></tbody></table>`;
+
+  $('csvBtn').onclick = () => {
+    const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const pctv = (a,t) => t ? (a/t*100).toFixed(1) : '';
+    const lines = [['Product','PM',`Target ${fyLabel(S.fy)}`,`${per} OB target`,'Order booked','OB % achieved',`${per} INV target`,'Billed','Billing % achieved']];
+    const add = (name, pm, x) => lines.push([name, pm, x.fyT?.toFixed?.(2) ?? '', x.perT?.toFixed?.(2) ?? '', x.ob.toFixed(2), pctv(x.ob, x.perT), x.perT?.toFixed?.(2) ?? '', x.inv.toFixed(2), pctv(x.inv, x.perT)]);
+    core.forEach(p => add(p.name, p.pm, p)); add('TOTAL', '', T1.t); oem.forEach(p => add(p.name, p.pm, p)); add('TOTAL', '', T2.t);
+    const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `pm_tracking_${fyLabel(S.fy)}_${per}.csv`; a.click();
+  };
+}
+
+(async () => {
+  const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  await load(true);
+})();
+</script>
+</body>
+</html>
