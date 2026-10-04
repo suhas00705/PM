@@ -72,7 +72,7 @@
         <button class="ms-btn" id="mBtn"></button>
         <div class="ms-pop" id="mPop">
           <div class="ms-acts">
-            <button data-q="ytd">Apr → latest</button><button data-q="all">All 12</button>
+            <button data-q="ytd">Apr → latest</button><button data-q="cur">Latest month</button><button data-q="all">All 12</button>
             <button data-q="q1">Q1</button><button data-q="q2">Q2</button><button data-q="q3">Q3</button><button data-q="q4">Q4</button>
             <button data-q="h1">H1</button><button data-q="h2">H2</button><button data-q="none">Clear</button>
           </div>
@@ -173,7 +173,7 @@ $('mPop').onclick = e => e.stopPropagation();
 document.addEventListener('click', () => $('mPop').classList.remove('open'));
 $('mList').onchange = e => { const m = +e.target.value; S.months = e.target.checked ? [...S.months, m] : S.months.filter(x => x !== m); drawMonths(); render(); };
 $('mPop').querySelector('.ms-acts').onclick = e => { const q = e.target.dataset.q; if (!q) return;
-  S.months = q === 'ytd' ? ytdMonths() : q === 'all' ? [...MONTHS] : q === 'none' ? [] : [...QM[q]]; drawMonths(); render(); };
+  S.months = q === 'ytd' ? ytdMonths() : q === 'cur' ? [MONTHS[latestMonthIdx()]] : q === 'all' ? [...MONTHS] : q === 'none' ? [] : [...QM[q]]; drawMonths(); render(); };
 $('fySel').onchange = async e => { S.fy = +e.target.value; await load(true); };
 
 /* ---------- data ---------- */
@@ -196,31 +196,52 @@ async function load(resetMonths){
 
 function compute(){
   const rows = S.data?.rows || [], sel = new Set(S.months);
-  const byB = {};   // basket -> {ob, inv, gob, ginv}
-  rows.forEach(r => { if (!sel.has(r.m)) return; const x = byB[r.b] = byB[r.b] || {ob:0, inv:0, gob:0, ginv:0};
+  const byBM = {};  // basket -> month -> {ob, inv, gob, ginv}
+  rows.forEach(r => { const x = ((byBM[r.b] = byBM[r.b] || {})[r.m] = byBM[r.b]?.[r.m] || {ob:0, inv:0, gob:0, ginv:0});
     const k = (r.gov ? 'g' : '') + (r.d === 'OB' ? 'ob' : 'inv'); x[k] += Number(r.v) || 0; });
+  const selSum = (b, k) => Object.entries(byBM[b] || {}).reduce((a,[m,x]) => sel.has(+m) ? a + x[k] : a, 0);
   const used = new Set();
   const prods = PRODUCTS.map(p => {
-    let ob = 0, inv = 0; const parts = [];
-    p.baskets.forEach(b => { const x = byB[b]; used.add(b); if (!x) return;
-      const o = x.ob + (p.exclGovt ? 0 : x.gob), i = x.inv + (p.exclGovt ? 0 : x.ginv);
-      ob += o; inv += i; parts.push({b, ob:o, inv:i, gob:p.exclGovt ? x.gob : 0, ginv:p.exclGovt ? x.ginv : 0}); });
+    const parts = [];
+    p.baskets.forEach(b => { used.add(b); if (!byBM[b]) return;
+      const g = {ob:selSum(b,'ob'), inv:selSum(b,'inv'), gob:selSum(b,'gob'), ginv:selSum(b,'ginv')};
+      parts.push({ b, ob:g.ob + (p.exclGovt ? 0 : g.gob), inv:g.inv + (p.exclGovt ? 0 : g.ginv), gob:p.exclGovt ? g.gob : 0, ginv:p.exclGovt ? g.ginv : 0 }); });
+    // month-by-month actuals (Rs L)
+    const act = (m, k) => L(p.baskets.reduce((a,b) => { const x = byBM[b]?.[m]; return x ? a + x[k] + (p.exclGovt ? 0 : x['g' + k]) : a; }, 0));
     const fyT = p.target[S.fy] ?? null;
-    const perT = fyT == null ? null : S.months.reduce((a,m) => a + monthTarget(p, m), 0);
-    return { ...p, ob:L(ob), inv:L(inv), fyT, perT, parts };
+    // Carry-forward: a month's target = its plan share + any shortfall still pending from earlier months.
+    // Over-achievement is NOT carried: the shortfall carried out never goes below zero.
+    const run = k => { let carry = 0; return MONTHS.map(m => {
+        const plan = fyT == null ? null : monthTarget(p, m), a = act(m, k);
+        if (plan == null) return { m, plan:null, cin:0, tgt:null, a, cred:null, cout:0 };
+        const tgt = plan + carry, cred = Math.min(a, tgt), cout = Math.max(0, tgt - a);
+        const r = { m, plan, cin:carry, tgt, a, cred, cout }; carry = cout; return r; }); };
+    const mob = run('ob'), minv = run('inv');
+    // Period figures for the selected months: target = plan of each selected month + shortfall brought in at the start of each run of months
+    const per = list => { let tgt = 0, cred = 0, a = 0, last = null;
+      list.forEach((x,i) => { if (!sel.has(x.m)) return; a += x.a;
+        if (x.plan != null) { const prevSel = i > 0 && sel.has(list[i-1].m); tgt += x.plan + (prevSel ? 0 : x.cin);
+          const nextSel = i < list.length - 1 && sel.has(list[i+1].m);
+          cred += nextSel ? x.cred : x.a; }   // earlier months count only up to their target; the last selected month counts in full
+        last = x; });
+      return { tgt: fyT == null ? null : tgt, cred: fyT == null ? null : cred, a, short: last ? last.cout : 0, lastM: last?.m }; };
+    const O = per(mob), I = per(minv);
+    return { ...p, fyT, ob:O.a, inv:I.a, obT:O.tgt, invT:I.tgt, obC:O.cred, invC:I.cred, obShort:O.short, invShort:I.short, lastM:O.lastM, mob, minv, parts };
   });
-  const others = Object.entries(byB).filter(([b]) => !used.has(b)).map(([b,x]) => ({b, ob:L(x.ob + x.gob), inv:L(x.inv + x.ginv), gov:false}));
-  // Govt part of excluded products
+  const others = Object.keys(byBM).filter(b => !used.has(b)).map(b => { const g = k => selSum(b, k);
+    return { b, ob:L(g('ob') + g('gob')), inv:L(g('inv') + g('ginv')), gov:false }; }).filter(o => o.ob || o.inv);
   prods.filter(p => p.exclGovt).forEach(p => { const g = p.parts.reduce((a,x) => ({ob:a.ob + x.gob, inv:a.inv + x.ginv}), {ob:0, inv:0});
     if (g.ob || g.inv) others.push({b:`${p.name} — Govt Projects (excluded by rule)`, ob:L(g.ob), inv:L(g.inv), gov:true}); });
   others.sort((a,b) => (b.ob + b.inv) - (a.ob + a.inv));
   return { prods, others };
 }
 
-function chip(a, t){
+function chip(cred, t, actual, short){
   if (t == null || !t) return '<span class="chip c-na">—</span>';
-  const p = a / t * 100, c = p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad';
-  return `<span class="chip ${c}" title="${f2(a)} of ${f2(t)}">${p.toFixed(1)}%</span>`;
+  const p = cred / t * 100, c = p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad';
+  const tip = `Counted towards target: ${f2(cred)} of ${f2(t)}` + (actual > cred + 0.005 ? ` (actual ${f2(actual)} — extra above an earlier month's target is not carried forward)` : '') +
+              (short > 0.005 ? `. Shortfall ${f2(short)} moves to next month.` : '');
+  return `<span class="chip ${c}" title="${tip}">${p.toFixed(1)}%</span>`;
 }
 
 function render(){
@@ -231,15 +252,20 @@ function render(){
   $('period').textContent = `${fyLabel(S.fy)} · ${per}`;
   const sum = (list, k) => list.reduce((a,p) => p[k] == null ? a : a + p[k], 0);
   const core = prods.filter(p => p.group === 'core'), oem = prods.filter(p => p.group === 'oem');
-  const totRow = (label, list, cls) => { const t = {fyT:sum(list,'fyT'), perT:sum(list,'perT'), ob:sum(list,'ob'), inv:sum(list,'inv')};
-    return { html:`<tr class="tot ${cls||''}"><td>${label}</td><td></td><td>${f2(t.fyT)}</td><td>${f2(t.perT)}</td><td>${f2(t.ob)}</td><td>${chip(t.ob, t.perT)}</td><td>${f2(t.perT)}</td><td>${f2(t.inv)}</td><td>${chip(t.inv, t.perT)}</td></tr>`, t }; };
+  const totRow = (label, list, cls) => { const t = {}; ['fyT','obT','invT','ob','inv','obC','invC','obShort','invShort'].forEach(k => t[k] = sum(list, k));
+    return { html:`<tr class="tot ${cls||''}"><td>${label}</td><td></td><td>${f2(t.fyT)}</td><td>${f2(t.obT)}</td><td>${f2(t.ob)}</td><td>${chip(t.obC, t.obT, t.ob, t.obShort)}</td><td>${f2(t.invT)}</td><td>${f2(t.inv)}</td><td>${chip(t.invC, t.invT, t.inv, t.invShort)}</td></tr>`, t }; };
   const rowHtml = p => {
     const open = S.open.has(p.name);
     let h = `<tr class="prod" data-p="${esc(p.name)}"><td><span class="caret">${open ? '▾' : '▸'}</span>${esc(p.name)}</td><td class="pm">${esc(p.pm)}</td>
-      <td>${f2(p.fyT)}</td><td>${f2(p.perT)}</td><td>${f2(p.ob)}</td><td>${chip(p.ob, p.perT)}</td><td>${f2(p.perT)}</td><td>${f2(p.inv)}</td><td>${chip(p.inv, p.perT)}</td></tr>`;
+      <td>${f2(p.fyT)}</td><td>${f2(p.obT)}</td><td>${f2(p.ob)}</td><td>${chip(p.obC, p.obT, p.ob, p.obShort)}</td><td>${f2(p.invT)}</td><td>${f2(p.inv)}</td><td>${chip(p.invC, p.invT, p.inv, p.invShort)}</td></tr>`;
     if (open) h += `<tr class="det"><td colspan="9"><b>${esc(p.name)}</b> counts product basket${p.baskets.length > 1 ? 's' : ''}: ${p.baskets.map(esc).join(', ')}${p.exclGovt ? ' · <b>excludes account type “Govt Projects”</b>' : ''}
       <table class="mini"><thead><tr><th>Basket</th><th>Order booked</th><th>Billed</th>${p.exclGovt ? '<th>Govt OB (excluded)</th><th>Govt billed (excluded)</th>' : ''}</tr></thead><tbody>
-      ${p.parts.map(x => `<tr><td>${esc(x.b)}</td><td>${f2(L(x.ob))}</td><td>${f2(L(x.inv))}</td>${p.exclGovt ? `<td>${f2(L(x.gob))}</td><td>${f2(L(x.ginv))}</td>` : ''}</tr>`).join('') || '<tr><td colspan="5">No sales in these months</td></tr>'}</tbody></table></td></tr>`;
+      ${p.parts.map(x => `<tr><td>${esc(x.b)}</td><td>${f2(L(x.ob))}</td><td>${f2(L(x.inv))}</td>${p.exclGovt ? `<td>${f2(L(x.gob))}</td><td>${f2(L(x.ginv))}</td>` : ''}</tr>`).join('') || '<tr><td colspan="5">No sales in these months</td></tr>'}</tbody></table>
+      ${p.fyT == null ? '' : `<div style="margin-top:10px"><b>Month by month — target with shortfall carried forward</b> (plan = yearly target × quarter share ÷ 3; a month's shortfall is added to the next month; extra above a month's target is not carried)</div>
+      <table class="mini"><thead><tr><th>Month</th><th>Plan target</th><th>OB carried in</th><th>OB target</th><th>Order booked</th><th>OB short → next</th><th>INV carried in</th><th>INV target</th><th>Billed</th><th>INV short → next</th></tr></thead><tbody>
+      ${p.mob.map((o,i) => { if (i > latestMonthIdx() + 1) return ''; const v = p.minv[i], on = S.months.includes(o.m), nxt = i === latestMonthIdx() + 1;
+        return `<tr style="${nxt ? 'background:#f1f7ff' : on ? '' : 'color:#9aa6bf'}"><td>${MNAME[o.m]}${nxt ? ' — next month target' : on ? '' : ' (not selected)'}</td><td>${f2(o.plan)}</td><td>${f2(o.cin)}</td><td><b>${f2(o.tgt)}</b></td><td>${f2(o.a)}</td><td>${o.cout > 0.005 ? f2(o.cout) : '—'}</td>
+          <td>${f2(v.cin)}</td><td><b>${f2(v.tgt)}</b></td><td>${f2(v.a)}</td><td>${v.cout > 0.005 ? f2(v.cout) : '—'}</td></tr>`; }).join('')}</tbody></table>`}</td></tr>`;
     return h;
   };
   const T1 = totRow('TOTAL', core), T2 = totRow('TOTAL', prods, 'grand');
@@ -251,8 +277,9 @@ function render(){
   const md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : '—';
   const hasTargets = PRODUCTS.some(p => p.target[S.fy] != null);
   $('note').innerHTML = `Values are <b>DocTotalFC in Rs Lakhs</b>, from the OB and invoice line items (Excel history up to 28-Sep-2026, Zoho CRM after that; synced daily).
-    Period target = yearly target × quarter share (Q1 20%, Q2 25%, Q3 25%, Q4 30%) ÷ 3 for each selected month; OB and invoice targets are the same.
-    A month that is still running counts its full target (data till ${md(S.data.max_date)}).
+    <b>Targets carry forward:</b> each month's plan = yearly target × quarter share (Q1 20%, Q2 25%, Q3 25%, Q4 30%) ÷ 3. If a month falls short, the shortfall is added to the next month's target;
+    if a month goes over its target, the extra is <b>not</b> carried, so the next month keeps its normal plan. OB and invoice are tracked separately.
+    % achieved: earlier months count only up to their own target (no credit carried forward); the last selected month counts in full. A month still running counts its full target (data till ${md(S.data.max_date)}). Click a product for the month-by-month working.
     Panel Meters = Panel Meters + High End MFM + Nano VIP + Power Quality baskets. Prepaid/Smart excludes Govt Projects.` +
     (hasTargets ? '' : ` <b style="color:#b42323">No targets entered for ${fyLabel(S.fy)} yet.</b>`) +
     ` Not mapped to any product: <b>${f2(others.filter(o => !o.gov).reduce((a,o) => a + o.ob, 0))} L</b> OB and <b>${f2(others.filter(o => !o.gov).reduce((a,o) => a + o.inv, 0))} L</b> billed (listed below).`;
@@ -265,7 +292,7 @@ function render(){
     const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
     const pctv = (a,t) => t ? (a/t*100).toFixed(1) : '';
     const lines = [['Product','PM',`Target ${fyLabel(S.fy)}`,`${per} OB target`,'Order booked','OB % achieved',`${per} INV target`,'Billed','Billing % achieved']];
-    const add = (name, pm, x) => lines.push([name, pm, x.fyT?.toFixed?.(2) ?? '', x.perT?.toFixed?.(2) ?? '', x.ob.toFixed(2), pctv(x.ob, x.perT), x.perT?.toFixed?.(2) ?? '', x.inv.toFixed(2), pctv(x.inv, x.perT)]);
+    const add = (name, pm, x) => lines.push([name, pm, x.fyT?.toFixed?.(2) ?? '', x.obT?.toFixed?.(2) ?? '', x.ob.toFixed(2), pctv(x.obC, x.obT), x.invT?.toFixed?.(2) ?? '', x.inv.toFixed(2), pctv(x.invC, x.invT)]);
     core.forEach(p => add(p.name, p.pm, p)); add('TOTAL', '', T1.t); oem.forEach(p => add(p.name, p.pm, p)); add('TOTAL', '', T2.t);
     const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `pm_tracking_${fyLabel(S.fy)}_${per}.csv`; a.click();
