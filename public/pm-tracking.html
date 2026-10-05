@@ -98,6 +98,7 @@
         </div>
       </div>
       <button class="btn" id="csvBtn">Download CSV</button>
+      <button class="btn" id="refreshBtn" title="Fetch the latest synced data">⟳ Refresh</button>
     </div>
     <div class="sync" id="syncInfo"></div>
   </div>
@@ -219,10 +220,12 @@ $('mPop').querySelector('.ms-acts').onclick = e => { const q = e.target.dataset.
 $('fySel').onchange = async e => { S.fy = +e.target.value; await load(true); loadGrowth(); };
 
 /* ---------- data ---------- */
-async function load(resetMonths){
-  $('loading').classList.add('on');
+async function load(resetMonths, quiet){
+  if (!quiet) $('loading').classList.add('on');
   try {
-    S.data = await rpc('pm_tracking', { p_fy: S.fy });
+    const wasDefault = S.data && S.months.length && S.months.join() === ytdMonths().join();
+    S.data = await rpc('pm_tracking', { p_fy: S.fy }); S.loadedAt = Date.now();
+    if (wasDefault) S.months = ytdMonths();   // "Apr → latest" follows new months as data arrives
     if (!$('fySel').options.length) {
       $('fySel').innerHTML = (S.data.fys || []).map(f => `<option value="${f}">${fyLabel(f)}</option>`).join('');
       $('fySel').value = S.fy;
@@ -374,12 +377,14 @@ function ms(host, getItems, getSel, setSel, placeholder, extra, fmt){
 document.addEventListener('click', () => document.querySelectorAll('.ms2 .ms-pop.open').forEach(x => x.classList.remove('open')));
 
 let gDraw = {};
-async function loadGrowth(){
-  if (G.fy === S.fy && G.data) return renderGrowth();
+async function loadGrowth(force){
+  if (!force && G.fy === S.fy && G.data) return renderGrowth();
   try {
+    const oldDefault = G.data && G.fy === S.fy ? MONTHS.slice(0, MONTHS.indexOf(G.data.max_date ? new Date(G.data.max_date).getMonth() + 1 : 3) + 1).join() : null;
+    const keep = force && G.fy === S.fy && G.months;
     G.data = await rpc('pm_growth', { p_cy: S.fy }); G.fy = S.fy;
     const lm = G.data.max_date ? new Date(G.data.max_date).getMonth() + 1 : 3;
-    G.months = MONTHS.slice(0, MONTHS.indexOf(lm) + 1);
+    if (!keep || G.months.join() === oldDefault) G.months = MONTHS.slice(0, MONTHS.indexOf(lm) + 1);
     // Merge region names that differ only in capitals/spacing (e.g. "Delhi NCR" and "DELHI NCR") — the most-used spelling wins
     const rkey = r => String(r).trim().replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').toUpperCase();
     const tot = {}; G.data.rows.forEach(r => { const k = rkey(r.r); (tot[k] = tot[k] || {})[r.r] = (tot[k][r.r] || 0) + Math.abs(Number(r.v) || 0); });
@@ -472,6 +477,13 @@ function renderGrowth(){
     const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `growth_${G.doc}_${fyLabel(cy)}.csv`; a.click(); };
 }
+
+/* ---------- keep data fresh: the daily Zoho sync writes to the same table, so re-read it ---------- */
+async function refreshAll(){ await load(false, true); await loadGrowth(true); }
+$('refreshBtn').onclick = async () => { $('loading').classList.add('on'); try { await refreshAll(); } finally { $('loading').classList.remove('on'); } };
+setInterval(refreshAll, 30 * 60 * 1000);                       // every 30 minutes while the portal is open
+document.addEventListener('visibilitychange', () => {          // and when you come back to the browser tab after 10+ minutes
+  if (document.visibilityState === 'visible' && Date.now() - (S.loadedAt || 0) > 10 * 60 * 1000) refreshAll(); });
 
 (async () => {
   const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
