@@ -148,6 +148,29 @@
       <div class="tbl" id="gTable2" style="max-height:420px;overflow:auto"></div>
     </div>
   </div>
+
+  <div class="card" id="seriesCard">
+    <div class="card-h"><div><h2 id="sTitle">Product series growth — this year vs last year</h2>
+      <div class="sub" id="sSub"></div></div>
+      <button class="btn" id="sCsv">Download CSV</button></div>
+    <div class="gfilters">
+      <div class="f"><label>Document</label><div class="toggle" id="sDoc"><button data-d="OB" class="on">Order Booking</button><button data-d="INV">Invoicing</button></div></div>
+      <div class="f"><label>Chart shows</label><div class="toggle" id="sMetric"><button data-k="v" class="on">Value (Rs L)</button><button data-k="q">Qty (pcs)</button></div></div>
+      <div class="f ms2"><label>Months</label><div id="sMonths"></div></div>
+      <div class="f ms2"><label>Product basket</label><div id="sProducts"></div></div>
+      <div class="f ms2"><label>Product series</label><div id="sSeries"></div></div>
+      <div class="f ms2"><label>U-Region</label><div id="sRegions"></div></div>
+      <button class="btn" id="sReset" style="border-color:transparent">Reset</button>
+    </div>
+    <div class="gbox">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap">
+        <div><h3 id="sChartTitle">By product series</h3><div class="sub" id="sChartSub"></div></div>
+        <div class="glegend" id="sLeg"></div></div>
+      <div class="chart" id="sChart"></div>
+      <div style="text-align:center;margin-top:6px"><button class="btn" id="sMore" style="border-color:transparent"></button></div>
+    </div>
+    <div class="tbl" id="sTable" style="margin-top:16px;max-height:520px;overflow:auto"></div>
+  </div>
 </div>
 <div class="loading" id="loading">Loading…</div>
 <div class="tip" id="tip"></div>
@@ -217,7 +240,7 @@ document.addEventListener('click', () => $('mPop').classList.remove('open'));
 $('mList').onchange = e => { const m = +e.target.value; S.months = e.target.checked ? [...S.months, m] : S.months.filter(x => x !== m); drawMonths(); render(); };
 $('mPop').querySelector('.ms-acts').onclick = e => { const q = e.target.dataset.q; if (!q) return;
   S.months = q === 'ytd' ? ytdMonths() : q === 'cur' ? [MONTHS[latestMonthIdx()]] : q === 'all' ? [...MONTHS] : q === 'none' ? [] : [...QM[q]]; drawMonths(); render(); };
-$('fySel').onchange = async e => { S.fy = +e.target.value; await load(true); loadGrowth(); };
+$('fySel').onchange = async e => { S.fy = +e.target.value; await load(true); loadGrowth(); loadSeries(); };
 
 /* ---------- data ---------- */
 async function load(resetMonths, quiet){
@@ -359,7 +382,8 @@ function grTxt(cy, ly){ if (!ly) return cy ? '<span class="gr-up">new</span>' : 
 function grPlain(cy, ly){ if (!ly) return cy ? 'new' : '—'; const g = (cy - ly) / ly * 100; return (g >= 0 ? '+' : '−') + Math.abs(g).toFixed(1) + '%'; }
 
 // generic multiselect
-function ms(host, getItems, getSel, setSel, placeholder, extra, fmt){
+function ms(host, getItems, getSel, setSel, placeholder, extra, fmt, onChange){
+  const changed = () => (onChange || renderGrowth)();
   host.innerHTML = `<button class="ms-btn"></button><div class="ms-pop"><input type="search" placeholder="Search…"><div class="ms-acts"><button data-a="all">Select all</button><button data-a="none">Clear</button>${(extra||[]).map((x,i) => `<button data-x="${i}">${esc(x.label)}</button>`).join('')}</div><div class="ms-list"></div></div>`;
   const btn = host.querySelector('.ms-btn'), pop = host.querySelector('.ms-pop'), list = host.querySelector('.ms-list'), q = host.querySelector('input');
   const draw = () => { const items = getItems(), sel = getSel(), t = q.value.toLowerCase();
@@ -368,10 +392,10 @@ function ms(host, getItems, getSel, setSel, placeholder, extra, fmt){
   btn.onclick = e => { e.stopPropagation(); const o = !pop.classList.contains('open'); document.querySelectorAll('.ms-pop.open').forEach(x => x.classList.remove('open')); if (o) { pop.classList.add('open'); q.value = ''; draw(); } };
   pop.onclick = e => e.stopPropagation(); q.oninput = draw;
   list.onchange = e => { const items = getItems(); const v = typeof items[0]?.value === 'number' ? +e.target.value : e.target.value;
-    setSel(e.target.checked ? [...getSel(), v] : getSel().filter(x => x !== v)); draw(); renderGrowth(); };
+    setSel(e.target.checked ? [...getSel(), v] : getSel().filter(x => x !== v)); draw(); changed(); };
   pop.querySelector('.ms-acts').onclick = e => { const a = e.target.dataset.a, x = e.target.dataset.x;
     if (a === 'all') setSel(getItems().map(i => i.value)); else if (a === 'none') setSel([]); else if (x !== undefined) setSel(extra[+x].pick()); else return;
-    draw(); renderGrowth(); };
+    draw(); changed(); };
   draw(); return draw;
 }
 document.addEventListener('click', () => document.querySelectorAll('.ms2 .ms-pop.open').forEach(x => x.classList.remove('open')));
@@ -478,8 +502,115 @@ function renderGrowth(){
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `growth_${G.doc}_${fyLabel(cy)}.csv`; a.click(); };
 }
 
+
+/* ================= Product series growth: this year vs last year (value + qty) ================= */
+const SG = { doc:'OB', metric:'v', months:null, regions:[], products:[...GROWTH_PRODUCTS], series:[], data:null, fy:null, all:false, draw:{} };
+const fq = v => Math.round(v).toLocaleString('en-IN');
+async function loadSeries(force){
+  if (!force && SG.fy === S.fy && SG.data) return renderSeries();
+  try {
+    const oldDefault = SG.data && SG.fy === S.fy ? MONTHS.slice(0, MONTHS.indexOf(SG.data.max_date ? new Date(SG.data.max_date).getMonth() + 1 : 3) + 1).join() : null;
+    const keep = force && SG.fy === S.fy && SG.months;
+    SG.data = await rpc('pm_series_growth', { p_cy: S.fy }); SG.fy = S.fy;
+    const lm = SG.data.max_date ? new Date(SG.data.max_date).getMonth() + 1 : 3, ytd = () => MONTHS.slice(0, MONTHS.indexOf(lm) + 1);
+    if (!keep || SG.months.join() === oldDefault) SG.months = ytd();
+    // same region clean-up as the growth chart above
+    const rkey = r => String(r).trim().replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').toUpperCase();
+    const tot = {}; SG.data.rows.forEach(r => { const k = rkey(r.r); (tot[k] = tot[k] || {})[r.r] = (tot[k][r.r] || 0) + Math.abs(Number(r.v) || 0); });
+    const canon = {}; Object.entries(tot).forEach(([k, vs]) => canon[k] = Object.entries(vs).sort((a,b) => b[1] - a[1])[0][0]);
+    SG.data.rows.forEach(r => { r.r = canon[rkey(r.r)]; r.p = BASKET_TO_PRODUCT[r.b]?.name; });
+    const regions = [...new Set(SG.data.rows.map(r => r.r))].sort((a,b) => a.localeCompare(b));
+    const seriesItems = () => { const ps = new Set(SG.products);
+      return [...new Set(SG.data.rows.filter(r => !ps.size || ps.has(r.p)).map(r => r.s))].sort((a,b) => a.localeCompare(b)).map(x => ({value:x, label:x})); };
+    const monthFmt = sel => { const m = MONTHS.filter(x => sel.includes(x)); return m.length === 12 ? 'All months' : m.length === 1 ? MNAME[m[0]] : m.every((x,i) => i === 0 || MONTHS.indexOf(x) === MONTHS.indexOf(m[i-1]) + 1) ? `${MNAME[m[0]]}–${MNAME[m[m.length-1]]}` : `${m.length} months`; };
+    SG.draw.m = ms($('sMonths'), () => MONTHS.map(m => ({value:m, label:MNAME[m]})), () => SG.months, v => SG.months = v, 'Choose months',
+      [{label:'Apr → latest', pick:ytd}, {label:'Q1', pick:() => QM.q1}, {label:'Q2', pick:() => QM.q2}, {label:'Q3', pick:() => QM.q3}, {label:'Q4', pick:() => QM.q4}], monthFmt, renderSeries);
+    SG.draw.p = ms($('sProducts'), () => GROWTH_PRODUCTS.map(p => ({value:p, label:p})), () => SG.products, v => SG.products = v, 'Choose products', null, null,
+      () => { const ok = new Set(seriesItems().map(i => i.value)); SG.series = SG.series.filter(x => ok.has(x)); SG.draw.s(); renderSeries(); });
+    SG.draw.s = ms($('sSeries'), seriesItems, () => SG.series, v => SG.series = v, 'All series', null, null, renderSeries);
+    SG.draw.r = ms($('sRegions'), () => regions.map(r => ({value:r, label:r})), () => SG.regions, v => SG.regions = v, 'All regions', null, null, renderSeries);
+    renderSeries();
+  } catch (e) { $('sChart').innerHTML = `<div class="err" style="display:block">Could not load product series data — ${esc(e.message)}. Run supabase/pm_series_growth.sql in Supabase.</div>`; }
+}
+$('sDoc').onclick = e => { const b = e.target.closest('button'); if (!b) return; SG.doc = b.dataset.d; $('sDoc').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderSeries(); };
+$('sMetric').onclick = e => { const b = e.target.closest('button'); if (!b) return; SG.metric = b.dataset.k; $('sMetric').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderSeries(); };
+$('sMore').onclick = () => { SG.all = !SG.all; renderSeries(); };
+$('sReset').onclick = () => { SG.regions = []; SG.products = [...GROWTH_PRODUCTS]; SG.series = [];
+  const lm = SG.data?.max_date ? new Date(SG.data.max_date).getMonth() + 1 : 3; SG.months = MONTHS.slice(0, MONTHS.indexOf(lm) + 1);
+  Object.values(SG.draw).forEach(d => d()); renderSeries(); };
+
+function seriesAgg(){
+  const cy = SG.data.cy, mset = new Set(SG.months), rset = new Set(SG.regions), pset = new Set(SG.products), sset = new Set(SG.series);
+  const by = {};
+  SG.data.rows.forEach(r => {
+    if (r.d !== SG.doc || !mset.has(r.m) || (rset.size && !rset.has(r.r)) || !r.p || !pset.has(r.p) || (sset.size && !sset.has(r.s))) return;
+    const prod = PRODUCTS.find(p => p.name === r.p); if (prod?.exclGovt && r.gov) return;
+    const k = r.s + '|' + r.p, x = by[k] = by[k] || { s:r.s, p:r.p, vly:0, vcy:0, qly:0, qcy:0 };
+    if (r.fy === cy) { x.vcy += L(Number(r.v) || 0); x.qcy += Number(r.q) || 0; } else { x.vly += L(Number(r.v) || 0); x.qly += Number(r.q) || 0; }
+  });
+  return Object.values(by).filter(x => x.vly || x.vcy || x.qly || x.qcy);
+}
+
+function hbarChart(host, list, key){
+  const ly = key + 'ly', cyk = key + 'cy', fmt = key === 'v' ? (v => f2(v)) : fq;
+  const W = 900, LBL = 230, R = 150, rowH = 34, T = 22, H = T + list.length * rowH + 8;
+  const max0 = Math.max(1, ...list.flatMap(x => [x[ly], x[cyk]]));
+  const p10 = Math.pow(10, Math.floor(Math.log10(max0))), step = [1,2,2.5,5,10].map(f => f * p10).find(v => v * 4 >= max0) || p10 * 10, max = Math.ceil(max0 / step) * step;
+  const x = v => LBL + (W - LBL - R) * v / max;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for (let v = 0; v <= max + 1e-9; v += step) svg += `<line x1="${x(v)}" x2="${x(v)}" y1="${T - 4}" y2="${H - 6}" stroke="#eceff4"/><text x="${x(v)}" y="${T - 8}" text-anchor="middle" font-size="10.5" fill="#7a8fb8">${key === 'v' ? (v >= 100 ? Math.round(v).toLocaleString('en-IN') : v.toFixed(v < 10 ? 1 : 0)) : fq(v)}</text>`;
+  svg += `<text x="${W - R + 70}" y="${T - 8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#7a8fb8">GROWTH</text>`;
+  list.forEach((d, i) => {
+    const y0 = T + i * rowH, bh = 11;
+    const name = d.s.length > 30 ? d.s.slice(0, 29) + '…' : d.s;
+    svg += `<text x="${LBL - 10}" y="${y0 + 14}" text-anchor="end" font-size="11.5" fill="#16264d">${esc(name)}</text><text x="${LBL - 10}" y="${y0 + 26}" text-anchor="end" font-size="9.5" fill="#7a8fb8">${esc(d.p)}</text>`;
+    [[d[ly], C_LY, y0 + 4], [d[cyk], C_CY, y0 + 4 + bh + 2]].forEach(([v, col, yy]) => {
+      const w = Math.max(0, x(v) - LBL);
+      if (w > 0.5) svg += `<path d="M${LBL},${yy} H${LBL + w - Math.min(4, w)} Q${LBL + w},${yy} ${LBL + w},${yy + Math.min(4, bh/2)} V${yy + bh - Math.min(4, bh/2)} Q${LBL + w},${yy + bh} ${LBL + w - Math.min(4, w)},${yy + bh} H${LBL} Z" fill="${col}"/>`;
+      svg += `<text x="${LBL + w + 5}" y="${yy + 9.5}" font-size="10" fill="#3b5384">${fmt(v)}</text>`;
+    });
+    const g = d[ly] ? (d[cyk] - d[ly]) / d[ly] * 100 : null;
+    svg += `<text x="${W - R + 70}" y="${y0 + 19}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${g === null ? '#7a8fb8' : g >= 0 ? '#0f7a36' : '#b42323'}">${g === null ? (d[cyk] ? 'new' : '—') : (g >= 0 ? '▲ ' : '▼ ') + Math.abs(g).toFixed(1) + '%'}</text>`;
+    svg += `<rect class="hit" data-i="${i}" x="0" y="${y0}" width="${W}" height="${rowH}" fill="transparent"/>`;
+  });
+  svg += '</svg>';
+  host.innerHTML = list.length ? svg : '<div class="sub" style="padding:30px;text-align:center">No sales for this selection</div>';
+  host.querySelectorAll('.hit').forEach(h => { const d = list[+h.dataset.i];
+    h.onmousemove = e => showTip(e, `<b>${esc(d.s)}</b> · ${esc(d.p)}<br><span class="sw" style="background:${C_CY}"></span>${fyLabel(SG.data.cy)}: <b>${f2(d.vcy)} L</b> · ${fq(d.qcy)} pcs<br><span class="sw" style="background:${C_LY}"></span>${fyLabel(SG.data.base)}: ${f2(d.vly)} L · ${fq(d.qly)} pcs<br>Value growth: <b>${grPlain(d.vcy, d.vly)}</b> · Qty growth: <b>${grPlain(d.qcy, d.qly)}</b>`);
+    h.onmouseleave = hideTip; });
+}
+
+function renderSeries(){
+  if (!SG.data) return;
+  const cy = SG.data.cy, base = SG.data.base, docName = SG.doc === 'OB' ? 'Order Booking' : 'Invoicing', k = SG.metric;
+  const mSel = MONTHS.filter(m => SG.months.includes(m));
+  const per = !mSel.length ? 'no months' : mSel.length === 1 ? MNAME[mSel[0]] : mSel.every((m,i) => i === 0 || MONTHS.indexOf(m) === MONTHS.indexOf(mSel[i-1]) + 1) ? `${MNAME[mSel[0]]}–${MNAME[mSel[mSel.length-1]]}` : mSel.map(m => MNAME[m]).join(', ');
+  const list = seriesAgg().sort((a,b) => (b[k + 'cy'] + b[k + 'ly']) - (a[k + 'cy'] + a[k + 'ly']));
+  $('sTitle').textContent = `Product series growth — ${docName}, ${fyLabel(cy)} vs ${fyLabel(base)}`;
+  const md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : '—';
+  $('sSub').innerHTML = `${per} · ${SG.products.length === GROWTH_PRODUCTS.length ? 'all 5 products' : SG.products.join(', ') || 'no product'} · ${SG.series.length ? SG.series.length + ' series' : 'all series'} · ${SG.regions.length ? SG.regions.length + ' region(s)' : 'all regions'}. Value = DocTotalFC in Rs Lakhs, Qty in pcs. Last year's latest month is cut at ${md(SG.data.base_cut)} (like-for-like). Prepaid/Smart excludes Govt Projects.`;
+  $('sLeg').innerHTML = `<span><span class="sw" style="background:${C_LY}"></span>${fyLabel(base)}</span><span><span class="sw" style="background:${C_CY}"></span>${fyLabel(cy)}</span>`;
+  const TOP = 15, shown = SG.all ? list : list.slice(0, TOP);
+  $('sChartTitle').textContent = `By product series — ${k === 'v' ? 'value (Rs L)' : 'quantity (pcs)'}`;
+  $('sChartSub').textContent = list.length > TOP && !SG.all ? `Top ${TOP} of ${list.length} series by ${k === 'v' ? 'value' : 'qty'}` : `${list.length} series`;
+  hbarChart($('sChart'), shown, k);
+  $('sMore').style.display = list.length > TOP ? '' : 'none';
+  $('sMore').textContent = SG.all ? `Show top ${TOP} only` : `Show all ${list.length} series`;
+  const T = list.reduce((a,x) => ({vly:a.vly + x.vly, vcy:a.vcy + x.vcy, qly:a.qly + x.qly, qcy:a.qcy + x.qcy}), {vly:0, vcy:0, qly:0, qcy:0});
+  $('sTable').innerHTML = `<table><thead><tr><th>Product series</th><th>Product</th><th>Value ${fyLabel(base)}</th><th>Value ${fyLabel(cy)}</th><th>Value growth</th><th>Qty ${fyLabel(base)}</th><th>Qty ${fyLabel(cy)}</th><th>Qty growth</th></tr></thead><tbody>
+    ${list.map(x => `<tr><td>${esc(x.s)}</td><td class="pm">${esc(x.p)}</td><td>${f2(x.vly)}</td><td>${f2(x.vcy)}</td><td>${grTxt(x.vcy, x.vly)}</td><td>${fq(x.qly)}</td><td>${fq(x.qcy)}</td><td>${grTxt(x.qcy, x.qly)}</td></tr>`).join('') || '<tr><td colspan="8">No data</td></tr>'}
+    <tr class="tot"><td>TOTAL</td><td></td><td>${f2(T.vly)}</td><td>${f2(T.vcy)}</td><td>${grTxt(T.vcy, T.vly)}</td><td>${fq(T.qly)}</td><td>${fq(T.qcy)}</td><td>${grTxt(T.qcy, T.qly)}</td></tr></tbody></table>`;
+  $('sCsv').onclick = () => {
+    const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
+    const lines = [['Product series','Product',`Value ${fyLabel(base)} (Rs L)`,`Value ${fyLabel(cy)} (Rs L)`,'Value growth %',`Qty ${fyLabel(base)}`,`Qty ${fyLabel(cy)}`,'Qty growth %']];
+    list.forEach(x => lines.push([x.s, x.p, x.vly.toFixed(2), x.vcy.toFixed(2), grPlain(x.vcy, x.vly), Math.round(x.qly), Math.round(x.qcy), grPlain(x.qcy, x.qly)]));
+    lines.push(['TOTAL','', T.vly.toFixed(2), T.vcy.toFixed(2), grPlain(T.vcy, T.vly), Math.round(T.qly), Math.round(T.qcy), grPlain(T.qcy, T.qly)]);
+    const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `series_growth_${SG.doc}_${fyLabel(cy)}_${per}.csv`; a.click(); };
+}
+
 /* ---------- keep data fresh: the daily Zoho sync writes to the same table, so re-read it ---------- */
-async function refreshAll(){ await load(false, true); await loadGrowth(true); }
+async function refreshAll(){ await load(false, true); await loadGrowth(true); await loadSeries(true); }
 $('refreshBtn').onclick = async () => { $('loading').classList.add('on'); try { await refreshAll(); } finally { $('loading').classList.remove('on'); } };
 setInterval(refreshAll, 30 * 60 * 1000);                       // every 30 minutes while the portal is open
 document.addEventListener('visibilitychange', () => {          // and when you come back to the browser tab after 10+ minutes
@@ -489,6 +620,7 @@ document.addEventListener('visibilitychange', () => {          // and when you c
   const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
   await load(true);
   loadGrowth();
+  loadSeries();
 })();
 </script>
 </body>
