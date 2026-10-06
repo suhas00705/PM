@@ -289,8 +289,7 @@ function compute(){
     const per = list => { let tgt = 0, cred = 0, a = 0, last = null;
       list.forEach((x,i) => { if (!sel.has(x.m)) return; a += x.a;
         if (x.plan != null) { const prevSel = i > 0 && sel.has(list[i-1].m); tgt += x.plan + (prevSel ? 0 : x.cin);
-          const nextSel = i < list.length - 1 && sel.has(list[i+1].m);
-          cred += nextSel ? x.cred : x.a; }   // earlier months count only up to their target; the last selected month counts in full
+          cred += x.a; }   // % achieved = actual sales ÷ target (full value, no cap)
         last = x; });
       return { tgt: fyT == null ? null : tgt, cred: fyT == null ? null : cred, a, short: last ? last.cout : 0, lastM: last?.m }; };
     const O = per(mob), I = per(minv);
@@ -307,7 +306,7 @@ function compute(){
 function chip(cred, t, actual, short){
   if (t == null || !t) return '<span class="chip c-na">—</span>';
   const p = cred / t * 100, c = p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad';
-  const tip = `Counted towards target: ${f2(cred)} of ${f2(t)}` + (actual > cred + 0.005 ? ` (actual ${f2(actual)} — extra above an earlier month's target is not carried forward)` : '') +
+  const tip = `${f2(cred)} of ${f2(t)} target` + '' +
               (short > 0.005 ? `. Shortfall ${f2(short)} moves to next month.` : '');
   return `<span class="chip ${c}" title="${tip}">${p.toFixed(1)}%</span>`;
 }
@@ -347,7 +346,7 @@ function render(){
   $('note').innerHTML = `Values are <b>DocTotalFC in Rs Lakhs</b>, from the OB and invoice line items (Excel history up to 28-Sep-2026, Zoho CRM after that; synced daily).
     <b>Targets carry forward:</b> each month's plan = yearly target × quarter share (Q1 20%, Q2 25%, Q3 25%, Q4 30%) ÷ 3. If a month falls short, the shortfall is added to the next month's target;
     if a month goes over its target, the extra is <b>not</b> carried, so the next month keeps its normal plan. OB and invoice are tracked separately.
-    % achieved: earlier months count only up to their own target (no credit carried forward); the last selected month counts in full. A month still running counts its full target (data till ${md(S.data.max_date)}). Click a product for the month-by-month working.
+    % achieved = actual order booked / billed ÷ the period target (no cap). A month still running counts its full target (data till ${md(S.data.max_date)}). Click a product for the month-by-month working.
     Panel Meters = Panel Meters + High End MFM + Nano VIP + Power Quality baskets. Prepaid/Smart excludes Govt Projects.` +
     (hasTargets ? '' : ` <b style="color:#b42323">No targets entered for ${fyLabel(S.fy)} yet.</b>`) +
     ` Not mapped to any product: <b>${f2(others.filter(o => !o.gov).reduce((a,o) => a + o.ob, 0))} L</b> OB and <b>${f2(others.filter(o => !o.gov).reduce((a,o) => a + o.inv, 0))} L</b> billed (listed below).`;
