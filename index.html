@@ -53,6 +53,9 @@
   iframe{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;background:var(--ink);}
   iframe.active{display:block;}
   .boot-msg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-lo);font-family:monospace;font-size:13px;}
+  #fsBtn{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.14);border:1.5px solid rgba(255,255,255,.32);border-radius:9px;padding:8px 16px;cursor:pointer;color:#fff;font:inherit;font-weight:700;font-size:14px;}
+  #fsBtn:hover{background:rgba(255,255,255,.24);}
+  #fsBtn .hbi{font-size:13px;line-height:1;}
 </style>
 <style>
   .login-overlay{
@@ -89,6 +92,7 @@
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <button id="fsBtn" onclick="toggleFullScreen()" title="View the whole portal full screen (Esc to exit)"><span class="hbi" id="fsIcon">▶</span> <span id="fsLbl">Full screen</span></button>
       <div style="position:relative;">
         <button id="hamburgerBtn" onclick="toggleHamburger()"><span class="hbi">☰</span> Menu</button>
         <div class="seg" id="tabs">
@@ -606,5 +610,20 @@ document.getElementById('editModalOverlay').addEventListener('click', function(e
 });
 </script>
 
+<script>
+// Full screen: whole portal (header, menu and the open dashboard)
+function toggleFullScreen(){
+  const d = document, el = d.documentElement;
+  if (!d.fullscreenElement && !d.webkitFullscreenElement) (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+  else (d.exitFullscreen || d.webkitExitFullscreen).call(d);
+}
+function syncFsBtn(){
+  const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const i = document.getElementById('fsIcon'), l = document.getElementById('fsLbl');
+  if (i) i.textContent = on ? '✕' : '▶'; if (l) l.textContent = on ? 'Exit full screen' : 'Full screen';
+}
+document.addEventListener('fullscreenchange', syncFsBtn);
+document.addEventListener('webkitfullscreenchange', syncFsBtn);
+</script>
 </body>
 </html>
