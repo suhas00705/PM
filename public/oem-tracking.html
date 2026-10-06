@@ -100,6 +100,11 @@
   #cTable table.mini th{position:static;background:#eef2f8;color:var(--t3)}
   #cTable table.mini td,#cTable table.mini th{text-align:right;padding:5px 8px}
   #cTable table.mini td:first-child,#cTable table.mini th:first-child{text-align:left}
+  tr.srow{cursor:pointer} tr.srow:hover td{background:#f1f6fd}
+  tr.mrow td{background:#fbfcfe;font-size:12px;color:var(--t2)}
+  tr.mrow td:first-child{padding-left:30px}
+  .mlbl{font-weight:700;color:var(--t1)} .mdesc{color:var(--t2)} .mcode{color:var(--t3);font-size:11px}
+  #gTable tr.mrow td:first-child{white-space:normal}
 </style>
 
 </head>
@@ -150,7 +155,7 @@
       <button class="btn" id="cReset" style="border-color:transparent">Reset</button>
     </div>
     <div class="tbl" id="cTable" style="max-height:640px;overflow:auto"></div>
-    <div class="note">Customer names that differ only in capitals or spacing are merged (e.g. "Schneider Electric India Private Limited" and "SCHNEIDER ELECTRIC INDIA PRIVATE LIMITED"). Click a column heading to sort.</div>
+    <div class="note">Customer names that differ only in capitals or spacing are merged (e.g. "Schneider Electric India Private Limited" and "SCHNEIDER ELECTRIC INDIA PRIVATE LIMITED"). Click a column heading to sort. Click a customer for its product series, then click a series for its models.</div>
   </div>
 </div>
 <div class="loading" id="loading">Loading…</div>
@@ -208,8 +213,8 @@ function toggle(id, cb){ $(id).onclick = e => { const b = e.target.closest('butt
 
 /* ---------- state + data ---------- */
 const S = { fy:null, data:null, series:[], loadedAt:0 };
-const G = { doc:'OB', metric:'v', months:[], series:[], draw:{} };
-const C = { doc:'OB', months:[], series:[], sortKey:'vcy', sortDir:-1, search:'', draw:{}, open:new Set() };
+const G = { doc:'OB', metric:'v', months:[], series:[], draw:{}, openS:new Set() };
+const C = { doc:'OB', months:[], series:[], sortKey:'vcy', sortDir:-1, search:'', draw:{}, open:new Set(), openS:new Set() };
 const ytd = () => { const md = S.data?.max_date; const lm = md ? new Date(md).getMonth() + 1 : 3; return MONTHS.slice(0, MONTHS.indexOf(lm) + 1); };
 
 async function load(resetFilters, quiet){
@@ -283,6 +288,12 @@ function hbar(host, list, k){
 function tipHtml(title, d){ const cy = S.data.cy, base = S.data.base;
   return `<b>${esc(title)}</b><br><span class="sw" style="background:${C_CY}"></span>${fyLabel(cy)}: <b>${f2(d.vcy)} L</b> · ${fq(d.qcy)} pcs<br><span class="sw" style="background:${C_LY}"></span>${fyLabel(base)}: ${f2(d.vly)} L · ${fq(d.qly)} pcs<br>Value growth <b>${grPlain(d.vcy, d.vly)}</b> · Qty growth <b>${grPlain(d.qcy, d.qly)}</b>`; }
 const blank = () => ({vly:0, vcy:0, qly:0, qcy:0});
+const itemOf = k => S.data.items?.[k] || {};
+// model rows under an open series row (used in both tables)
+function modelRows(mod, ncols, extraCol){
+  return Object.values(mod).sort((a,b) => (b.vcy + b.vly) - (a.vcy + a.vly)).map(d => { const it = itemOf(d.k);
+    return `<tr class="mrow"><td><span class="mlbl">${esc(it.n || it.m || d.k)}</span>${it.m && !(it.n || '').replace(/\s+/g,' ').toUpperCase().startsWith(it.m.toUpperCase()) ? ` <span class="mdesc">(${esc(it.m)})</span>` : ''}<br><span class="mcode">${esc(d.k)}</span></td>${extraCol ? '<td></td>' : ''}<td>${f2(d.vly)}</td><td>${f2(d.vcy)}</td><td>${grTxt(d.vcy, d.vly)}</td>${ncols === 8 ? `<td>${(d.vcy - d.vly >= 0 ? '+' : '−') + f2(Math.abs(d.vcy - d.vly))}</td>` : ''}<td>${fq(d.qly)}</td><td>${fq(d.qcy)}</td><td>${grTxt(d.qcy, d.qly)}</td></tr>`; }).join('');
+}
 function add(o, r, cy){ if (r.fy === cy) { o.vcy += L(r.v); o.qcy += r.q; } else { o.vly += L(r.v); o.qly += r.q; } }
 
 /* ---------- 1. growth ---------- */
@@ -291,7 +302,7 @@ function renderGrowth(){
   const cy = S.data.cy, base = S.data.base, k = G.metric, docName = G.doc === 'OB' ? 'Order Booking' : 'Invoicing';
   const rows = filtered(G.doc, G.months, G.series), byS = {}, byM = {}, T = blank();
   const mSel = MONTHS.filter(m => G.months.includes(m)); mSel.forEach(m => byM[m] = blank());
-  rows.forEach(r => { add(byS[r.s] = byS[r.s] || {s:r.s, ...blank()}, r, cy); add(byM[r.m], r, cy); add(T, r, cy); });
+  rows.forEach(r => { const o = byS[r.s] = byS[r.s] || {s:r.s, mod:{}, ...blank()}; add(o, r, cy); add(o.mod[r.k] = o.mod[r.k] || {k:r.k, ...blank()}, r, cy); add(byM[r.m], r, cy); add(T, r, cy); });
   const per = perLabel(G.months), md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : '—';
   $('gTitle').textContent = `OEM growth — ${docName}, ${fyLabel(cy)} vs ${fyLabel(base)}`;
   $('gSub').innerHTML = `${per} · ${G.series.length ? G.series.length + ' product series' : 'all product series'} · OEM product basket. Value = DocTotalFC in Rs Lakhs, Qty in pcs.` + (S.data.base_cut ? ` Last year's latest month is cut at ${md(S.data.base_cut)} (like-for-like).` : '');
@@ -305,9 +316,10 @@ function renderGrowth(){
   const list = Object.values(byS).sort((a,b) => (b[k + 'cy'] + b[k + 'ly']) - (a[k + 'cy'] + a[k + 'ly']));
   hbar($('gChart1'), list, k);
   vbar($('gChart2'), mSel, m => MNAME[m], byM, k);
-  const row = (name, d, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${esc(name)}</td><td>${f2(d.vly)}</td><td>${f2(d.vcy)}</td><td>${grTxt(d.vcy, d.vly)}</td><td>${fq(d.qly)}</td><td>${fq(d.qcy)}</td><td>${grTxt(d.qcy, d.qly)}</td></tr>`;
+  const row = (name, d, cls) => `<tr${cls ? ` class="${cls}"` : ` class="srow" data-s="${esc(name)}"`}><td>${cls ? '' : `<span class="caret">${G.openS.has(name) ? '▾' : '▸'}</span>`}${esc(name)}</td><td>${f2(d.vly)}</td><td>${f2(d.vcy)}</td><td>${grTxt(d.vcy, d.vly)}</td><td>${fq(d.qly)}</td><td>${fq(d.qcy)}</td><td>${grTxt(d.qcy, d.qly)}</td></tr>`;
   $('gTable').innerHTML = `<table><thead><tr><th>Product series</th><th>Value ${fyLabel(base)}</th><th>Value ${fyLabel(cy)}</th><th>Value growth</th><th>Qty ${fyLabel(base)}</th><th>Qty ${fyLabel(cy)}</th><th>Qty growth</th></tr></thead><tbody>
-    ${list.map(d => row(d.s, d)).join('') || '<tr><td colspan="7">No data</td></tr>'}${row('TOTAL', T, 'tot')}</tbody></table>`;
+    ${list.map(d => row(d.s, d) + (G.openS.has(d.s) ? modelRows(d.mod, 7, false) : '')).join('') || '<tr><td colspan="7">No data</td></tr>'}${row('TOTAL', T, 'tot')}</tbody></table>`;
+  $('gTable').querySelectorAll('tr.srow').forEach(tr => tr.onclick = () => { const k = tr.dataset.s; G.openS.has(k) ? G.openS.delete(k) : G.openS.add(k); renderGrowth(); });
   $('gCsv').onclick = () => csvDownload(`oem_growth_${G.doc}_${fyLabel(cy)}_${per}.csv`,
     [['Product series', `Value ${fyLabel(base)} (Rs L)`, `Value ${fyLabel(cy)} (Rs L)`, 'Value growth %', `Qty ${fyLabel(base)}`, `Qty ${fyLabel(cy)}`, 'Qty growth %'],
      ...[...list, {s:'TOTAL', ...T}].map(d => [d.s, d.vly.toFixed(2), d.vcy.toFixed(2), grPlain(d.vcy, d.vly), Math.round(d.qly), Math.round(d.qcy), grPlain(d.qcy, d.qly)]),
@@ -321,7 +333,7 @@ function renderCustomers(){
   const cy = S.data.cy, base = S.data.base, docName = C.doc === 'OB' ? 'Order Booking' : 'Invoicing';
   const rows = filtered(C.doc, C.months, C.series), by = {}, T = blank();
   rows.forEach(r => { const o = by[r.c] = by[r.c] || {c:r.c, acct:{}, ser:{}, ...blank()}; add(o, r, cy); add(T, r, cy); o.acct[r.a] = (o.acct[r.a] || 0) + Math.abs(r.v);
-    add(o.ser[r.s] = o.ser[r.s] || {s:r.s, ...blank()}, r, cy); });
+    const so = o.ser[r.s] = o.ser[r.s] || {s:r.s, mod:{}, ...blank()}; add(so, r, cy); add(so.mod[r.k] = so.mod[r.k] || {k:r.k, ...blank()}, r, cy); });
   let list = Object.values(by).map(o => ({...o, a:Object.entries(o.acct).sort((x,y) => y[1] - x[1])[0][0], vg:grNum(o.vcy, o.vly), qg:grNum(o.qcy, o.qly), vd:o.vcy - o.vly, sh:T.vcy ? o.vcy / T.vcy : 0}));
   const per = perLabel(C.months), q = C.search.toLowerCase();
   if (q) list = list.filter(o => o.c.toLowerCase().includes(q));
@@ -332,16 +344,18 @@ function renderCustomers(){
   const cell = (o, key) => ({c:`<span class="caret">${C.open.has(o.c) ? '▾' : '▸'}</span><b>${esc(o.c)}</b>`, a:`<span class="pm">${esc(o.a)}</span>`, vly:f2(o.vly), vcy:f2(o.vcy), vg:grTxt(o.vcy, o.vly), vd:(o.vd >= 0 ? '+' : '−') + f2(Math.abs(o.vd)), sh:(o.sh * 100).toFixed(1) + '%', qly:fq(o.qly), qcy:fq(o.qcy), qg:grTxt(o.qcy, o.qly)})[key];
   const TT = {c:'TOTAL', a:'', ...T, vd:T.vcy - T.vly, sh:1};
   const detail = o => { const ser = Object.values(o.ser).sort((a,b) => (b.vcy + b.vly) - (a.vcy + a.vly));
-    const sr = (d, cls) => `<tr${cls ? ` class="${cls}"` : ''}><td>${esc(d.s)}</td><td>${f2(d.vly)}</td><td>${f2(d.vcy)}</td><td>${grTxt(d.vcy, d.vly)}</td><td>${(d.vcy - d.vly >= 0 ? '+' : '−') + f2(Math.abs(d.vcy - d.vly))}</td><td>${fq(d.qly)}</td><td>${fq(d.qcy)}</td><td>${grTxt(d.qcy, d.qly)}</td></tr>`;
+    const sk = d => o.c + '|' + d.s;
+    const sr = (d, cls) => `<tr${cls ? ` class="${cls}"` : ` class="srow" data-k="${esc(sk(d))}"`}><td>${cls ? '' : `<span class="caret">${C.openS.has(sk(d)) ? '▾' : '▸'}</span>`}${esc(d.s)}</td><td>${f2(d.vly)}</td><td>${f2(d.vcy)}</td><td>${grTxt(d.vcy, d.vly)}</td><td>${(d.vcy - d.vly >= 0 ? '+' : '−') + f2(Math.abs(d.vcy - d.vly))}</td><td>${fq(d.qly)}</td><td>${fq(d.qcy)}</td><td>${grTxt(d.qcy, d.qly)}</td></tr>`;
     const mx = Math.max(1e-9, ...ser.flatMap(d => [d.vly, d.vcy]));
     const bars = ser.map(d => `<div class="sbar"><div class="sname" title="${esc(d.s)}">${esc(d.s)}</div><div class="strk"><span style="width:${(d.vly / mx * 100).toFixed(1)}%;background:${C_LY}"></span><span style="width:${(d.vcy / mx * 100).toFixed(1)}%;background:${C_CY}"></span></div><div class="sg">${grTxt(d.vcy, d.vly)}</div></div>`).join('');
     return `<tr class="det"><td colspan="${cols.length}"><div class="dett"><b>${esc(o.c)}</b> — product series, ${fyLabel(base)} vs ${fyLabel(cy)} (${per}, ${docName})</div>
       <div class="detgrid"><div><div class="glegend"><span><span class="sw" style="background:${C_LY}"></span>${fyLabel(base)}</span><span><span class="sw" style="background:${C_CY}"></span>${fyLabel(cy)}</span><span>value (Rs L)</span></div>${bars}</div>
       <table class="mini"><thead><tr><th>Product series</th><th>Value ${fyLabel(base)}</th><th>Value ${fyLabel(cy)}</th><th>Value growth</th><th>Change (L)</th><th>Qty ${fyLabel(base)}</th><th>Qty ${fyLabel(cy)}</th><th>Qty growth</th></tr></thead>
-      <tbody>${ser.map(d => sr(d)).join('')}${sr({s:'TOTAL', vly:o.vly, vcy:o.vcy, qly:o.qly, qcy:o.qcy}, 'tot')}</tbody></table></div></td></tr>`; };
+      <tbody>${ser.map(d => sr(d) + (C.openS.has(sk(d)) ? modelRows(d.mod, 8, false) : '')).join('')}${sr({s:'TOTAL', vly:o.vly, vcy:o.vcy, qly:o.qly, qcy:o.qcy}, 'tot')}</tbody></table></div></td></tr>`; };
   $('cTable').innerHTML = `<table><thead><tr>${cols.map(([key, h]) => `<th data-k="${key}" style="cursor:pointer">${h}${key === k ? (C.sortDir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead><tbody>
     ${list.map(o => `<tr class="prod" data-c="${esc(o.c)}">${cols.map(([key]) => `<td>${cell(o, key)}</td>`).join('')}</tr>` + (C.open.has(o.c) ? detail(o) : '')).join('') || '<tr><td colspan="10">No customers</td></tr>'}
     <tr class="tot">${cols.map(([key]) => `<td>${key === 'c' ? 'TOTAL' : key === 'a' ? '' : cell(TT, key)}</td>`).join('')}</tr></tbody></table>`;
+  $('cTable').querySelectorAll('tr.srow').forEach(tr => tr.onclick = e => { e.stopPropagation(); const k = tr.dataset.k; C.openS.has(k) ? C.openS.delete(k) : C.openS.add(k); renderCustomers(); });
   $('cTable').querySelectorAll('tr.prod').forEach(tr => tr.onclick = () => { const c = tr.dataset.c; C.open.has(c) ? C.open.delete(c) : C.open.add(c); renderCustomers(); });
   $('cTable').querySelectorAll('table:first-child > thead th').forEach(th => th.onclick = () => { const key = th.dataset.k; if (key === C.sortKey) C.sortDir = -C.sortDir; else { C.sortKey = key; C.sortDir = key === 'c' || key === 'a' ? 1 : -1; } renderCustomers(); });
   $('cCsv').onclick = () => csvDownload(`oem_customers_${C.doc}_${fyLabel(cy)}_${per}.csv`,
