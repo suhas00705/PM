@@ -105,6 +105,7 @@
   tr.mrow td:first-child{padding-left:30px}
   .mlbl{font-weight:700;color:var(--t1)} .mdesc{color:var(--t2)} .mcode{color:var(--t3);font-size:11px}
   #gTable tr.mrow td:first-child{white-space:normal}
+  .tblbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 8px;font-size:13.5px}
 </style>
 
 </head>
@@ -140,7 +141,8 @@
       <div class="gbox"><h3 id="gC2t">By month</h3><div class="sub">Selected product series added together</div>
         <div class="glegend" id="gLeg2"></div><div class="chart" id="gChart2"></div></div>
     </div>
-    <div class="tbl" id="gTable" style="margin-top:16px"></div>
+    <div class="tblbar"><div><b>Product series & models</b> <span class="sub">— click a series to see its models</span></div><button class="btn" id="gTblCsv">⬇ Download CSV (series + models)</button></div>
+    <div class="tbl" id="gTable"></div>
   </div>
 
   <!-- 2. Customers -->
@@ -187,7 +189,7 @@ async function rpc(fn, body){
 function csvDownload(name, lines){
   const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
   const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = String(name).replace(/[–—]/g, '-').replace(/[^\w.\-]+/g, '_'); document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
 }
 const monthFmt = sel => { const m = MONTHS.filter(x => sel.includes(x)); return m.length === 12 ? 'All months' : m.length === 1 ? MNAME[m[0]] : m.every((x,i) => i === 0 || MONTHS.indexOf(x) === MONTHS.indexOf(m[i-1]) + 1) ? `${MNAME[m[0]]}–${MNAME[m[m.length-1]]}` : `${m.length} months`; };
 const perLabel = months => { const m = MONTHS.filter(x => months.includes(x)); return !m.length ? 'no months' : monthFmt(m) === `${m.length} months` ? m.map(x => MNAME[x]).join(', ') : monthFmt(m); };
@@ -320,6 +322,15 @@ function renderGrowth(){
   $('gTable').innerHTML = `<table><thead><tr><th>Product series</th><th>Value ${fyLabel(base)}</th><th>Value ${fyLabel(cy)}</th><th>Value growth</th><th>Qty ${fyLabel(base)}</th><th>Qty ${fyLabel(cy)}</th><th>Qty growth</th></tr></thead><tbody>
     ${list.map(d => row(d.s, d) + (G.openS.has(d.s) ? modelRows(d.mod, 7, false) : '')).join('') || '<tr><td colspan="7">No data</td></tr>'}${row('TOTAL', T, 'tot')}</tbody></table>`;
   $('gTable').querySelectorAll('tr.srow').forEach(tr => tr.onclick = () => { const k = tr.dataset.s; G.openS.has(k) ? G.openS.delete(k) : G.openS.add(k); renderGrowth(); });
+  $('gTblCsv').onclick = () => {
+    const gpx = (c, l) => l ? ((c - l) / l * 100).toFixed(1) + '%' : (c ? 'new' : '');   // plain '-' so Excel reads it as a number
+    const H = ['Level','Product series','Model description','Model','Cat code',`Value ${fyLabel(base)} (Rs L)`,`Value ${fyLabel(cy)} (Rs L)`,'Value growth %','Value change (Rs L)',`Qty ${fyLabel(base)}`,`Qty ${fyLabel(cy)}`,'Qty growth %','Qty change'];
+    const line = (lvl, ser, desc, mdl, code, d) => [lvl, ser, desc, mdl, code, d.vly.toFixed(2), d.vcy.toFixed(2), gpx(d.vcy, d.vly), (d.vcy - d.vly).toFixed(2), Math.round(d.qly), Math.round(d.qcy), gpx(d.qcy, d.qly), Math.round(d.qcy - d.qly)];
+    const out = [[`OEM — ${docName}, ${fyLabel(cy)} vs ${fyLabel(base)}, ${per}${G.series.length ? ', ' + G.series.length + ' series selected' : ''}`], H];
+    list.forEach(d => { out.push(line('Series', d.s, '', '', '', d));
+      Object.values(d.mod).sort((a,b) => (b.vcy + b.vly) - (a.vcy + a.vly)).forEach(m => { const it = itemOf(m.k); out.push(line('Model', d.s, it.n || '', it.m || '', m.k, m)); }); });
+    out.push(line('TOTAL', 'All selected series', '', '', '', T));
+    csvDownload(`oem_series_models_${G.doc}_${fyLabel(cy)}_${per}.csv`, out); };
   $('gCsv').onclick = () => csvDownload(`oem_growth_${G.doc}_${fyLabel(cy)}_${per}.csv`,
     [['Product series', `Value ${fyLabel(base)} (Rs L)`, `Value ${fyLabel(cy)} (Rs L)`, 'Value growth %', `Qty ${fyLabel(base)}`, `Qty ${fyLabel(cy)}`, 'Qty growth %'],
      ...[...list, {s:'TOTAL', ...T}].map(d => [d.s, d.vly.toFixed(2), d.vcy.toFixed(2), grPlain(d.vcy, d.vly), Math.round(d.qly), Math.round(d.qcy), grPlain(d.qcy, d.qly)]),

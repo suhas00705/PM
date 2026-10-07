@@ -176,6 +176,7 @@
 <div class="tip" id="tip"></div>
 
 <script>
+const safeName = n => String(n).replace(/[–—]/g, '-').replace(/[^\w.\-]+/g, '_');
 /* ================= CONFIG — edit here ================= */
 const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
 const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
@@ -362,7 +363,7 @@ function render(){
     const add = (name, pm, x) => lines.push([name, pm, x.fyT?.toFixed?.(2) ?? '', x.obT?.toFixed?.(2) ?? '', x.ob.toFixed(2), pctv(x.obC, x.obT), x.invT?.toFixed?.(2) ?? '', x.inv.toFixed(2), pctv(x.invC, x.invT)]);
     core.forEach(p => add(p.name, p.pm, p)); add('TOTAL', '', T1.t); oem.forEach(p => add(p.name, p.pm, p)); add('TOTAL', '', T2.t);
     const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `pm_tracking_${fyLabel(S.fy)}_${per}.csv`; a.click();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = safeName(`pm_tracking_${fyLabel(S.fy)}_${per}.csv`); document.body.appendChild(a); a.click(); a.remove();
   };
 }
 
@@ -498,7 +499,7 @@ function renderGrowth(){
     lines.push(['Month', fyLabel(base), fyLabel(cy), 'Growth %']); mSel.forEach(m => lines.push([MNAME[m], byM[m].ly.toFixed(2), byM[m].cy.toFixed(2), grPlain(byM[m].cy, byM[m].ly)])); lines.push([]);
     lines.push(['U-Region', fyLabel(base), fyLabel(cy), 'Growth %']); regs.forEach(([r,v]) => lines.push([r, v.ly.toFixed(2), v.cy.toFixed(2), grPlain(v.cy, v.ly)]));
     const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `growth_${G.doc}_${fyLabel(cy)}.csv`; a.click(); };
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = safeName(`growth_${G.doc}_${fyLabel(cy)}.csv`); document.body.appendChild(a); a.click(); a.remove(); };
 }
 
 
@@ -605,7 +606,7 @@ function renderSeries(){
     list.forEach(x => lines.push([x.s, x.p, x.vly.toFixed(2), x.vcy.toFixed(2), grPlain(x.vcy, x.vly), Math.round(x.qly), Math.round(x.qcy), grPlain(x.qcy, x.qly)]));
     lines.push(['TOTAL','', T.vly.toFixed(2), T.vcy.toFixed(2), grPlain(T.vcy, T.vly), Math.round(T.qly), Math.round(T.qcy), grPlain(T.qcy, T.qly)]);
     const blob = new Blob(['﻿' + lines.map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `series_growth_${SG.doc}_${fyLabel(cy)}_${per}.csv`; a.click(); };
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = safeName(`series_growth_${SG.doc}_${fyLabel(cy)}_${per}.csv`); document.body.appendChild(a); a.click(); a.remove(); };
 }
 
 /* ---------- keep data fresh: the daily Zoho sync writes to the same table, so re-read it ---------- */
