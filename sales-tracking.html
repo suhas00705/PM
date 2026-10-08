@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Tracking</title>
+<style>
+  :root{
+    --navy:#0B2942; --head:#1a5f9e; --volt:#0073C8; --bg:#eef2f8; --panel:#fff; --line:#e3e7ef;
+    --t1:#16264d; --t2:#3b5384; --t3:#7a8fb8; --pm:#8a7a9c;
+    --good:#0f7a36; --good-bg:#e3f4e8; --warn:#9a5b00; --warn-bg:#fff1d9; --bad:#b42323; --bad-bg:#fde8e8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:'Calibri','Carlito','Segoe UI',sans-serif;font-size:14px}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px 16px 40px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+  .ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .f{display:flex;flex-direction:column;gap:3px;position:relative}
+  .f label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  select,.ms-btn{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 10px;font:inherit;color:var(--t1);cursor:pointer}
+  .ms-btn{min-width:210px;text-align:left;padding-right:28px;position:relative}
+  .ms-btn:after{content:'▾';position:absolute;right:10px;top:7px;color:var(--t3)}
+  .ms-pop{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(11,41,66,.18);width:260px;padding:8px}
+  .ms-pop.open{display:block}
+  .ms-acts{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+  .ms-acts button{font:inherit;font-size:11.5px;border:1px solid #cfd6e3;background:#f6f8fb;border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--t2)}
+  .ms-list{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+  .ms-list label{display:flex;gap:6px;align-items:center;padding:5px 4px;border-radius:5px;cursor:pointer;font-size:13px}
+  .ms-list label:hover{background:#f1f5fb}
+  .ms-list label.future{color:var(--t3)}
+  .sync{font-size:12px;color:var(--t3);text-align:right}
+  .sync b{color:var(--t2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  h1{font-size:17px;margin:0}
+  h2{font-size:15px;margin:0}
+  .sub{font-size:12px;color:var(--t3)}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--volt);color:var(--volt);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700}
+  .tbl{overflow:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{background:var(--head);color:#fff;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;text-align:right;padding:10px 12px;white-space:nowrap}
+  th:first-child,th:nth-child(2),td:first-child,td:nth-child(2){text-align:left}
+  td{padding:10px 12px;border-bottom:1px solid #edf0f5;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  td.pm{color:var(--pm);font-size:12px}
+  tr.tot td{color:var(--volt);font-weight:700;background:#f7faff}
+  tr.grand td{border-top:2px solid #cfe0f5}
+  tr.prod{cursor:pointer}
+  tr.prod:hover td{background:#f7f9fd}
+  tr.det td{background:#fafbfd;padding:6px 12px 10px 34px;font-size:12px;color:var(--t2);text-align:left;white-space:normal}
+  .caret{display:inline-block;width:14px;color:var(--t3);font-size:11px}
+  .chip{display:inline-block;min-width:54px;text-align:center;font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:20px}
+  .c-good{color:var(--good);background:var(--good-bg)} .c-warn{color:var(--warn);background:var(--warn-bg)} .c-bad{color:var(--bad);background:var(--bad-bg)} .c-na{color:var(--t3);background:#eceff4}
+  .mini{width:100%;font-size:12px;margin-top:4px}
+  .mini td,.mini th{padding:4px 8px;border-bottom:1px solid #eef1f6}
+  .mini th{background:#eef2f8;color:var(--t3)}
+  .mini td,.mini th{text-align:right!important}
+  .mini td:first-child,.mini th:first-child{text-align:left!important}
+  .note{font-size:12px;color:var(--t2);line-height:1.55;margin-top:12px}
+  .note b{color:var(--t1)}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--t3);margin-top:8px}
+  .err{background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:none}
+  .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
+  .loading.on{display:flex}
+
+  /* growth section */
+  .gfilters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px}
+  .toggle{display:inline-flex;background:#dfe6f1;border-radius:10px;padding:3px}
+  .toggle button{border:0;background:transparent;padding:7px 16px;border-radius:8px;font:inherit;font-weight:700;color:var(--t2);cursor:pointer}
+  .toggle button.on{background:#fff;color:var(--volt);box-shadow:0 1px 4px rgba(11,41,66,.15)}
+  .ms2 .ms-pop{width:280px}
+  .ms2 .ms-list{display:block;max-height:280px;overflow:auto}
+  .ms2 input[type=search]{width:100%;padding:6px 8px;border:1px solid #cfd6e3;border-radius:6px;font:inherit;margin-bottom:6px}
+  .ggrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+  @media(max-width:1000px){.ggrid{grid-template-columns:minmax(0,1fr)}}
+  .gbox{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .gbox h3{font-size:13.5px;margin:0 0 2px}
+  .glegend{display:flex;gap:14px;font-size:12px;color:var(--t2);margin:4px 0 6px}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .chart svg{display:block;width:100%;height:auto}
+  .tip{position:fixed;pointer-events:none;background:#0f1f3a;color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:100;display:none;line-height:1.5}
+  .gr-up{color:var(--good);font-weight:700} .gr-dn{color:var(--bad);font-weight:700}
+
+  /* sales tracking extras */
+  .hdr{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .hdr h1{font-size:18px}
+  .filters{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+  .filters .ms-btn{min-width:170px;max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:12px}
+  .kpi{background:#fff;border:1px solid var(--line);border-top:3px solid var(--volt);border-radius:12px;padding:11px 14px}
+  .kpi .l{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  .kpi .v{font-size:21px;font-weight:700;color:var(--t1);margin-top:3px;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:12px;color:var(--t2);margin-top:2px}
+  th.sortable{cursor:pointer} th.sortable:hover{background:#174f86}
+  th .arw{opacity:.7;font-size:9px;margin-left:3px}
+  tr.erow{cursor:pointer} tr.erow:hover td{background:#f7f9fd}
+  tr.erow.sel td{background:#eaf3fc}
+  .pill2{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;background:#eef2f8;color:var(--t2)}
+  .tbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px}
+  .tbar input[type=search]{padding:6px 9px;border:1px solid #cfd6e3;border-radius:8px;font:inherit;min-width:220px}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  @media(max-width:1100px){.two{grid-template-columns:minmax(0,1fr)}}
+  .det-wrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  @media(max-width:900px){.det-wrap{grid-template-columns:minmax(0,1fr)}}
+  .hint{font-size:11.5px;color:var(--t3);margin-top:6px}
+  .ftbl td.fz{color:#c3cad8}
+  .gsm{font-size:10.5px;display:block}
+  .ftiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .ftile{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfcfe}
+  .ftile .fn{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3)}
+  .ftile .fv{font-size:20px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
+  .ftile .fg{font-size:12.5px;margin:2px 0 8px}
+  .ftile .fb{display:grid;grid-template-columns:44px 1fr;align-items:center;gap:4px 6px;font-size:10.5px;color:var(--t3);margin-top:4px}
+  .ftile .fb i{display:block;height:9px;border-radius:3px;min-width:2px}
+  .ftile .fb b{grid-column:2;font-weight:600;color:var(--t2);font-size:10.5px;margin-top:-2px}
+  .tbl.scroll{max-height:560px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .tbl.scroll thead th{position:sticky;top:0;z-index:2}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div><h1>Sales Tracking</h1><div class="sub" id="subTitle">This year vs last year — like-for-like up to the latest synced date</div></div>
+    <div class="ctrls">
+      <div class="f"><label>Document</label><div class="toggle" id="docT"><button data-d="OB" class="on">Order Booking</button><button data-d="INV">Invoicing</button></div></div>
+      <div class="f"><label>Financial year</label><select id="fySel"></select></div>
+      <button class="btn" id="refreshBtn" title="Fetch the latest synced data">⟳ Refresh</button>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="f ms2" id="fBasket"><label>Product basket</label></div>
+    <div class="f ms2" id="fSeries"><label>Product series</label></div>
+    <div class="f ms2" id="fMonth"><label>Month</label></div>
+    <div class="f ms2" id="fRegion"><label>Region</label></div>
+    <div class="f ms2" id="fEng"><label>Sales engineer</label></div>
+    <button class="btn" id="resetBtn">Reset filters</button>
+    <div class="sync" id="syncInfo" style="margin-left:auto"></div>
+  </div>
+
+  <div class="err" id="errBox"></div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <div class="card-h"><div><h2 id="mTitle">Month-wise — this year vs last year</h2><div class="sub" id="mSub"></div></div>
+      <div class="glegend"><span><span class="sw" style="background:#b9c7dc"></span><span id="lgLY"></span></span><span><span class="sw" style="background:#0073C8"></span><span id="lgCY"></span></span></div></div>
+    <div class="chart" id="monthChart"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2 id="bTitle">Product basket — this year vs last year</h2><div class="sub" id="bSub"></div></div>
+      <div class="ctrls">
+        <div class="f"><label>Show</label><div class="toggle" id="bLevel"><button data-l="auto" class="on">Auto</button><button data-l="basket">Baskets</button><button data-l="series">Series</button></div></div>
+        <div class="f"><label>Measure</label><div class="toggle" id="bMetric"><button data-k="v" class="on">Value (Rs L)</button><button data-k="q">Qty</button></div></div>
+      </div></div>
+    <div class="chart" id="basketChart"></div>
+    <div class="hint">Auto: shows product baskets; switches to product series when a series filter is chosen (or only one basket is selected). Click a bar to filter by it.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Region-wise</h2><div class="sub" id="rSub"></div></div>
+      <div class="ctrls"><button class="btn" id="rCsv">⬇ CSV</button></div></div>
+    <div class="two">
+      <div class="chart" id="regionChart"></div>
+      <div class="tbl scroll" style="max-height:520px"><table id="rTable"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Sales engineer-wise</h2><div class="sub" id="eSub">Click an engineer for month-wise and basket-wise details</div></div>
+      <div class="ctrls"><button class="btn" id="eCsv">⬇ CSV</button></div></div>
+    <div class="tbar"><input type="search" id="eSearch" placeholder="Search engineer or region…"><span class="sub" id="eCount"></span></div>
+    <div class="tbl scroll"><table id="eTable"></table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Focus products — contribution</h2><div class="sub" id="fpSub">GMD · Load Disconnector · PQ Series · MTS · Solenoid · ATeS</div></div>
+      <div class="ctrls">
+        <div class="f"><label>Measure</label><div class="toggle" id="fpMetric"><button data-k="v" class="on">Value (Rs L)</button><button data-k="q">Qty</button></div></div>
+        <div class="f"><label>Table by</label><div class="toggle" id="fpBy"><button data-b="e" class="on">Sales engineer</button><button data-b="r">Region</button></div></div>
+        <button class="btn" id="fpCsv">⬇ CSV</button>
+      </div></div>
+    <div class="chart" id="focusChart"></div>
+    <div class="tbar" style="margin-top:12px"><input type="search" id="fpSearch" placeholder="Search…"><span class="sub" id="fpCount"></span></div>
+    <div class="tbl scroll"><table id="fpTable" class="ftbl"></table></div>
+    <div class="hint">Focus products are matched by product series (edit table <b>st_focus_products</b> in Supabase to change). Cells show this year's figure with growth vs the same period last year.</div>
+  </div>
+</div>
+<div class="tip" id="tip"></div>
+<div class="loading" id="loading">Loading…</div>
+<script>
+/* ================= CONFIG ================= */
+const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+const C_CY = '#0073C8', C_LY = '#b9c7dc';
+/* ========================================== */
+
+const MONTHS = [4,5,6,7,8,9,10,11,12,1,2,3];
+const MNAME = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'};
+const QM = {q1:[4,5,6], q2:[7,8,9], q3:[10,11,12], q4:[1,2,3], h1:[4,5,6,7,8,9], h2:[10,11,12,1,2,3]};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const f2 = v => v === null || v === undefined ? '—' : Number(v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+const f0 = v => v === null || v === undefined ? '—' : Math.round(v).toLocaleString('en-IN');
+const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
+const safeName = n => String(n).replace(/[–—]/g, '-').replace(/[^\w.\-]+/g, '_');
+
+const S = { doc:'OB', fy:null, cache:{}, D:null, f:{ basket:[], series:[], month:[], region:[], eng:[] },
+            bLevel:'auto', bMetric:'v', fpMetric:'v', fpBy:'e', eSort:{k:'cy', d:-1}, rSort:{k:'cy', d:-1}, open:new Set(), people:null, peopleKey:'' };
+
+async function rpc(fn, body){
+  const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer '+KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json();
+}
+function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').innerHTML = e ? 'Could not load data — ' + esc(e) + '<br>If this is the first time, run <b>supabase/sales_tracking.sql</b> in the Supabase SQL editor.' : ''; }
+const tip = $('tip');
+function showTip(e, h){ tip.innerHTML = h; tip.style.display = 'block';
+  const w = tip.offsetWidth, x = e.clientX + 14 + w > innerWidth ? e.clientX - w - 14 : e.clientX + 14; tip.style.left = x + 'px'; tip.style.top = (e.clientY + 12) + 'px'; }
+function hideTip(){ tip.style.display = 'none'; }
+document.addEventListener('scroll', hideTip, true);
+function grTxt(cy, ly){ if (!ly) return cy ? '<span class="gr-up">new</span>' : '—';
+  const g = (cy - ly) / Math.abs(ly) * 100; return `<span class="${g >= 0 ? 'gr-up' : 'gr-dn'}">${g >= 0 ? '▲' : '▼'} ${Math.abs(g).toFixed(1)}%</span>`; }
+function grPlain(cy, ly){ if (!ly) return cy ? 'new' : '—'; const g = (cy - ly) / Math.abs(ly) * 100; return (g >= 0 ? '+' : '-') + Math.abs(g).toFixed(1) + '%'; }
+function grNum(cy, ly){ return ly ? (cy - ly) / Math.abs(ly) * 100 : null; }
+
+/* ---------- data ---------- */
+async function load(force){
+  const key = S.doc + '|' + S.fy;
+  $('loading').classList.add('on'); showErr(null);
+  try {
+    if (force || !S.cache[key]) S.cache[key] = await rpc('st_cube', { p_doc:S.doc, p_cy:S.fy });
+    prep(S.cache[key]);
+    S.people = null; S.peopleKey = '';
+    $('syncInfo').innerHTML = S.D.meta.max_date ? `Data up to <b>${new Date(S.D.meta.max_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}</b> · compared with ${fyLabel(S.D.meta.base)} up to ${new Date(S.D.meta.base_cut).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'})}` : 'No data for this year yet';
+    renderAll();
+  } catch (e) { showErr(e.message); }
+  finally { $('loading').classList.remove('on'); }
+}
+function prep(raw){
+  const D = { meta:raw.meta, baskets:raw.baskets, series:raw.series.map(s => ({ name:s[0], b:s[1], focus:s[2] })),
+              regions:raw.regions, engineers:raw.engineers, focus:raw.focus, rows:raw.rows };
+  // latest month index of the current FY (months after it have no data yet)
+  const md = D.meta.max_date ? new Date(D.meta.max_date) : null;
+  D.latestIdx = md ? MONTHS.indexOf(md.getMonth() + 1) : 11;
+  if (md && (md.getFullYear() !== (md.getMonth() + 1 >= 4 ? D.meta.cy : D.meta.cy + 1))) D.latestIdx = 11;
+  S.D = D;
+  // drop selections that do not exist in this data set
+  S.f.basket = S.f.basket.filter(b => D.baskets.includes(b));
+  S.f.series = S.f.series.filter(s => D.series.some(x => x.name === s));
+  S.f.region = S.f.region.filter(r => D.regions.includes(r));
+  S.f.eng = S.f.eng.filter(e => D.engineers.includes(e));
+}
+
+/* LY figure to compare with: like-for-like for months up to the latest month, full month after it (context only) */
+function lyVal(r, useQ){ const mi = MONTHS.indexOf(r[1]); const lfl = mi <= S.D.latestIdx;
+  return useQ ? (lfl ? r[9] : r[8]) : (lfl ? r[7] : r[6]); }
+
+// rows passing all filters except `skip`
+function pass(r, skip){
+  const D = S.D, f = S.f;
+  if (skip !== 'basket' && f.basket.length && !f.basket.includes(D.baskets[r[2]])) return false;
+  if (skip !== 'series' && f.series.length && !f.series.includes(D.series[r[3]].name)) return false;
+  if (skip !== 'month' && f.month.length && !f.month.includes(r[1])) return false;
+  if (skip !== 'region' && f.region.length && !f.region.includes(D.regions[r[4]])) return false;
+  if (skip !== 'eng' && f.eng.length && !f.eng.includes(D.engineers[r[5]])) return false;
+  return true;
+}
+function rowsF(){ return S.D.rows.filter(r => pass(r)); }
+
+// generic group-by -> {key: {cy, ly, qcy, qly}}
+function groupBy(rows, keyFn, ytdOnly){
+  const cy = S.D.meta.cy, out = new Map();
+  rows.forEach(r => { const k = keyFn(r); if (k === null || k === undefined) return;
+    let o = out.get(k); if (!o) { o = { cy:0, ly:0, qcy:0, qly:0, lyFull:0 }; out.set(k, o); }
+    if (r[0] === cy) { o.cy += r[6]; o.qcy += r[8]; }
+    else { const mi = MONTHS.indexOf(r[1]);
+      if (!ytdOnly || mi <= S.D.latestIdx) { o.ly += lyVal(r); o.qly += lyVal(r, true); }
+      o.lyFull += r[6]; } });
+  return out;
+}
+
+/* ---------- multiselects ---------- */
+function ms(host, getItems, getSel, setSel, placeholder, extra){
+  host.insertAdjacentHTML('beforeend', `<button class="ms-btn"></button><div class="ms-pop"><input type="search" placeholder="Search…"><div class="ms-acts"><button data-a="all">Select all</button><button data-a="none">Clear</button>${(extra||[]).map((x,i) => `<button data-x="${i}">${esc(x.label)}</button>`).join('')}</div><div class="ms-list"></div></div>`);
+  const btn = host.querySelector('.ms-btn'), pop = host.querySelector('.ms-pop'), list = host.querySelector('.ms-list'), q = host.querySelector('input');
+  const draw = () => { const items = getItems(), sel = getSel(), t = q.value.toLowerCase();
+    list.innerHTML = items.filter(i => String(i.label).toLowerCase().includes(t)).map(i => `<label class="${i.dim ? 'future' : ''}"><input type="checkbox" value="${esc(i.value)}" ${sel.includes(i.value) ? 'checked' : ''}> ${esc(i.label)}${i.sub ? ` <span class="sub">${esc(i.sub)}</span>` : ''}</label>`).join('') || '<div class="sub" style="padding:6px">No options</div>';
+    btn.textContent = !sel.length ? placeholder : sel.length <= 2 ? sel.map(v => (items.find(i => i.value === v) || {label:v}).label).join(', ') : `${sel.length} selected`;
+    btn.title = sel.length ? sel.map(v => (items.find(i => i.value === v) || {label:v}).label).join(', ') : ''; };
+  btn.onclick = e => { e.stopPropagation(); const o = !pop.classList.contains('open'); document.querySelectorAll('.ms-pop.open').forEach(x => x.classList.remove('open')); if (o) { pop.classList.add('open'); q.value = ''; draw(); q.focus(); } };
+  pop.onclick = e => e.stopPropagation(); q.oninput = draw;
+  list.onchange = e => { const items = getItems(); const v = typeof items[0]?.value === 'number' ? +e.target.value : e.target.value;
+    setSel(e.target.checked ? [...getSel(), v] : getSel().filter(x => x !== v)); draw(); renderAll(); };
+  pop.querySelector('.ms-acts').onclick = e => { const a = e.target.dataset.a, x = e.target.dataset.x;
+    if (a === 'all') setSel(getItems().map(i => i.value)); else if (a === 'none') setSel([]); else if (x !== undefined) setSel(extra[+x].pick()); else return;
+    draw(); renderAll(); };
+  draw(); return draw;
+}
+document.addEventListener('click', () => document.querySelectorAll('.ms-pop.open').forEach(x => x.classList.remove('open')));
+
+function optsFrom(skip, keyFn, labelFn, subFn){
+  if (!S.D) return [];
+  const m = groupBy(S.D.rows.filter(r => pass(r, skip)), keyFn);
+  return [...m.entries()].filter(([, o]) => o.cy || o.lyFull).sort((a, b) => b[1].cy - a[1].cy || String(labelFn(a[0])).localeCompare(labelFn(b[0])))
+    .map(([k]) => ({ value:k, label:labelFn(k), sub: subFn ? subFn(k) : '' }));
+}
+const draws = {};
+draws.basket = ms($('fBasket'), () => optsFrom('basket', r => S.D.baskets[r[2]], k => k), () => S.f.basket, v => { S.f.basket = v; }, 'All baskets');
+draws.series = ms($('fSeries'), () => optsFrom('series', r => S.D.series[r[3]].name, k => k, k => { const s = S.D.series.find(x => x.name === k); return s ? S.D.baskets[s.b] : ''; }), () => S.f.series, v => { S.f.series = v; }, 'All series');
+draws.month = ms($('fMonth'), () => S.D ? MONTHS.map((m, i) => ({ value:m, label:MNAME[m], dim: i > S.D.latestIdx })) : [], () => S.f.month, v => { S.f.month = v; }, 'All months',
+  [{label:'Apr → latest', pick:() => MONTHS.slice(0, S.D.latestIdx + 1)}, {label:'Latest month', pick:() => [MONTHS[S.D.latestIdx]]},
+   {label:'Q1', pick:() => QM.q1}, {label:'Q2', pick:() => QM.q2}, {label:'Q3', pick:() => QM.q3}, {label:'Q4', pick:() => QM.q4}, {label:'H1', pick:() => QM.h1}, {label:'H2', pick:() => QM.h2}]);
+draws.region = ms($('fRegion'), () => optsFrom('region', r => S.D.regions[r[4]], k => k), () => S.f.region, v => { S.f.region = v; }, 'All regions');
+draws.eng = ms($('fEng'), () => optsFrom('eng', r => S.D.engineers[r[5]], k => k), () => S.f.eng, v => { S.f.eng = v; }, 'All engineers');
+function redrawFilters(){ Object.values(draws).forEach(d => d()); }
+
+/* ---------- people (distinct customers / documents) ---------- */
+let pTimer = null;
+function wantPeople(){
+  const key = JSON.stringify([S.doc, S.fy, S.f]);
+  if (key === S.peopleKey) return;
+  clearTimeout(pTimer);
+  pTimer = setTimeout(async () => {
+    S.peopleKey = key;
+    try {
+      const p = await rpc('st_people', { p_doc:S.doc, p_cy:S.fy, p_basket:S.f.basket, p_series:S.f.series, p_region:S.f.region, p_eng:S.f.eng, p_months:S.f.month });
+      if (key !== S.peopleKey) return;
+      const idx = arr => { const m = {}; arr.forEach(([k, fy, c, d]) => { (m[k] = m[k] || {})[fy] = { c, d }; }); return m; };
+      S.people = { eng: idx(p.eng), reg: idx(p.reg), all: Object.fromEntries(p.all.map(([fy, c, d]) => [fy, { c, d }])) };
+      renderKpis(); renderRegions(); renderEngineers();
+    } catch (e) { /* counts are optional */ }
+  }, 250);
+}
+const rkey = t => String(t ?? '(blank)').trim().replace(/\s+/g, ' ').toUpperCase();
+
+/* ---------- charts ---------- */
+function niceMax(max0){ const p10 = Math.pow(10, Math.floor(Math.log10(Math.max(max0, 1e-9)))); const step = [1,2,2.5,5,10].map(f => f * p10).find(v => v * 4 >= max0) || p10 * 10; return { step, max: Math.ceil(max0 / step) * step || step }; }
+const axisLbl = v => v >= 100 ? Math.round(v).toLocaleString('en-IN') : v.toFixed(v < 10 ? 1 : 0);
+function bar(x0, yy, bw, h, H, B, col){ const r = Math.min(4, bw/2, h); return `<path d="M${x0},${H-B} V${yy + r} Q${x0},${yy} ${x0 + r},${yy} H${x0 + bw - r} Q${x0 + bw},${yy} ${x0 + bw},${yy + r} V${H-B} Z" fill="${col}"/>`; }
+
+function vChart(host, cats, labelOf, vals, unit, onClick, dimFn){
+  const W = 1100, H = 300, Lm = 58, R = 10, T = 26, B = 46;
+  const { step, max } = niceMax(Math.max(1e-9, ...cats.flatMap(c => [vals[c].ly, vals[c].cy])));
+  const band = (W - Lm - R) / Math.max(cats.length, 1), bw = Math.min(30, band * 0.32), gap = 2;
+  const y = v => T + (H - T - B) * (1 - Math.max(0, v) / max);
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for (let v = 0; v <= max + 1e-9; v += step) svg += `<line x1="${Lm}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#eceff4"/><text x="${Lm-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#7a8fb8">${axisLbl(v)}</text>`;
+  cats.forEach((c, i) => {
+    const cx = Lm + band * i + band / 2, v = vals[c], dim = dimFn && dimFn(c);
+    [['ly', C_LY, cx - gap/2 - bw], ['cy', C_CY, cx + gap/2]].forEach(([k, col, x0]) => {
+      const yy = y(v[k]), h = H - B - yy;
+      if (h > 0.5) svg += bar(x0, yy, bw, h, H, B, col);
+      if (v[k] && band > 52) svg += `<text x="${x0 + bw/2}" y="${yy - 5}" text-anchor="middle" font-size="9.5" fill="#3b5384">${unit === 'L' ? Math.round(v[k]).toLocaleString('en-IN') : f0(v[k])}</text>`;
+    });
+    svg += `<text x="${cx}" y="${H - B + 16}" text-anchor="middle" font-size="11.5" fill="${dim ? '#9aa8c4' : '#16264d'}">${esc(labelOf(c))}</text>`;
+    const g = dim ? null : grNum(v.cy, v.ly);
+    svg += `<text x="${cx}" y="${H - B + 32}" text-anchor="middle" font-size="11" font-weight="700" fill="${g === null ? '#7a8fb8' : g >= 0 ? '#0f7a36' : '#b42323'}">${dim ? '' : g === null ? (v.cy ? 'new' : '—') : (g >= 0 ? '▲ ' : '▼ ') + Math.abs(g).toFixed(1) + '%'}</text>`;
+    svg += `<rect class="hit" data-i="${i}" x="${cx - band/2}" y="${T}" width="${band}" height="${H - T - B + 36}" fill="transparent" style="cursor:${onClick ? 'pointer' : 'default'}"/>`;
+  });
+  host.innerHTML = cats.length ? svg + '</svg>' : '<div class="sub" style="padding:30px;text-align:center">No sales for this selection</div>';
+  host.querySelectorAll('.hit').forEach(h => { const c = cats[+h.dataset.i], v = vals[c];
+    h.onmousemove = e => showTip(e, `<b>${esc(labelOf(c))}</b><br><span class="sw" style="background:${C_CY}"></span>${fyLabel(S.D.meta.cy)}: <b>${unit === 'L' ? f2(v.cy) + ' L' : f0(v.cy)}</b><br><span class="sw" style="background:${C_LY}"></span>${fyLabel(S.D.meta.base)}: ${unit === 'L' ? f2(v.ly) + ' L' : f0(v.ly)}${v.note ? `<br><i>${esc(v.note)}</i>` : ''}<br>Growth: <b>${grPlain(v.cy, v.ly)}</b>`);
+    h.onmouseleave = hideTip; if (onClick) h.onclick = () => onClick(c); });
+}
+
+function hChart(host, list, unit, onClick, W0){
+  // list: [{label, sub, cy, ly}]
+  const W = W0 || 820, LBL = 210, R = 120, rowH = 32, T = 22, H = T + list.length * rowH + 8;
+  const { step, max } = niceMax(Math.max(1e-9, ...list.flatMap(d => [d.ly, d.cy])));
+  const x = v => LBL + (W - LBL - R) * Math.max(0, v) / max;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  for (let v = 0; v <= max + 1e-9; v += step) svg += `<line x1="${x(v)}" x2="${x(v)}" y1="${T - 4}" y2="${H - 6}" stroke="#eceff4"/><text x="${x(v)}" y="${T - 8}" text-anchor="middle" font-size="10.5" fill="#7a8fb8">${axisLbl(v)}</text>`;
+  svg += `<text x="${W - R + 62}" y="${T - 8}" text-anchor="middle" font-size="10.5" font-weight="700" fill="#7a8fb8">GROWTH</text>`;
+  list.forEach((d, i) => {
+    const y0 = T + i * rowH, bh = 10, name = d.label.length > 30 ? d.label.slice(0, 29) + '…' : d.label;
+    svg += `<text x="${LBL - 10}" y="${y0 + (d.sub ? 13 : 18)}" text-anchor="end" font-size="11.5" fill="#16264d">${esc(name)}</text>`;
+    if (d.sub) svg += `<text x="${LBL - 10}" y="${y0 + 25}" text-anchor="end" font-size="9.5" fill="#7a8fb8">${esc(d.sub)}</text>`;
+    [[d.ly, C_LY, y0 + 5], [d.cy, C_CY, y0 + 5 + bh + 2]].forEach(([v, col, yy]) => {
+      const w = Math.max(0, x(v) - LBL);
+      if (w > 0.5) svg += `<rect x="${LBL}" y="${yy}" width="${w}" height="${bh}" rx="3" fill="${col}"/>`;
+      svg += `<text x="${LBL + w + 5}" y="${yy + 9}" font-size="10" fill="#3b5384">${unit === 'L' ? f2(v) : f0(v)}</text>`;
+    });
+    const g = grNum(d.cy, d.ly);
+    svg += `<text x="${W - R + 62}" y="${y0 + 19}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${g === null ? '#7a8fb8' : g >= 0 ? '#0f7a36' : '#b42323'}">${g === null ? (d.cy ? 'new' : '—') : (g >= 0 ? '▲ ' : '▼ ') + Math.abs(g).toFixed(1) + '%'}</text>`;
+    svg += `<rect class="hit" data-i="${i}" x="0" y="${y0}" width="${W}" height="${rowH}" fill="transparent" style="cursor:${onClick ? 'pointer' : 'default'}"/>`;
+  });
+  host.innerHTML = list.length ? svg + '</svg>' : '<div class="sub" style="padding:30px;text-align:center">No sales for this selection</div>';
+  host.querySelectorAll('.hit').forEach(h => { const d = list[+h.dataset.i];
+    h.onmousemove = e => showTip(e, `<b>${esc(d.label)}</b>${d.sub ? ' · ' + esc(d.sub) : ''}<br><span class="sw" style="background:${C_CY}"></span>${fyLabel(S.D.meta.cy)}: <b>${unit === 'L' ? f2(d.cy) + ' L' : f0(d.cy)}</b><br><span class="sw" style="background:${C_LY}"></span>${fyLabel(S.D.meta.base)}: ${unit === 'L' ? f2(d.ly) + ' L' : f0(d.ly)}<br>Growth: <b>${grPlain(d.cy, d.ly)}</b> (${d.cy - d.ly >= 0 ? '+' : '-'}${unit === 'L' ? f2(Math.abs(d.cy - d.ly)) + ' L' : f0(Math.abs(d.cy - d.ly))})`);
+    h.onmouseleave = hideTip; if (onClick) h.onclick = () => onClick(d); });
+}
+
+/* ---------- render ---------- */
+function periodText(){
+  const f = S.f.month; if (!f.length) return `${MNAME[4]} → ${MNAME[MONTHS[S.D.latestIdx]]} (year to date)`;
+  return f.length <= 4 ? MONTHS.filter(m => f.includes(m)).map(m => MNAME[m]).join(', ') : `${f.length} months`;
+}
+function renderAll(){
+  if (!S.D) return;
+  redrawFilters(); wantPeople();
+  const docName = S.doc === 'OB' ? 'Order Booking' : 'Invoicing';
+  $('subTitle').textContent = `${docName} · ${fyLabel(S.D.meta.cy)} vs ${fyLabel(S.D.meta.base)} · ${periodText()} · values in Rs Lakh (DocTotalFC)`;
+  $('lgCY').textContent = fyLabel(S.D.meta.cy); $('lgLY').textContent = fyLabel(S.D.meta.base);
+  renderKpis(); renderMonths(); renderBaskets(); renderRegions(); renderEngineers(); renderFocus();
+}
+function totals(){ const t = groupBy(rowsF(), () => 'all', true).get('all') || { cy:0, ly:0, qcy:0, qly:0 }; return t; }
+
+function renderKpis(){
+  const t = totals(), D = S.D, cy = D.meta.cy;
+  const focusSet = new Set(D.series.map((s, i) => s.focus ? i : -1).filter(i => i >= 0));
+  const ft = groupBy(rowsF().filter(r => focusSet.has(r[3])), () => 'f', true).get('f') || { cy:0, ly:0 };
+  const P = S.people && S.people.all, pc = P && P[cy], pl = P && P[D.meta.base];
+  const engs = new Set(rowsF().filter(r => r[0] === cy && r[6]).map(r => r[5])).size;
+  const docWord = S.doc === 'OB' ? 'Orders' : 'Invoices';
+  const k = (l, v, s) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  $('kpis').innerHTML =
+    k(`${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} ${fyLabel(cy)}`, f2(t.cy) + ' L', `Same period ${fyLabel(D.meta.base)}: ${f2(t.ly)} L`) +
+    k('Growth', grTxt(t.cy, t.ly), `${t.cy - t.ly >= 0 ? '+' : '-'}${f2(Math.abs(t.cy - t.ly))} L vs last year`) +
+    k('Quantity', f0(t.qcy), `Last year: ${f0(t.qly)} · ${grTxt(t.qcy, t.qly)}`) +
+    k('Customers', pc ? f0(pc.c) : '…', pl ? `Last year: ${f0(pl.c)} · ${grTxt(pc ? pc.c : 0, pl.c)}` : 'distinct accounts') +
+    k(docWord, pc ? f0(pc.d) : '…', pc && pc.d ? `Avg ${f2(t.cy / pc.d)} L per ${S.doc === 'OB' ? 'order' : 'invoice'}` : '') +
+    k('Sales engineers', f0(engs), 'with sales this year') +
+    k('Focus products', f2(ft.cy) + ' L', `${t.cy ? (ft.cy / t.cy * 100).toFixed(1) : '0.0'}% of sales · ${grTxt(ft.cy, ft.ly)}`);
+}
+
+function renderMonths(){
+  const D = S.D, rows = rowsF(), m = groupBy(rows, r => r[1]);
+  const cats = MONTHS.filter(mm => !S.f.month.length || S.f.month.includes(mm));
+  const vals = {}; cats.forEach(c => { const o = m.get(c) || { cy:0, ly:0, lyFull:0 }; const mi = MONTHS.indexOf(c);
+    vals[c] = { cy:o.cy, ly: mi <= D.latestIdx ? o.ly : o.lyFull, note: mi === D.latestIdx ? `Last year cut at ${new Date(D.meta.base_cut).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})} (same day)` : mi > D.latestIdx ? 'No data yet this year — last year shown for reference' : '' }; });
+  vChart($('monthChart'), cats, c => MNAME[c], vals, 'L', c => { S.f.month = S.f.month.length === 1 && S.f.month[0] === c ? [] : [c]; renderAll(); }, c => MONTHS.indexOf(c) > D.latestIdx);
+  const t = totals();
+  $('mSub').textContent = `Total ${f2(t.cy)} L vs ${f2(t.ly)} L (${grPlain(t.cy, t.ly)}). Current month compared with last year up to the same day. Click a month to filter.`;
+}
+
+function renderBaskets(){
+  const D = S.D, k = S.bMetric, rows = rowsF();
+  const onlyOneBasket = new Set(rows.map(r => r[2])).size === 1;
+  const level = S.bLevel === 'auto' ? (S.f.series.length || S.f.basket.length === 1 || onlyOneBasket ? 'series' : 'basket') : S.bLevel;
+  const g = level === 'series' ? groupBy(rows, r => r[3], true) : groupBy(rows, r => r[2], true);
+  let list = [...g.entries()].map(([i, o]) => level === 'series'
+      ? { key:D.series[i].name, label:D.series[i].name, sub:D.baskets[D.series[i].b], cy: k === 'v' ? o.cy : o.qcy, ly: k === 'v' ? o.ly : o.qly }
+      : { key:D.baskets[i], label:D.baskets[i], sub:'', cy: k === 'v' ? o.cy : o.qcy, ly: k === 'v' ? o.ly : o.qly })
+    .filter(d => d.cy || d.ly).sort((a, b) => b.cy - a.cy || b.ly - a.ly);
+  const total = list.length, TOP = 25; if (list.length > TOP) list = list.slice(0, TOP);
+  $('bTitle').textContent = level === 'series' ? 'Product series growth — this year vs last year' : 'Product basket — this year vs last year';
+  $('bSub').textContent = `${level === 'series' ? 'Series' : 'Baskets'} by ${k === 'v' ? 'value (Rs L)' : 'quantity'} · ${total > TOP ? `top ${TOP} of ${total}` : total + ' shown'}`;
+  hChart($('basketChart'), list, k === 'v' ? 'L' : 'Q', d => {
+    if (level === 'series') S.f.series = S.f.series.length === 1 && S.f.series[0] === d.key ? [] : [d.key];
+    else S.f.basket = S.f.basket.length === 1 && S.f.basket[0] === d.key ? [] : [d.key];
+    renderAll(); }, 1250);
+}
+
+function sortRows(list, s){ return list.sort((a, b) => { const x = a[s.k], y = b[s.k];
+  if (typeof x === 'string' || typeof y === 'string') return String(x ?? '').localeCompare(String(y ?? '')) * s.d;
+  return ((x ?? -Infinity) - (y ?? -Infinity)) * s.d; }); }
+function thSort(cols, s){ return '<tr>' + cols.map(([k, l]) => `<th class="sortable" data-k="${k}">${l}${s.k === k ? `<span class="arw">${s.d > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('') + '</tr>'; }
+function bindSort(tbl, s, redraw){ tbl.querySelectorAll('th.sortable').forEach(th => th.onclick = e => { e.stopPropagation(); const k = th.dataset.k; if (s.k === k) s.d = -s.d; else { s.k = k; s.d = (k === 'name' || k === 'region') ? 1 : -1; } redraw(); }); }
+
+function regionList(){
+  const D = S.D, rows = rowsF(), cy = D.meta.cy;
+  const g = groupBy(rows, r => r[4], true), tot = [...g.values()].reduce((s, o) => s + o.cy, 0);
+  const engs = {}; rows.forEach(r => { if (r[0] === cy && r[6]) (engs[r[4]] = engs[r[4]] || new Set()).add(r[5]); });
+  const topB = {}; groupBy(rows.filter(r => r[0] === cy), r => r[4] + '|' + r[2]).forEach((o, key) => { const [ri, bi] = key.split('|'); if (!topB[ri] || o.cy > topB[ri].v) topB[ri] = { v:o.cy, b:D.baskets[bi] }; });
+  return [...g.entries()].map(([ri, o]) => { const name = D.regions[ri], p = S.people && S.people.reg[rkey(name)];
+    return { name, cy:o.cy, ly:o.ly, gr:grNum(o.cy, o.ly), d:o.cy - o.ly, share: tot ? o.cy / tot * 100 : 0, eng: engs[ri] ? engs[ri].size : 0,
+             cust: p && p[cy] ? p[cy].c : null, custLy: p && p[D.meta.base] ? p[D.meta.base].c : null, docs: p && p[cy] ? p[cy].d : null, top: topB[ri] ? topB[ri].b : '' }; })
+    .filter(d => d.cy || d.ly);
+}
+function renderRegions(){
+  const list = sortRows(regionList(), S.rSort);
+  hChart($('regionChart'), [...list].sort((a, b) => b.cy - a.cy).slice(0, 20).map(d => ({ key:d.name, label:d.name, cy:d.cy, ly:d.ly })), 'L',
+    d => { S.f.region = S.f.region.length === 1 && S.f.region[0] === d.key ? [] : [d.key]; renderAll(); });
+  const cols = [['name','Region'],['cy','This year'],['ly','Last year'],['gr','Growth'],['d','Change'],['share','Share'],['eng','Engineers'],['cust','Customers'],['docs', S.doc === 'OB' ? 'Orders' : 'Invoices'],['top','Top basket']];
+  $('rTable').innerHTML = `<thead>${thSort(cols, S.rSort)}</thead><tbody>` + list.map(d => `<tr class="erow" data-r="${esc(d.name)}">
+    <td><b>${esc(d.name)}</b></td><td>${f2(d.cy)}</td><td>${f2(d.ly)}</td><td>${grTxt(d.cy, d.ly)}</td><td>${(d.d >= 0 ? '+' : '-') + f2(Math.abs(d.d))}</td><td>${d.share.toFixed(1)}%</td>
+    <td>${d.eng}</td><td>${d.cust === null ? '…' : f0(d.cust)}</td><td>${d.docs === null ? '…' : f0(d.docs)}</td><td style="text-align:left"><span class="pill2">${esc(d.top)}</span></td></tr>`).join('') + '</tbody>';
+  $('rSub').textContent = `${list.length} regions · Rs Lakh · click a bar or row to filter`;
+  bindSort($('rTable'), S.rSort, renderRegions);
+  $('rTable').querySelectorAll('tr.erow').forEach(tr => tr.onclick = () => { const r = tr.dataset.r; S.f.region = S.f.region.length === 1 && S.f.region[0] === r ? [] : [r]; renderAll(); });
+}
+
+function engList(){
+  const D = S.D, rows = rowsF(), cy = D.meta.cy;
+  const g = groupBy(rows, r => r[5], true), tot = [...g.values()].reduce((s, o) => s + o.cy, 0);
+  const focusSet = new Set(D.series.map((s, i) => s.focus ? i : -1).filter(i => i >= 0));
+  const fg = groupBy(rows.filter(r => focusSet.has(r[3])), r => r[5], true);
+  const regBy = {}, topB = {};
+  groupBy(rows, r => r[5] + '|' + r[4]).forEach((o, key) => { const [ei, ri] = key.split('|'); const v = o.cy || o.lyFull; if (!regBy[ei] || v > regBy[ei].v) regBy[ei] = { v, r:D.regions[ri] }; });
+  groupBy(rows.filter(r => r[0] === cy), r => r[5] + '|' + r[2]).forEach((o, key) => { const [ei, bi] = key.split('|'); if (!topB[ei] || o.cy > topB[ei].v) topB[ei] = { v:o.cy, b:D.baskets[bi] }; });
+  return [...g.entries()].map(([ei, o]) => { const name = D.engineers[ei], p = S.people && S.people.eng[name], f = fg.get(ei) || { cy:0, ly:0 };
+    const docs = p && p[cy] ? p[cy].d : null;
+    return { ei:+ei, name, region: regBy[ei] ? regBy[ei].r : '', cy:o.cy, ly:o.ly, gr:grNum(o.cy, o.ly), d:o.cy - o.ly, share: tot ? o.cy / tot * 100 : 0,
+             qcy:o.qcy, cust: p && p[cy] ? p[cy].c : null, custLy: p && p[D.meta.base] ? p[D.meta.base].c : null, docs, avg: docs ? o.cy / docs : null,
+             fcy:f.cy, fly:f.ly, fsh: o.cy ? f.cy / o.cy * 100 : 0, top: topB[ei] ? topB[ei].b : '' }; })
+    .filter(d => d.cy || d.ly);
+}
+function renderEngineers(){
+  const q = $('eSearch').value.trim().toLowerCase();
+  let list = sortRows(engList(), S.eSort);
+  const all = list.length;
+  if (q) list = list.filter(d => d.name.toLowerCase().includes(q) || d.region.toLowerCase().includes(q));
+  const cols = [['name','Sales engineer'],['region','Main region'],['cy','This year'],['ly','Last year'],['gr','Growth'],['d','Change'],['share','Share'],['qcy','Qty'],['cust','Customers'],['docs', S.doc === 'OB' ? 'Orders' : 'Invoices'],['avg','Avg / doc'],['fcy','Focus products'],['fsh','Focus %'],['top','Top basket']];
+  const dw = S.doc === 'OB' ? 'Orders' : 'Invoices';
+  $('eTable').innerHTML = `<thead>${thSort(cols, S.eSort)}</thead><tbody>` + list.map(d => {
+    const open = S.open.has(d.name);
+    return `<tr class="erow${S.f.eng.includes(d.name) ? ' sel' : ''}" data-e="${esc(d.name)}">
+      <td><span class="caret">${open ? '▾' : '▸'}</span><b>${esc(d.name)}</b></td><td>${esc(d.region)}</td><td>${f2(d.cy)}</td><td>${f2(d.ly)}</td><td>${grTxt(d.cy, d.ly)}</td>
+      <td>${(d.d >= 0 ? '+' : '-') + f2(Math.abs(d.d))}</td><td>${d.share.toFixed(1)}%</td><td>${f0(d.qcy)}</td>
+      <td>${d.cust === null ? '…' : f0(d.cust) + (d.custLy !== null ? ` <span class="sub">(${f0(d.custLy)})</span>` : '')}</td><td>${d.docs === null ? '…' : f0(d.docs)}</td><td>${d.avg === null ? '—' : f2(d.avg)}</td>
+      <td>${f2(d.fcy)} <span class="gsm">${grTxt(d.fcy, d.fly)}</span></td><td>${d.fsh.toFixed(1)}%</td><td style="text-align:left"><span class="pill2">${esc(d.top)}</span></td></tr>` +
+      (open ? `<tr class="det"><td colspan="${cols.length}">${engDetail(d.ei)}</td></tr>` : '');
+  }).join('') + '</tbody>';
+  $('eCount').textContent = `${list.length}${q ? ' of ' + all : ''} engineers · Rs Lakh · customers in brackets = last year (same period) · ${dw} = distinct document numbers`;
+  bindSort($('eTable'), S.eSort, renderEngineers);
+  $('eTable').querySelectorAll('tr.erow').forEach(tr => tr.onclick = () => { const n = tr.dataset.e; S.open.has(n) ? S.open.delete(n) : S.open.add(n); renderEngineers(); });
+}
+function engDetail(ei){
+  const D = S.D, rows = rowsF().filter(r => r[5] === ei);
+  const m = groupBy(rows, r => r[1]), b = groupBy(rows, r => r[2], true), fx = groupBy(rows.filter(r => D.series[r[3]].focus), r => D.series[r[3]].focus, true);
+  const mt = MONTHS.filter(mm => !S.f.month.length || S.f.month.includes(mm)).filter((mm, i) => MONTHS.indexOf(mm) <= D.latestIdx)
+    .map(mm => { const o = m.get(mm) || { cy:0, ly:0 }; return `<tr><td>${MNAME[mm]}</td><td>${f2(o.cy)}</td><td>${f2(o.ly)}</td><td>${grTxt(o.cy, o.ly)}</td></tr>`; }).join('');
+  const bt = [...b.entries()].sort((x, y) => y[1].cy - x[1].cy).map(([bi, o]) => `<tr><td>${esc(D.baskets[bi])}</td><td>${f2(o.cy)}</td><td>${f2(o.ly)}</td><td>${grTxt(o.cy, o.ly)}</td></tr>`).join('');
+  const ft = D.focus.map(f => { const o = fx.get(f) || { cy:0, ly:0, qcy:0, qly:0 }; return `<tr><td>${esc(f)}</td><td>${f2(o.cy)}</td><td>${f0(o.qcy)}</td><td>${grTxt(o.cy, o.ly)}</td></tr>`; }).join('');
+  return `<div class="det-wrap"><div><b>Month-wise</b><table class="mini"><tr><th>Month</th><th>This yr</th><th>Last yr</th><th>Growth</th></tr>${mt}</table></div>
+    <div><b>Product basket-wise</b><table class="mini"><tr><th>Basket</th><th>This yr</th><th>Last yr</th><th>Growth</th></tr>${bt}</table>
+    <b style="display:block;margin-top:10px">Focus products</b><table class="mini"><tr><th>Product</th><th>Value</th><th>Qty</th><th>Growth</th></tr>${ft}</table>
+    <div style="margin-top:8px"><button class="btn" onclick="event.stopPropagation(); S.f.eng=['${esc(D.engineers[ei]).replace(/'/g, "\\'")}']; renderAll();">Filter whole dashboard to this engineer</button></div></div></div>`;
+}
+
+function renderFocus(){
+  const D = S.D, k = S.fpMetric, rows = rowsF(), cy = D.meta.cy;
+  const fr = rows.filter(r => D.series[r[3]].focus);
+  const g = groupBy(fr, r => D.series[r[3]].focus, true);
+  const vals = {}; D.focus.forEach(f => { const o = g.get(f) || { cy:0, ly:0, qcy:0, qly:0 }; vals[f] = k === 'v' ? { cy:o.cy, ly:o.ly } : { cy:o.qcy, ly:o.qly }; });
+  // one tile per focus product, each with its own scale (ATeS is far bigger than the rest)
+  $('focusChart').innerHTML = '<div class="ftiles">' + D.focus.map(f => { const v = vals[f], mx = Math.max(v.cy, v.ly, 1e-9), fm = k === 'v' ? (x => f2(x) + ' L') : f0;
+    return `<div class="ftile"><div class="fn">${esc(f)}</div><div class="fv">${fm(v.cy)}</div><div class="fg">${grTxt(v.cy, v.ly)}</div>
+      <div class="fb"><span>${fyLabel(S.D.meta.base).replace('FY ','')}</span><i style="width:${v.ly / mx * 100}%;background:${C_LY}"></i><b>${fm(v.ly)}</b></div>
+      <div class="fb"><span>${fyLabel(S.D.meta.cy).replace('FY ','')}</span><i style="width:${v.cy / mx * 100}%;background:${C_CY}"></i><b>${fm(v.cy)}</b></div></div>`; }).join('') + '</div>';
+  const tot = groupBy(rows, () => 'a', true).get('a') || { cy:0 }, ftot = D.focus.reduce((s, f) => s + (g.get(f) ? g.get(f).cy : 0), 0);
+  $('fpSub').textContent = `${D.focus.join(' · ')} — ${f2(ftot)} L this year = ${tot.cy ? (ftot / tot.cy * 100).toFixed(1) : '0.0'}% of sales in the current filters`;
+  // table
+  const by = S.fpBy, keyFn = by === 'e' ? (r => r[5]) : (r => r[4]), nameOf = by === 'e' ? (i => D.engineers[i]) : (i => D.regions[i]);
+  const cells = groupBy(fr, r => keyFn(r) + '|' + D.series[r[3]].focus, true), totals2 = groupBy(fr, keyFn, true), allSales = groupBy(rows, keyFn, true);
+  const q = $('fpSearch').value.trim().toLowerCase();
+  let ids = [...totals2.keys()].filter(i => { const t = totals2.get(i); return t.cy || t.ly || t.qcy; });
+  ids.sort((a, b) => (k === 'v' ? totals2.get(b).cy - totals2.get(a).cy : totals2.get(b).qcy - totals2.get(a).qcy));
+  const all = ids.length; if (q) ids = ids.filter(i => nameOf(i).toLowerCase().includes(q));
+  const cell = o => { if (!o) return '<td class="fz">—</td>'; const c = k === 'v' ? o.cy : o.qcy, l = k === 'v' ? o.ly : o.qly; if (!c && !l) return '<td class="fz">—</td>';
+    return `<td>${k === 'v' ? f2(c) : f0(c)}<span class="gsm">${grTxt(c, l)}</span></td>`; };
+  $('fpTable').innerHTML = `<thead><tr><th>${by === 'e' ? 'Sales engineer' : 'Region'}</th>${D.focus.map(f => `<th>${esc(f)}</th>`).join('')}<th>Total focus</th><th>% of their sales</th></tr></thead><tbody>` +
+    ids.map(i => { const t = totals2.get(i), s = allSales.get(i) || { cy:0 };
+      return `<tr><td><b>${esc(nameOf(i))}</b></td>${D.focus.map(f => cell(cells.get(i + '|' + f))).join('')}${cell(t)}<td>${s.cy ? (t.cy / s.cy * 100).toFixed(1) + '%' : '—'}</td></tr>`; }).join('') +
+    `<tr class="tot"><td>Total</td>${D.focus.map(f => cell(g.get(f))).join('')}${cell(groupBy(fr, () => 'a', true).get('a'))}<td>${tot.cy ? (ftot / tot.cy * 100).toFixed(1) + '%' : '—'}</td></tr></tbody>`;
+  $('fpCount').textContent = `${ids.length}${q ? ' of ' + all : ''} ${by === 'e' ? 'engineers' : 'regions'} with focus-product sales · ${k === 'v' ? 'Rs Lakh' : 'quantity'}`;
+}
+
+/* ---------- CSV ---------- */
+function csv(name, head, rows){
+  const c = v => { const t = v === null || v === undefined ? '' : String(v); return /[",\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const blob = new Blob(['﻿' + [head, ...rows].map(r => r.map(c).join(',')).join('\r\n')], { type:'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = safeName(`${name}_${S.doc}_${fyLabel(S.fy)}_${new Date().toISOString().slice(0,10)}`) + '.csv'; document.body.appendChild(a); a.click(); a.remove();
+}
+const r2 = v => v === null || v === undefined ? '' : Math.round(v * 100) / 100;
+$('eCsv').onclick = () => csv('Sales_engineers', ['Sales engineer','Main region','This year (Rs L)','Last year same period (Rs L)','Growth %','Change (Rs L)','Share %','Qty','Customers','Customers last year','Documents','Avg per document (Rs L)','Focus products (Rs L)','Focus last year (Rs L)','Focus %','Top basket'],
+  sortRows(engList(), S.eSort).map(d => [d.name, d.region, r2(d.cy), r2(d.ly), r2(d.gr), r2(d.d), r2(d.share), d.qcy, d.cust, d.custLy, d.docs, r2(d.avg), r2(d.fcy), r2(d.fly), r2(d.fsh), d.top]));
+$('rCsv').onclick = () => csv('Regions', ['Region','This year (Rs L)','Last year same period (Rs L)','Growth %','Change (Rs L)','Share %','Engineers','Customers','Documents','Top basket'],
+  sortRows(regionList(), S.rSort).map(d => [d.name, r2(d.cy), r2(d.ly), r2(d.gr), r2(d.d), r2(d.share), d.eng, d.cust, d.docs, d.top]));
+$('fpCsv').onclick = () => { const D = S.D, rows = rowsF().filter(r => D.series[r[3]].focus), by = S.fpBy;
+  const keyFn = by === 'e' ? (r => r[5]) : (r => r[4]), nameOf = by === 'e' ? (i => D.engineers[i]) : (i => D.regions[i]);
+  const cells = groupBy(rows, r => keyFn(r) + '|' + D.series[r[3]].focus, true), ids = [...groupBy(rows, keyFn, true).keys()];
+  csv('Focus_products', [by === 'e' ? 'Sales engineer' : 'Region', ...D.focus.flatMap(f => [`${f} value this yr (Rs L)`, `${f} value last yr`, `${f} qty this yr`, `${f} qty last yr`])],
+    ids.map(i => [nameOf(i), ...D.focus.flatMap(f => { const o = cells.get(i + '|' + f) || { cy:0, ly:0, qcy:0, qly:0 }; return [r2(o.cy), r2(o.ly), o.qcy, o.qly]; })])); };
+
+/* ---------- controls ---------- */
+const tgl = (id, attr, set) => $(id).onclick = e => { const b = e.target.closest('button'); if (!b) return; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); set(b.dataset[attr]); };
+tgl('docT', 'd', v => { S.doc = v; load(); });
+tgl('bLevel', 'l', v => { S.bLevel = v; renderBaskets(); });
+tgl('bMetric', 'k', v => { S.bMetric = v; renderBaskets(); });
+tgl('fpMetric', 'k', v => { S.fpMetric = v; renderFocus(); });
+tgl('fpBy', 'b', v => { S.fpBy = v; renderFocus(); });
+$('eSearch').oninput = renderEngineers; $('fpSearch').oninput = renderFocus;
+$('resetBtn').onclick = () => { S.f = { basket:[], series:[], month:[], region:[], eng:[] }; S.open.clear(); $('eSearch').value = ''; $('fpSearch').value = ''; renderAll(); };
+$('refreshBtn').onclick = () => load(true);
+(function init(){
+  const now = new Date(), cur = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  $('fySel').innerHTML = [cur, cur - 1].map(f => `<option value="${f}">${fyLabel(f)} vs ${fyLabel(f - 1)}</option>`).join('');
+  S.fy = cur; $('fySel').onchange = e => { S.fy = +e.target.value; load(); };
+  load();
+})();
+</script>
+</body>
+</html>
