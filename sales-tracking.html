@@ -104,7 +104,7 @@
   .hint{font-size:11.5px;color:var(--t3);margin-top:6px}
   .ftbl td.fz{color:#c3cad8}
   .gsm{font-size:10.5px;display:block}
-  .ftiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+  .ftiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
   .ftile{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfcfe}
   .ftile .fn{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--t3)}
   .ftile .fv{font-size:20px;font-weight:700;margin-top:2px;font-variant-numeric:tabular-nums}
@@ -181,7 +181,12 @@
         <button class="btn" id="fpCsv">⬇ CSV</button>
       </div></div>
     <div class="chart" id="focusChart"></div>
-    <div class="tbar" style="margin-top:12px"><input type="search" id="fpSearch" placeholder="Search…"><span class="sub" id="fpCount"></span></div>
+    <div class="tbar" style="margin-top:12px;align-items:flex-end">
+      <div class="f ms2" id="fpFocusF"><label>Focus products</label></div>
+      <div class="f ms2" id="fpEngF"><label>Sales engineer</label></div>
+      <div class="f ms2" id="fpRegF"><label>Region</label></div>
+      <button class="btn" id="fpReset">Clear</button>
+      <input type="search" id="fpSearch" placeholder="Search…"><span class="sub" id="fpCount"></span></div>
     <div class="tbl scroll"><table id="fpTable" class="ftbl"></table></div>
     <div class="hint">Focus products are matched by product series (edit table <b>st_focus_products</b> in Supabase to change). Cells show this year's figure with growth vs the same period last year.</div>
   </div>
@@ -206,7 +211,7 @@ const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
 const safeName = n => String(n).replace(/[–—]/g, '-').replace(/[^\w.\-]+/g, '_');
 
 const S = { doc:'OB', fy:null, cache:{}, D:null, f:{ basket:[], series:[], month:[], region:[], eng:[] },
-            bLevel:'auto', bMetric:'v', fpMetric:'v', fpBy:'e', eSort:{k:'cy', d:-1}, rSort:{k:'cy', d:-1}, open:new Set(), people:null, peopleKey:'' };
+            bLevel:'auto', bMetric:'v', fpMetric:'v', fpBy:'e', eSort:{k:'cy', d:-1}, rSort:{k:'cy', d:-1}, open:new Set(), people:null, peopleKey:'', fp:{ eng:[], region:[], focus:[] } };
 
 async function rpc(fn, body){
   const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer '+KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
@@ -281,7 +286,8 @@ function groupBy(rows, keyFn, ytdOnly){
 }
 
 /* ---------- multiselects ---------- */
-function ms(host, getItems, getSel, setSel, placeholder, extra){
+function ms(host, getItems, getSel, setSel, placeholder, extra, onChange){
+  const changed = () => (onChange || renderAll)();
   host.insertAdjacentHTML('beforeend', `<button class="ms-btn"></button><div class="ms-pop"><input type="search" placeholder="Search…"><div class="ms-acts"><button data-a="all">Select all</button><button data-a="none">Clear</button>${(extra||[]).map((x,i) => `<button data-x="${i}">${esc(x.label)}</button>`).join('')}</div><div class="ms-list"></div></div>`);
   const btn = host.querySelector('.ms-btn'), pop = host.querySelector('.ms-pop'), list = host.querySelector('.ms-list'), q = host.querySelector('input');
   const draw = () => { const items = getItems(), sel = getSel(), t = q.value.toLowerCase();
@@ -291,10 +297,10 @@ function ms(host, getItems, getSel, setSel, placeholder, extra){
   btn.onclick = e => { e.stopPropagation(); const o = !pop.classList.contains('open'); document.querySelectorAll('.ms-pop.open').forEach(x => x.classList.remove('open')); if (o) { pop.classList.add('open'); q.value = ''; draw(); q.focus(); } };
   pop.onclick = e => e.stopPropagation(); q.oninput = draw;
   list.onchange = e => { const items = getItems(); const v = typeof items[0]?.value === 'number' ? +e.target.value : e.target.value;
-    setSel(e.target.checked ? [...getSel(), v] : getSel().filter(x => x !== v)); draw(); renderAll(); };
+    setSel(e.target.checked ? [...getSel(), v] : getSel().filter(x => x !== v)); draw(); changed(); };
   pop.querySelector('.ms-acts').onclick = e => { const a = e.target.dataset.a, x = e.target.dataset.x;
     if (a === 'all') setSel(getItems().map(i => i.value)); else if (a === 'none') setSel([]); else if (x !== undefined) setSel(extra[+x].pick()); else return;
-    draw(); renderAll(); };
+    draw(); changed(); };
   draw(); return draw;
 }
 document.addEventListener('click', () => document.querySelectorAll('.ms-pop.open').forEach(x => x.classList.remove('open')));
@@ -314,6 +320,17 @@ draws.month = ms($('fMonth'), () => S.D ? MONTHS.map((m, i) => ({ value:m, label
 draws.region = ms($('fRegion'), () => optsFrom('region', r => S.D.regions[r[4]], k => k), () => S.f.region, v => { S.f.region = v; }, 'All regions');
 draws.eng = ms($('fEng'), () => optsFrom('eng', r => S.D.engineers[r[5]], k => k), () => S.f.eng, v => { S.f.eng = v; }, 'All engineers');
 function redrawFilters(){ Object.values(draws).forEach(d => d()); }
+function fpOpts(kind){
+  if (!S.D) return [];
+  const D = S.D;
+  if (kind === 'focus') return D.focus.map(f => ({ value:f, label:f }));
+  const rows = rowsF().filter(r => D.series[r[3]].focus);
+  const ok = r => (kind === 'eng' || !S.fp.eng.length || S.fp.eng.includes(D.engineers[r[5]])) && (kind === 'region' || !S.fp.region.length || S.fp.region.includes(D.regions[r[4]]))
+                && (!S.fp.focus.length || S.fp.focus.includes(D.series[r[3]].focus));
+  const m = groupBy(rows.filter(ok), kind === 'eng' ? (r => D.engineers[r[5]]) : (r => D.regions[r[4]]));
+  return [...m.entries()].filter(([, o]) => o.cy || o.lyFull).sort((a, b) => b[1].cy - a[1].cy).map(([k]) => ({ value:k, label:k }));
+}
+const fpDraws = [];
 
 /* ---------- people (distinct customers / documents) ---------- */
 let pTimer = null;
@@ -530,17 +547,21 @@ function engDetail(ei){
 }
 
 function renderFocus(){
-  const D = S.D, k = S.fpMetric, rows = rowsF(), cy = D.meta.cy;
-  const fr = rows.filter(r => D.series[r[3]].focus);
+  const D = S.D, k = S.fpMetric, cy = D.meta.cy;
+  const fpPass = r => (!S.fp.eng.length || S.fp.eng.includes(D.engineers[r[5]])) && (!S.fp.region.length || S.fp.region.includes(D.regions[r[4]]));
+  const rows = rowsF().filter(fpPass);
+  const FOC = S.fp.focus.length ? D.focus.filter(f => S.fp.focus.includes(f)) : D.focus;
+  const fr = rows.filter(r => D.series[r[3]].focus && FOC.includes(D.series[r[3]].focus));
+  fpDraws.forEach(d => d());
   const g = groupBy(fr, r => D.series[r[3]].focus, true);
-  const vals = {}; D.focus.forEach(f => { const o = g.get(f) || { cy:0, ly:0, qcy:0, qly:0 }; vals[f] = k === 'v' ? { cy:o.cy, ly:o.ly } : { cy:o.qcy, ly:o.qly }; });
+  const vals = {}; FOC.forEach(f => { const o = g.get(f) || { cy:0, ly:0, qcy:0, qly:0 }; vals[f] = k === 'v' ? { cy:o.cy, ly:o.ly } : { cy:o.qcy, ly:o.qly }; });
   // one tile per focus product, each with its own scale (ATeS is far bigger than the rest)
-  $('focusChart').innerHTML = '<div class="ftiles">' + D.focus.map(f => { const v = vals[f], mx = Math.max(v.cy, v.ly, 1e-9), fm = k === 'v' ? (x => f2(x) + ' L') : f0;
+  $('focusChart').innerHTML = '<div class="ftiles">' + FOC.map(f => { const v = vals[f], mx = Math.max(v.cy, v.ly, 1e-9), fm = k === 'v' ? (x => f2(x) + ' L') : f0;
     return `<div class="ftile"><div class="fn">${esc(f)}</div><div class="fv">${fm(v.cy)}</div><div class="fg">${grTxt(v.cy, v.ly)}</div>
       <div class="fb"><span>${fyLabel(S.D.meta.base).replace('FY ','')}</span><i style="width:${v.ly / mx * 100}%;background:${C_LY}"></i><b>${fm(v.ly)}</b></div>
       <div class="fb"><span>${fyLabel(S.D.meta.cy).replace('FY ','')}</span><i style="width:${v.cy / mx * 100}%;background:${C_CY}"></i><b>${fm(v.cy)}</b></div></div>`; }).join('') + '</div>';
-  const tot = groupBy(rows, () => 'a', true).get('a') || { cy:0 }, ftot = D.focus.reduce((s, f) => s + (g.get(f) ? g.get(f).cy : 0), 0);
-  $('fpSub').textContent = `${D.focus.join(' · ')} — ${f2(ftot)} L this year = ${tot.cy ? (ftot / tot.cy * 100).toFixed(1) : '0.0'}% of sales in the current filters`;
+  const tot = groupBy(rows, () => 'a', true).get('a') || { cy:0 }, ftot = FOC.reduce((s, f) => s + (g.get(f) ? g.get(f).cy : 0), 0);
+  $('fpSub').textContent = `${FOC.join(' · ')} — ${f2(ftot)} L this year = ${tot.cy ? (ftot / tot.cy * 100).toFixed(1) : '0.0'}% of sales in the current filters`;
   // table
   const by = S.fpBy, keyFn = by === 'e' ? (r => r[5]) : (r => r[4]), nameOf = by === 'e' ? (i => D.engineers[i]) : (i => D.regions[i]);
   const cells = groupBy(fr, r => keyFn(r) + '|' + D.series[r[3]].focus, true), totals2 = groupBy(fr, keyFn, true), allSales = groupBy(rows, keyFn, true);
@@ -550,10 +571,10 @@ function renderFocus(){
   const all = ids.length; if (q) ids = ids.filter(i => nameOf(i).toLowerCase().includes(q));
   const cell = o => { if (!o) return '<td class="fz">—</td>'; const c = k === 'v' ? o.cy : o.qcy, l = k === 'v' ? o.ly : o.qly; if (!c && !l) return '<td class="fz">—</td>';
     return `<td>${k === 'v' ? f2(c) : f0(c)}<span class="gsm">${grTxt(c, l)}</span></td>`; };
-  $('fpTable').innerHTML = `<thead><tr><th>${by === 'e' ? 'Sales engineer' : 'Region'}</th>${D.focus.map(f => `<th>${esc(f)}</th>`).join('')}<th>Total focus</th><th>% of their sales</th></tr></thead><tbody>` +
+  $('fpTable').innerHTML = `<thead><tr><th>${by === 'e' ? 'Sales engineer' : 'Region'}</th>${FOC.map(f => `<th>${esc(f)}</th>`).join('')}<th>Total focus</th><th>% of their sales</th></tr></thead><tbody>` +
     ids.map(i => { const t = totals2.get(i), s = allSales.get(i) || { cy:0 };
-      return `<tr><td><b>${esc(nameOf(i))}</b></td>${D.focus.map(f => cell(cells.get(i + '|' + f))).join('')}${cell(t)}<td>${s.cy ? (t.cy / s.cy * 100).toFixed(1) + '%' : '—'}</td></tr>`; }).join('') +
-    `<tr class="tot"><td>Total</td>${D.focus.map(f => cell(g.get(f))).join('')}${cell(groupBy(fr, () => 'a', true).get('a'))}<td>${tot.cy ? (ftot / tot.cy * 100).toFixed(1) + '%' : '—'}</td></tr></tbody>`;
+      return `<tr><td><b>${esc(nameOf(i))}</b></td>${FOC.map(f => cell(cells.get(i + '|' + f))).join('')}${cell(t)}<td>${s.cy ? (t.cy / s.cy * 100).toFixed(1) + '%' : '—'}</td></tr>`; }).join('') +
+    `<tr class="tot"><td>Total</td>${FOC.map(f => cell(g.get(f))).join('')}${cell(groupBy(fr, () => 'a', true).get('a'))}<td>${tot.cy ? (ftot / tot.cy * 100).toFixed(1) + '%' : '—'}</td></tr></tbody>`;
   $('fpCount').textContent = `${ids.length}${q ? ' of ' + all : ''} ${by === 'e' ? 'engineers' : 'regions'} with focus-product sales · ${k === 'v' ? 'Rs Lakh' : 'quantity'}`;
 }
 
@@ -569,11 +590,12 @@ $('eCsv').onclick = () => csv('Sales_engineers', ['Sales engineer','Main region'
   sortRows(engList(), S.eSort).map(d => [d.name, d.region, r2(d.cy), r2(d.ly), r2(d.gr), r2(d.d), r2(d.share), d.qcy, d.cust, d.custLy, d.docs, r2(d.avg), r2(d.fcy), r2(d.fly), r2(d.fsh), d.top]));
 $('rCsv').onclick = () => csv('Regions', ['Region','This year (Rs L)','Last year same period (Rs L)','Growth %','Change (Rs L)','Share %','Engineers','Customers','Documents','Top basket'],
   sortRows(regionList(), S.rSort).map(d => [d.name, r2(d.cy), r2(d.ly), r2(d.gr), r2(d.d), r2(d.share), d.eng, d.cust, d.docs, d.top]));
-$('fpCsv').onclick = () => { const D = S.D, rows = rowsF().filter(r => D.series[r[3]].focus), by = S.fpBy;
+$('fpCsv').onclick = () => { const D = S.D, by = S.fpBy, FOC = S.fp.focus.length ? D.focus.filter(f => S.fp.focus.includes(f)) : D.focus;
+  const rows = rowsF().filter(r => D.series[r[3]].focus && FOC.includes(D.series[r[3]].focus) && (!S.fp.eng.length || S.fp.eng.includes(D.engineers[r[5]])) && (!S.fp.region.length || S.fp.region.includes(D.regions[r[4]])));
   const keyFn = by === 'e' ? (r => r[5]) : (r => r[4]), nameOf = by === 'e' ? (i => D.engineers[i]) : (i => D.regions[i]);
   const cells = groupBy(rows, r => keyFn(r) + '|' + D.series[r[3]].focus, true), ids = [...groupBy(rows, keyFn, true).keys()];
-  csv('Focus_products', [by === 'e' ? 'Sales engineer' : 'Region', ...D.focus.flatMap(f => [`${f} value this yr (Rs L)`, `${f} value last yr`, `${f} qty this yr`, `${f} qty last yr`])],
-    ids.map(i => [nameOf(i), ...D.focus.flatMap(f => { const o = cells.get(i + '|' + f) || { cy:0, ly:0, qcy:0, qly:0 }; return [r2(o.cy), r2(o.ly), o.qcy, o.qly]; })])); };
+  csv('Focus_products', [by === 'e' ? 'Sales engineer' : 'Region', ...FOC.flatMap(f => [`${f} value this yr (Rs L)`, `${f} value last yr`, `${f} qty this yr`, `${f} qty last yr`])],
+    ids.map(i => [nameOf(i), ...FOC.flatMap(f => { const o = cells.get(i + '|' + f) || { cy:0, ly:0, qcy:0, qly:0 }; return [r2(o.cy), r2(o.ly), o.qcy, o.qly]; })])); };
 
 /* ---------- controls ---------- */
 const tgl = (id, attr, set) => $(id).onclick = e => { const b = e.target.closest('button'); if (!b) return; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); set(b.dataset[attr]); };
@@ -583,6 +605,10 @@ tgl('bMetric', 'k', v => { S.bMetric = v; renderBaskets(); });
 tgl('fpMetric', 'k', v => { S.fpMetric = v; renderFocus(); });
 tgl('fpBy', 'b', v => { S.fpBy = v; renderFocus(); });
 $('eSearch').oninput = renderEngineers; $('fpSearch').oninput = renderFocus;
+fpDraws.push(ms($('fpFocusF'), () => fpOpts('focus'), () => S.fp.focus, v => { S.fp.focus = v; }, 'All focus products', null, renderFocus));
+fpDraws.push(ms($('fpEngF'), () => fpOpts('eng'), () => S.fp.eng, v => { S.fp.eng = v; }, 'All engineers', null, renderFocus));
+fpDraws.push(ms($('fpRegF'), () => fpOpts('region'), () => S.fp.region, v => { S.fp.region = v; }, 'All regions', null, renderFocus));
+$('fpReset').onclick = () => { S.fp = { eng:[], region:[], focus:[] }; $('fpSearch').value = ''; renderFocus(); };
 $('resetBtn').onclick = () => { S.f = { basket:[], series:[], month:[], region:[], eng:[] }; S.open.clear(); $('eSearch').value = ''; $('fpSearch').value = ''; renderAll(); };
 $('refreshBtn').onclick = () => load(true);
 (function init(){

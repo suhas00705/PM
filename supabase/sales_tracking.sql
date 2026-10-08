@@ -15,10 +15,10 @@ insert into public.st_focus_products (focus, pattern, sort) values
   ('Load Disconnector', 'LD DIN%',          2),
   ('PQ Series',         'PQ %',             3),
   ('MTS',               'MTS',              4),
-  ('Solenoid',          'ATeS Solenoid%',   5),
-  ('ATeS',              'ATeS Motorised%',  6),
-  ('ATeS',              'ATeS Controller%', 6)
+  ('Solenoid',          'ATeS Solenoid%',   5)
 on conflict do nothing;
+-- ATeS motorised / controller are not focus products (only the Solenoid variant is)
+delete from public.st_focus_products where focus = 'ATeS';
 grant select on public.st_focus_products to anon, authenticated;
 
 create or replace function public.cp_rkey(t text) returns text
