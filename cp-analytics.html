@@ -143,10 +143,14 @@
 <div class="wrap">
   <div class="head">
     <div>
-      <h1>Channel Partner Analytics</h1>
-      <div class="sub">What channel partners buy, how their basket mix is shifting, and the discounts they get — value = DocTotalFC</div>
+      <h1 id="pageTitle">Channel Partner Analytics</h1>
+      <div class="sub" id="pageSub">What channel partners buy, how their basket mix is shifting, and the discounts they get — value = DocTotalFC</div>
     </div>
     <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div class="toggle" id="viewToggle">
+        <button data-v="cp" class="on">Channel Partner Analytics</button>
+        <button data-v="perf">Partners Performance</button>
+      </div>
       <div class="toggle" id="docToggle">
         <button data-doc="OB" class="on">Order Booking</button>
         <button data-doc="INV">Invoicing</button>
@@ -162,12 +166,13 @@
     <div class="f"><label>Month</label><div id="f-month"></div></div>
     <div class="f"><label>Account type</label><div id="f-acct"></div></div>
     <div class="f"><label>U-Region</label><div id="f-region"></div></div>
-    <div class="f"><label>Focus product basket</label><div id="f-basket"></div></div>
+    <div class="f"><label id="basketLbl">Focus product basket</label><div id="f-basket"></div></div>
     <div class="f"><label>Product series</label><div id="f-series"></div></div>
     <button class="reset" id="resetBtn">Reset</button>
   </div>
   <div class="note" id="compareNote"></div>
 
+  <div id="cpView">
   <!-- 1. Channel partners vs Direct -->
   <div class="sec">
     <div class="sec-h"><div><h2>Who is buying — Channel Partners vs Direct</h2>
@@ -234,6 +239,72 @@
     <div class="sub" id="pSummary" style="margin-bottom:8px"></div>
     <div class="tbl-wrap" id="partnerTable"></div>
   </div>
+  </div>
+<div id="perfView" style="display:none">
+  <div class="sec">
+    <div class="sec-h"><div><h2 id="pfTitle">Overall performance</h2>
+      <div class="sub">Every account that matches the filters, across all product baskets (pick a basket above only to narrow it down). Switch <b>Account type</b> to see Channel Partners, OEM, End Customer, Panel Builders … on their own.</div></div></div>
+    <div class="grid g5" id="pfTiles"></div>
+  </div>
+
+  <div class="sec"><div class="insight" id="pfInsight"></div></div>
+
+  <div class="sec grid g2">
+    <div class="card">
+      <h2>Month by month — this year vs last year</h2>
+      <div class="sub" id="pfMonthSub"></div>
+      <div class="legend" id="pfMonthLegend"></div>
+      <div class="chart" id="pfMonthChart"></div>
+    </div>
+    <div class="card">
+      <h2>Cumulative — this year vs last year</h2>
+      <div class="sub">Running total from April; the gap between the lines is the year-to-date growth</div>
+      <div class="legend" id="pfCumLegend"></div>
+      <div class="chart" id="pfCumChart"></div>
+    </div>
+  </div>
+
+  <div class="sec card">
+    <div class="sec-h"><div><h2>Account type — growth vs last year</h2>
+      <div class="sub">Share = account type’s share of the filtered total. Click a row to look at only that account type.</div></div>
+      <button class="btn" id="pfDlAcct">Download CSV</button></div>
+    <div class="tbl-wrap" id="pfAcctTable"></div>
+  </div>
+
+  <div class="sec card">
+    <div class="sec-h"><div><h2>Product basket mix &amp; average discount</h2>
+      <div class="sub">What the selected accounts buy. Avg discount = 1 − Line Total ÷ (List Price × Qty), value-weighted</div></div>
+      <button class="btn" id="pfDlBasket">Download CSV</button></div>
+    <div class="tbl-wrap" id="pfBasketTable"></div>
+  </div>
+
+  <div class="sec card">
+    <div class="sec-h"><div><h2>Region view — growth vs last year</h2>
+      <div class="sub">Click a region to look at only that region.</div></div>
+      <button class="btn" id="pfDlRegion">Download CSV</button></div>
+    <div class="tbl-wrap" id="pfRegionTable"></div>
+  </div>
+
+  <div class="sec card">
+    <div class="sec-h">
+      <div><h2>Partner list — growth vs last year</h2>
+        <div class="sub">Click a partner to see their month-by-month and basket breakdown</div></div>
+      <div class="tools">
+        <div class="tabs" id="pfTabs">
+          <button data-k="all" class="on">All</button>
+          <button data-k="growing">Growing</button>
+          <button data-k="declining">Declining</button>
+          <button data-k="new">New this year</button>
+          <button data-k="lost">Stopped buying</button>
+        </div>
+        <input type="search" id="pfSearch" placeholder="Search partner, region, account type…">
+        <button class="btn" id="pfDlPartners">Download CSV</button>
+      </div>
+    </div>
+    <div class="sub" id="pfSummary" style="margin-bottom:8px"></div>
+    <div class="tbl-wrap" id="pfPartnerTable"></div>
+  </div>
+</div>
 </div>
 
 <div class="drawer" id="drawer">
@@ -262,7 +333,7 @@ const CP = 'Channel Partners';
 const DEFAULT_FOCUS = ['Panel Meters'];
 
 /* ---------------- state ---------------- */
-const S = { doc:'OB', opts:null, data:null, fy:[], months:[], acct:[], region:[], basket:[...DEFAULT_FOCUS], series:[], pTab:'shifted', pSearch:'', pSort:null };
+const S = { view:'cp', doc:'OB', opts:null, data:null, fy:[], months:[], acct:[], region:[], basket:[...DEFAULT_FOCUS], series:[], pTab:'shifted', pSearch:'', pSort:null };
 
 /* ---------------- helpers ---------------- */
 const $ = id => document.getElementById(id);
@@ -284,6 +355,7 @@ function ppChip(a, b){ if (!isFinite(a) || !isFinite(b)) return ''; const d = (b
   const cls = d > 0.05 ? 'up' : d < -0.05 ? 'dn' : 'flat';
   return `<span class="chip ${cls}">${d > 0.05 ? '▲' : d < -0.05 ? '▼' : '■'} ${Math.abs(d).toFixed(1)} pp</span>`; }
 const disc = (lt, g) => n(g) > 0 ? 1 - n(lt)/n(g) : null;
+const safeName = s => String(s).replace(/[–—]/g,'-').replace(/[^\w.\-]+/g,'_');
 function csv(name, header, rows){
   const q = v => { const s = String(v ?? ''); return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s; };
   const blob = new Blob(['﻿' + [header, ...rows].map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
@@ -310,7 +382,7 @@ function multiSelect(host, key, getItems, placeholder, extraActs){
       `<label><input type="checkbox" value="${esc(it.value)}" ${S[key].includes(it.value) ? 'checked' : ''}> ${esc(it.label)}</label>`).join('') || '<div class="sub" style="padding:6px">No options</div>';
     const sel = S[key];
     btn.classList.toggle('set', sel.length > 0);
-    btn.textContent = !sel.length ? placeholder : sel.length === 1 ? (items.find(i => i.value === sel[0])?.label ?? sel[0]) : `${sel.length} selected`;
+    btn.textContent = !sel.length ? (typeof placeholder === 'function' ? placeholder() : placeholder) : sel.length === 1 ? (items.find(i => i.value === sel[0])?.label ?? sel[0]) : `${sel.length} selected`;
     btn.title = sel.map(v => items.find(i => i.value === v)?.label ?? v).join(', ');
   };
   btn.onclick = e => { e.stopPropagation(); const open = !pop.classList.contains('open'); document.querySelectorAll('.ms-pop.open').forEach(p => p.classList.remove('open')); if (open) { pop.classList.add('open'); search.value=''; render(); search.focus(); } };
@@ -354,7 +426,7 @@ async function loadOptions(){
     [{label:'Channel Partners only', pick:it => it.filter(i => /^Channel Partner/.test(i.value)).map(i=>i.value)},
      {label:'Direct only', pick:it => it.filter(i => !/^Channel Partner/.test(i.value)).map(i=>i.value)}]);
   multiSelect($('f-region'), 'region', () => (S.opts.regions||[]).map(r => ({value:r, label:r})), 'All regions');
-  multiSelect($('f-basket'), 'basket', () => (S.opts.baskets||[]).map(b => ({value:b, label:b})), 'Choose basket(s)');
+  multiSelect($('f-basket'), 'basket', () => (S.opts.baskets||[]).map(b => ({value:b, label:b})), () => S.view === 'perf' ? 'All baskets' : 'Choose basket(s)');
   multiSelect($('f-series'), 'series', seriesItems, 'All series in basket');
   const ls = S.opts.last_sync;
   const si = $('syncInfo');
@@ -374,6 +446,7 @@ function yearsCompared(){
 async function load(){
   $('loading').classList.add('on');
   try {
+    if (S.view === 'perf') { await loadPerf(); showErr(null); return; }
     const { cy, base } = yearsCompared();
     S.data = await rpc('cp_dashboard', { p_doc:S.doc, p_cy:cy, p_base:base, p_acct:S.acct, p_focus:S.basket, p_series:S.series, p_region:S.region, p_months:S.months });
     showErr(null); render();
@@ -936,17 +1009,278 @@ $('rmTabs').onclick = e => { const b = e.target.closest('button'); if (!b) retur
 document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('regionModal').classList.remove('open'); $('drawer').classList.remove('open'); } });
 
 
+
+/* =====================================================================
+   PARTNERS PERFORMANCE view — overall growth per account, no focus split
+   ===================================================================== */
+const PF = { tab:'all', search:'', data:null };
+const VIEW_BASKET = { cp:{ basket:[...DEFAULT_FOCUS], series:[] }, perf:{ basket:[], series:[] } };
+
+async function loadPerf(){
+  const { cy, base } = yearsCompared();
+  PF.data = await rpc('cp_performance', { p_doc:S.doc, p_cy:cy, p_base:base, p_acct:S.acct, p_basket:S.basket, p_series:S.series, p_region:S.region, p_months:S.months });
+  renderPerf();
+}
+
+function setView(v){
+  if (v === S.view) return;
+  VIEW_BASKET[S.view] = { basket:[...S.basket], series:[...S.series] };
+  S.view = v; S.basket = [...VIEW_BASKET[v].basket]; S.series = [...VIEW_BASKET[v].series];
+  document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  $('cpView').style.display = v === 'cp' ? '' : 'none';
+  $('perfView').style.display = v === 'perf' ? '' : 'none';
+  $('basketLbl').textContent = v === 'cp' ? 'Focus product basket' : 'Product basket (filter)';
+  $('pageTitle').textContent = v === 'cp' ? 'Channel Partner Analytics' : 'Partners Performance';
+  $('pageSub').textContent = v === 'cp'
+    ? 'What channel partners buy, how their basket mix is shifting, and the discounts they get — value = DocTotalFC'
+    : 'Overall growth of every partner and account type, this year vs last year — value = DocTotalFC';
+  MS.basket?.render(); MS.series?.render();
+  load();
+}
+
+function perfNote(D, cy, base){
+  const docName = S.doc === 'OB' ? 'Order Booking' : 'Invoicing';
+  const lfl = D.meta.base_cut;
+  return `Comparing <b>${fyLabel(cy)}</b> with <b>${fyLabel(base)}</b> · ${docName}` +
+    (S.months.length ? ` · months: <b>${MONTHS.filter(m => S.months.includes(m)).map(m => MNAME[m]).join(', ')}</b>`
+                     : lfl ? ` · like-for-like: both years up to <b>${new Date(D.meta.max_date).toLocaleDateString('en-IN',{day:'2-digit',month:'short'})}</b>` : '') +
+    ` · account types: <b>${S.acct.length ? esc(S.acct.length > 3 ? S.acct.length + ' selected' : S.acct.join(', ')) : 'all'}</b>` +
+    ` · baskets: <b>${S.basket.length ? esc(S.basket.join(', ')) : 'all'}</b>` +
+    (S.region.length ? ` · regions: <b>${esc(S.region.length > 3 ? S.region.length + ' selected' : S.region.join(', '))}</b>` : '');
+}
+
+function pivot(list, key, cy, base){
+  const m = {};
+  (list || []).forEach(r => { const k = r[key]; const x = m[k] = m[k] || { name:k, cy:0, b:0, ltc:0, gc:0, ltb:0, gb:0, nc:0, nb:0 };
+    if (r.fy === cy) { x.cy += n(r.v); x.ltc += n(r.lt); x.gc += n(r.g); x.nc += n(r.cust); }
+    else { x.b += n(r.v); x.ltb += n(r.lt); x.gb += n(r.g); x.nb += n(r.cust); } });
+  const T = Object.values(m).reduce((t, x) => ({ cy:t.cy + x.cy, b:t.b + x.b }), { cy:0, b:0 });
+  return Object.values(m).map(x => ({ ...x, ch:x.cy - x.b, g_:growth(x.cy, x.b) ?? 9e9,
+    shCy:T.cy ? x.cy/T.cy : null, shB:T.b ? x.b/T.b : null, dCy:disc(x.ltc, x.gc), dB:disc(x.ltb, x.gb),
+    avg:x.nc ? x.cy/x.nc : null })).sort((a,b) => b.cy - a.cy);
+}
+
+function renderPerf(){
+  const D = PF.data, { cy, base, extra } = yearsCompared();
+  const docName = S.doc === 'OB' ? 'Order Booking' : 'Invoicing';
+  $('compareNote').innerHTML = perfNote(D, cy, base) + (extra ? ' · <span style="color:#c62828">more than 2 FYs selected — comparing the latest two</span>' : '');
+  const scope = S.acct.length === 1 ? S.acct[0] : S.acct.length ? `${S.acct.length} account types` : 'all account types';
+  $('pfTitle').textContent = `Overall ${docName.toLowerCase()} — ${scope}`;
+
+  // ---------- tiles ----------
+  const tot = fy => (D.totals || []).find(r => r.fy === fy) || {};
+  const tc = tot(cy), tb = tot(base);
+  const vC = n(tc.v), vB = n(tb.v), nC = n(tc.cust), nB = n(tb.cust);
+  const P = (D.partners || []).map(p => ({ ...p, v_cy:n(p.v_cy), v_base:n(p.v_base) }));
+  const isNew = p => p.v_cy > 0 && p.v_base <= 0, isLost = p => p.v_base > 0 && p.v_cy <= 0;
+  const newP = P.filter(isNew), lostP = P.filter(isLost);
+  const newV = newP.reduce((a,p) => a + p.v_cy, 0), lostV = lostP.reduce((a,p) => a + p.v_base, 0);
+  const dC = disc(tc.lt, tc.g), dB = disc(tb.lt, tb.g);
+  const tile = (label, val, row2, row3) => `<div class="card tile"><div class="lbl">${label}</div><div class="val">${val}</div><div class="row">${row2}</div>${row3 ? `<div class="row" style="margin-top:6px">${row3}</div>` : ''}</div>`;
+  $('pfTiles').innerHTML =
+    tile(`Total ${docName}`, money(vC), `${gChip(vC, vB)}<span>vs ${money(vB)} in ${fyLabel(base)}</span>`, `${vC >= vB ? '+' : '−'}${money(Math.abs(vC - vB))} change`) +
+    tile('Accounts buying', nC.toLocaleString('en-IN'), `${gChip(nC, nB)}<span>vs ${nB.toLocaleString('en-IN')} in ${fyLabel(base)}</span>`, `Avg per account <b>${money(nC ? vC/nC : 0)}</b> (was ${money(nB ? vB/nB : 0)})`) +
+    tile('New this year', newP.length.toLocaleString('en-IN'), `<span>bought nothing in ${fyLabel(base)}</span>`, `Worth <b>${money(newV)}</b> this year`) +
+    tile('Stopped buying', lostP.length.toLocaleString('en-IN'), `<span>bought in ${fyLabel(base)}, nothing yet in ${fyLabel(cy)}</span>`, `Was <b>${money(lostV)}</b> last year`) +
+    tile('Avg discount', pct(dC), `${ppChip(dB, dC)}<span>was ${pct(dB)}</span>`, `<span class="muted" title="Software, Others, OEM and Service Item are left out: their list prices are placeholders">value-weighted, excl. Software / Others / OEM</span>`);
+
+  // ---------- account types / baskets / regions ----------
+  const A = pivot(D.accts, 'acct', cy, base), B = pivot(D.baskets, 'basket', cy, base), R = pivot(D.regions, 'region', cy, base);
+
+  // ---------- insight ----------
+  const gAll = growth(vC, vB);
+  const moversUp = [...A].filter(a => a.ch > 0).sort((a,b) => b.ch - a.ch).slice(0, 3);
+  const moversDn = [...A].filter(a => a.ch < 0).sort((a,b) => a.ch - b.ch).slice(0, 3);
+  const topG = [...P].filter(p => p.v_cy - p.v_base > 0).sort((a,b) => (b.v_cy - b.v_base) - (a.v_cy - a.v_base)).slice(0, 5);
+  const topD = [...P].filter(p => p.v_cy - p.v_base < 0).sort((a,b) => (a.v_cy - a.v_base) - (b.v_cy - b.v_base)).slice(0, 5);
+  const nm = list => list.map(p => `<b>${esc(p.card)}</b> (${p.v_cy - p.v_base >= 0 ? '+' : '−'}${money(Math.abs(p.v_cy - p.v_base))})`).join(', ');
+  $('pfInsight').innerHTML = `${esc(scope[0].toUpperCase() + scope.slice(1))}: ${docName.toLowerCase()} ${gAll === null ? 'is new this year' : (gAll >= 0 ? 'grew ' : 'fell ') + pct(Math.abs(gAll))} (${money(vB)} → ${money(vC)}) with ${nC} accounts buying (${nB} last year).
+    <ul>
+      ${moversUp.length ? `<li>Biggest growth by account type: ${moversUp.map(a => `<b>${esc(a.name)}</b> (+${money(a.ch)}, ${a.g_ === 9e9 ? 'new' : pct(a.g_)})`).join(', ')}.</li>` : ''}
+      ${moversDn.length ? `<li>Declining account types: ${moversDn.map(a => `<b>${esc(a.name)}</b> (−${money(-a.ch)}, ${pct(a.g_)})`).join(', ')}.</li>` : ''}
+      ${topG.length ? `<li>Top growing partners: ${nm(topG)}.</li>` : ''}
+      ${topD.length ? `<li>Biggest declines: ${nm(topD)}.</li>` : ''}
+      <li><b>${newP.length}</b> new accounts added ${money(newV)}; <b>${lostP.length}</b> accounts that bought ${money(lostV)} last year have not ordered yet this year.</li>
+    </ul>`;
+
+  renderPerfCharts(D, cy, base);
+
+  const shareCell = r => `<span class="bar" style="width:${Math.round(60*(r.shCy||0))}px"></span>${pct(r.shCy)} ${ppChip(r.shB ?? NaN, r.shCy ?? NaN)}`;
+  // account types
+  sortable($('pfAcctTable'), [
+    {k:'name', h:'Account type', f:r => `<span class="clickable" data-acct="${esc(r.name)}" title="Show only this account type">${esc(r.name)} ›</span>`},
+    {k:'b',  h:fyLabel(base), f:r => money(r.b)},
+    {k:'cy', h:fyLabel(cy), f:r => money(r.cy)},
+    {k:'ch', h:'Change', f:r => `${r.ch >= 0 ? '+' : '−'}${money(Math.abs(r.ch))}`},
+    {k:'g_', h:'Growth', f:r => gChip(r.cy, r.b)},
+    {k:'shCy', h:'Share of total', f:shareCell},
+    {k:'nc', h:'Accounts', f:r => `${r.nc} <span class="muted">(${r.nb})</span>`},
+    {k:'avg', h:'Avg per account', f:r => r.avg === null ? '—' : money(r.avg)},
+    {k:'dCy', h:'Avg disc', f:r => `${pct(r.dCy)} <span class="muted">(${pct(r.dB)})</span>`}
+  ], A, 'cy', null, null,
+    `<tr><td>Total</td><td>${money(vB)}</td><td>${money(vC)}</td><td>${vC >= vB ? '+' : '−'}${money(Math.abs(vC - vB))}</td><td>${gChip(vC, vB)}</td><td>100%</td><td>${nC} <span class="muted">(${nB})</span></td><td>${money(nC ? vC/nC : 0)}</td><td>${pct(dC)} <span class="muted">(${pct(dB)})</span></td></tr>`);
+  $('pfAcctTable').onclick = e => { const el = e.target.closest('[data-acct]'); if (!el) return; S.acct = [el.dataset.acct]; MS.acct?.render(); load(); };
+  // baskets
+  sortable($('pfBasketTable'), [
+    {k:'name', h:'Product basket', f:r => esc(r.name)},
+    {k:'b',  h:fyLabel(base), f:r => money(r.b)},
+    {k:'cy', h:fyLabel(cy), f:r => money(r.cy)},
+    {k:'ch', h:'Change', f:r => `${r.ch >= 0 ? '+' : '−'}${money(Math.abs(r.ch))}`},
+    {k:'g_', h:'Growth', f:r => gChip(r.cy, r.b)},
+    {k:'shCy', h:'Mix (share of spend)', f:shareCell},
+    {k:'nc', h:'Buyers', f:r => `${r.nc} <span class="muted">(${r.nb})</span>`},
+    {k:'dCy', h:'Avg disc', f:r => NOISY_DISC.has(r.name) ? '<span class="muted" title="List price is a placeholder">n/a</span>' : `${pct(r.dCy)} <span class="muted">(${pct(r.dB)})</span>`}
+  ], B, 'cy');
+  // regions
+  sortable($('pfRegionTable'), [
+    {k:'name', h:'U-Region', f:r => `<span class="clickable" data-region="${esc(r.name)}" title="Show only this region">${esc(r.name)} ›</span>`},
+    {k:'b',  h:fyLabel(base), f:r => money(r.b)},
+    {k:'cy', h:fyLabel(cy), f:r => money(r.cy)},
+    {k:'ch', h:'Change', f:r => `${r.ch >= 0 ? '+' : '−'}${money(Math.abs(r.ch))}`},
+    {k:'g_', h:'Growth', f:r => gChip(r.cy, r.b)},
+    {k:'shCy', h:'Share of total', f:shareCell},
+    {k:'nc', h:'Accounts', f:r => `${r.nc} <span class="muted">(${r.nb})</span>`},
+    {k:'avg', h:'Avg per account', f:r => r.avg === null ? '—' : money(r.avg)},
+    {k:'dCy', h:'Avg disc', f:r => `${pct(r.dCy)} <span class="muted">(${pct(r.dB)})</span>`}
+  ], R, 'cy', null, null,
+    `<tr><td>All regions</td><td>${money(vB)}</td><td>${money(vC)}</td><td>${vC >= vB ? '+' : '−'}${money(Math.abs(vC - vB))}</td><td>${gChip(vC, vB)}</td><td>100%</td><td>${nC} <span class="muted">(${nB})</span></td><td>${money(nC ? vC/nC : 0)}</td><td>${pct(dC)} <span class="muted">(${pct(dB)})</span></td></tr>`);
+  $('pfRegionTable').onclick = e => { const el = e.target.closest('[data-region]'); if (!el) return; S.region = [el.dataset.region]; MS.region?.render(); load(); };
+
+  const csvRows = list => list.map(r => [r.name, r.b.toFixed(0), r.cy.toFixed(0), r.ch.toFixed(0), r.b ? ((r.cy/r.b - 1)*100).toFixed(1) : '', r.shCy === null ? '' : (r.shCy*100).toFixed(2), r.shB === null ? '' : (r.shB*100).toFixed(2), r.nb, r.nc, r.dCy === null ? '' : (r.dCy*100).toFixed(1), r.dB === null ? '' : (r.dB*100).toFixed(1)]);
+  const csvHead = first => [first, fyLabel(base), fyLabel(cy), 'Change', 'Growth %', `Share ${fyLabel(cy)} %`, `Share ${fyLabel(base)} %`, `Accounts ${fyLabel(base)}`, `Accounts ${fyLabel(cy)}`, `Avg disc ${fyLabel(cy)} %`, `Avg disc ${fyLabel(base)} %`];
+  $('pfDlAcct').onclick = () => csv(safeName(`account_types_${S.doc}_${fyLabel(cy)}.csv`), csvHead('Account type'), csvRows(A));
+  $('pfDlBasket').onclick = () => csv(safeName(`baskets_${S.doc}_${fyLabel(cy)}.csv`), csvHead('Product basket'), csvRows(B));
+  $('pfDlRegion').onclick = () => csv(safeName(`regions_${S.doc}_${fyLabel(cy)}.csv`), csvHead('U-Region'), csvRows(R));
+
+  renderPerfPartners(P, vC, cy, base);
+}
+
+function renderPerfPartners(P, vC, cy, base){
+  const rows = P.map(p => ({ ...p, ch:p.v_cy - p.v_base, g_:growth(p.v_cy, p.v_base) ?? 9e9, sh:vC ? p.v_cy/vC : null, d:disc(p.lt, p.g), nb:n(p.nb) }));
+  const tabs = { all:() => true, growing:p => p.ch > 0 && p.v_base > 0, declining:p => p.ch < 0 && p.v_cy > 0,
+                 new:p => p.v_cy > 0 && p.v_base <= 0, lost:p => p.v_base > 0 && p.v_cy <= 0 };
+  document.querySelectorAll('#pfTabs button').forEach(b => { const c = rows.filter(tabs[b.dataset.k]).length;
+    b.textContent = b.textContent.replace(/\s*\(\d+\)$/, '') + ` (${c})`; });
+  const q = PF.search.toLowerCase();
+  const shown = rows.filter(tabs[PF.tab]).filter(p => !q || [p.card, p.region, p.acct].some(s => String(s || '').toLowerCase().includes(q)));
+  const sb = shown.reduce((a,p) => a + p.v_base, 0), sc = shown.reduce((a,p) => a + p.v_cy, 0);
+  $('pfSummary').innerHTML = `${shown.length} partners · ${money(sb)} → ${money(sc)} ${gChip(sc, sb)}`;
+  const host = $('pfPartnerTable');
+  if (host._tab !== PF.tab) { host._sortKey = null; host._sortDir = null; host._tab = PF.tab; }
+  const defKey = { all:'v_cy', growing:'ch', declining:'chAbs', new:'v_cy', lost:'v_base' }[PF.tab];
+  shown.forEach(p => p.chAbs = -p.ch);
+  sortable(host, [
+    {k:'card', h:'Partner', f:r => `<b>${esc(r.card)}</b>`},
+    {k:'acct', h:'Account type', f:r => `<span class="muted">${esc(r.acct || '')}</span>`},
+    {k:'region', h:'Region', f:r => `<span class="muted">${esc(r.region || '')}</span>`},
+    {k:'v_base', h:fyLabel(base), f:r => money(r.v_base)},
+    {k:'v_cy', h:fyLabel(cy), f:r => money(r.v_cy)},
+    {k:'ch', h:'Change', f:r => `${r.ch >= 0 ? '+' : '−'}${money(Math.abs(r.ch))}`},
+    {k:'g_', h:'Growth', f:r => gChip(r.v_cy, r.v_base)},
+    {k:'sh', h:'Share of total', f:r => pct(r.sh, 2)},
+    {k:'nb', h:'Baskets', f:r => r.nb || '—'},
+    {k:'d', h:'Avg disc', f:r => pct(r.d)}
+  ], shown, defKey, r => `class="click" data-card="${esc(r.card)}"`);
+  host.onclick = e => { const tr = e.target.closest('tr[data-card]'); if (tr) openPerfPartner(tr.dataset.card); };
+  $('pfDlPartners').onclick = () => csv(safeName(`partners_performance_${PF.tab}_${S.doc}_${fyLabel(cy)}.csv`),
+    ['Partner', 'Account type', 'Region', fyLabel(base), fyLabel(cy), 'Change', 'Growth %', 'Share of total %', 'Baskets bought', 'Avg disc %'],
+    shown.map(r => [r.card, r.acct, r.region, r.v_base.toFixed(0), r.v_cy.toFixed(0), r.ch.toFixed(0), r.v_base ? ((r.v_cy/r.v_base - 1)*100).toFixed(1) : '', r.sh === null ? '' : (r.sh*100).toFixed(2), r.nb, r.d === null ? '' : (r.d*100).toFixed(1)]));
+}
+
+function renderPerfCharts(D, cy, base){
+  const M = {}; (D.monthly || []).forEach(r => { (M[r.fy] = M[r.fy] || {})[r.m] = n(r.v); });
+  const ms = S.months.length ? MONTHS.filter(m => S.months.includes(m)) : MONTHS;
+  const last = MONTHS.indexOf(new Date(D.meta.max_date || Date.now()).getMonth() + 1);
+  const shownMs = ms.filter(m => (M[cy]?.[m] || M[base]?.[m]) || MONTHS.indexOf(m) <= last);
+  const val = (fy, m) => M[fy]?.[m] ?? 0;
+  const ser = [{ fy:base, color:'var(--base)', label:fyLabel(base) }, { fy:cy, color:'var(--focus)', label:fyLabel(cy) }];
+  const leg = ser.slice().reverse().map(s => `<span><span class="swatch" style="background:${s.color}"></span>${s.label}</span>`).join('');
+  $('pfMonthLegend').innerHTML = leg; $('pfCumLegend').innerHTML = leg;
+  $('pfMonthSub').textContent = D.meta.base_cut ? `Last year's ${MNAME[new Date(D.meta.max_date).getMonth() + 1]} is cut at the same day for a like-for-like comparison` : 'Selected months only';
+  const W = 640, H = 280, L = 52, R = 14, T = 26, Bm = 28;
+  // bars
+  const vmax = niceMax(Math.max(1, ...shownMs.flatMap(m => [val(cy, m), val(base, m)])));
+  const y = v => T + (H - T - Bm) * (1 - v / vmax);
+  const bw = (W - L - R) / Math.max(shownMs.length, 1);
+  let svg = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let i = 0; i <= 4; i++) { const v = vmax * i / 4; svg += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10.5" fill="var(--t3)">${axisMoney(v)}</text>`; }
+  shownMs.forEach((m, i) => {
+    const x0 = L + i * bw, w = Math.min(22, bw * 0.36);
+    const vb = val(base, m), vc = val(cy, m);
+    svg += `<rect x="${x0 + bw/2 - w - 1}" y="${y(vb)}" width="${w}" height="${Math.max(0, H - Bm - y(vb))}" fill="var(--base)" rx="2"/>`;
+    svg += `<rect x="${x0 + bw/2 + 1}" y="${y(vc)}" width="${w}" height="${Math.max(0, H - Bm - y(vc))}" fill="var(--focus)" rx="2"/>`;
+    if (vc) { const g = growth(vc, vb); if (g !== null) svg += `<text x="${x0 + bw/2}" y="${Math.min(y(vc), y(vb)) - 6}" text-anchor="middle" font-size="10" font-weight="700" fill="${g >= 0 ? 'var(--good)' : 'var(--bad)'}">${g >= 0 ? '+' : ''}${(g*100).toFixed(0)}%</text>`; }
+    svg += `<text x="${x0 + bw/2}" y="${H - 9}" text-anchor="middle" font-size="11" fill="var(--t2)">${MNAME[m]}</text>`;
+    svg += `<rect class="hit" data-m="${m}" x="${x0}" y="${T}" width="${bw}" height="${H - T - Bm}" fill="transparent"/>`;
+  });
+  svg += '</svg>';
+  $('pfMonthChart').innerHTML = svg;
+  $('pfMonthChart').querySelectorAll('.hit').forEach(h => { const m = +h.dataset.m;
+    h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br>${fyLabel(cy)}: ${money(val(cy, m))}<br>${fyLabel(base)}: ${money(val(base, m))}<br>Growth: ${pct(growth(val(cy, m), val(base, m)))}`);
+    h.onmouseleave = hideTip; });
+  // cumulative
+  const cum = fy => { let s = 0; return shownMs.map(m => (s += val(fy, m))); };
+  const cc = cum(cy), cb = cum(base);
+  const lastIdx = shownMs.reduce((a, m, i) => (val(cy, m) ? i : a), -1);
+  const cmax = niceMax(Math.max(1, ...cb, ...cc));
+  const yc = v => T + (H - T - Bm) * (1 - v / cmax);
+  const xc = i => L + (shownMs.length <= 1 ? (W - L - R)/2 : i * (W - L - R) / (shownMs.length - 1));
+  let s2 = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let i = 0; i <= 4; i++) { const v = cmax * i / 4; s2 += `<line x1="${L}" x2="${W-R}" y1="${yc(v)}" y2="${yc(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${yc(v)+4}" text-anchor="end" font-size="10.5" fill="var(--t3)">${axisMoney(v)}</text>`; }
+  const path = (arr, upto) => arr.slice(0, upto + 1).map((v, i) => `${i ? 'L' : 'M'}${xc(i).toFixed(1)},${yc(v).toFixed(1)}`).join(' ');
+  s2 += `<path d="${path(cb, shownMs.length - 1)}" fill="none" stroke="var(--base)" stroke-width="2.5"/>`;
+  if (lastIdx >= 0) s2 += `<path d="${path(cc, lastIdx)}" fill="none" stroke="var(--focus)" stroke-width="3"/>`;
+  shownMs.forEach((m, i) => {
+    s2 += `<text x="${xc(i)}" y="${H - 9}" text-anchor="middle" font-size="11" fill="var(--t2)">${MNAME[m]}</text>`;
+    s2 += `<circle cx="${xc(i)}" cy="${yc(cb[i])}" r="3" fill="var(--base)"/>`;
+    if (i <= lastIdx) s2 += `<circle cx="${xc(i)}" cy="${yc(cc[i])}" r="3.5" fill="var(--focus)"/>`;
+    s2 += `<rect class="hit" data-i="${i}" x="${xc(i) - (W-L-R)/Math.max(shownMs.length,1)/2}" y="${T}" width="${(W-L-R)/Math.max(shownMs.length,1)}" height="${H-T-Bm}" fill="transparent"/>`;
+  });
+  if (lastIdx >= 0) { const g = growth(cc[lastIdx], cb[lastIdx]);
+    s2 += `<text x="${xc(lastIdx)}" y="${yc(cc[lastIdx]) - 10}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--focus)" stroke="#fff" stroke-width="3" paint-order="stroke">${money(cc[lastIdx])}${g !== null ? ` (${g >= 0 ? '+' : ''}${(g*100).toFixed(1)}%)` : ''}</text>`; }
+  s2 += '</svg>';
+  $('pfCumChart').innerHTML = s2;
+  $('pfCumChart').querySelectorAll('.hit').forEach(h => { const i = +h.dataset.i;
+    h.onmousemove = e => showTip(e, `<b>Apr – ${MNAME[shownMs[i]]}</b><br>${fyLabel(cy)}: ${i <= lastIdx ? money(cc[i]) : '—'}<br>${fyLabel(base)}: ${money(cb[i])}${i <= lastIdx ? `<br>Growth: ${pct(growth(cc[i], cb[i]))}` : ''}`);
+    h.onmouseleave = hideTip; });
+}
+
+async function openPerfPartner(card){
+  const { cy, base } = yearsCompared();
+  const p = (PF.data.partners || []).find(x => x.card === card) || {};
+  $('dTitle').textContent = card;
+  $('dSub').textContent = `${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} · ${esc(p.acct || '')} · ${esc(p.region || '')} · ${fyLabel(base)} vs ${fyLabel(cy)}`;
+  $('dBody').innerHTML = '<div class="empty">Loading…</div>'; $('drawer').classList.add('open');
+  try {
+    const mon = await rpc('cp_partner_monthly', { p_doc:S.doc, p_cy:cy, p_base:base, p_card:card, p_basket:S.basket, p_series:S.series, p_region:S.region, p_months:S.months });
+    const M = {}; mon.forEach(r => { const x = M[r.m] = M[r.m] || { c:0, b:0 }; x[r.fy === cy ? 'c' : 'b'] += n(r.v); });
+    const ms = MONTHS.filter(m => M[m]);
+    let rc = 0, rb = 0;
+    const rowsHtml = ms.map(m => { rc += M[m].c; rb += M[m].b;
+      return `<tr><td>${MNAME[m]}</td><td>${money(M[m].c)}</td><td class="muted">${money(M[m].b)}</td><td>${gChip(M[m].c, M[m].b)}</td><td>${money(rc)}</td><td class="muted">${money(rb)}</td><td>${gChip(rc, rb)}</td></tr>`; }).join('');
+    const monthHtml = `<div class="ptitle" style="margin-top:14px">Month by month (cumulative on the right)</div>
+      <table class="mtable"><thead><tr><th>Month</th><th>${fyLabel(cy)}</th><th>${fyLabel(base)}</th><th>Growth</th><th>Cum. ${fyLabel(cy)}</th><th>Cum. ${fyLabel(base)}</th><th>Cum. growth</th></tr></thead>
+      <tbody>${rowsHtml || '<tr><td colspan="7" class="muted">No data</td></tr>'}</tbody></table>`;
+    $('dBody').innerHTML = await basketBlock(card, S.region) + monthHtml;
+  } catch (e) { $('dBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
+}
+
 /* ---------------- wiring ---------------- */
+$('viewToggle').onclick = e => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); };
+$('pfTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; PF.tab = b.dataset.k;
+  document.querySelectorAll('#pfTabs button').forEach(x => x.classList.toggle('on', x === b)); if (PF.data) renderPerf(); };
+$('pfSearch').oninput = e => { PF.search = e.target.value; if (PF.data) renderPerf(); };
 $('docToggle').onclick = async e => { const b = e.target.closest('button'); if (!b || b.dataset.doc === S.doc) return;
   S.doc = b.dataset.doc; document.querySelectorAll('#docToggle button').forEach(x => x.classList.toggle('on', x === b));
   try { await loadOptions(); await load(); } catch (err) { showErr(err.message); } };
 $('pTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.pTab = b.dataset.k;
   document.querySelectorAll('#pTabs button').forEach(x => x.classList.toggle('on', x === b)); render(); };
 $('pSearch').oninput = e => { S.pSearch = e.target.value; render(); };
-$('resetBtn').onclick = () => { S.fy = (S.opts.fys||[]).slice(0,2); S.months = []; S.acct = []; S.region = []; S.basket = [...DEFAULT_FOCUS].filter(b => (S.opts.baskets||[]).includes(b)); S.series = [];
+$('resetBtn').onclick = () => { S.fy = (S.opts.fys||[]).slice(0,2); S.months = []; S.acct = []; S.region = []; S.basket = S.view === 'perf' ? [] : [...DEFAULT_FOCUS].filter(b => (S.opts.baskets||[]).includes(b)); S.series = [];
   Object.values(MS).forEach(m => m.render()); load(); };
 
-(async () => { try { await loadOptions(); await load(); } catch (e) { showErr(e.message); $('loading').classList.remove('on'); } })();
+(async () => { try { if (/[?&]view=perf/.test(location.search)) { VIEW_BASKET.cp = { basket:[...S.basket], series:[] }; S.view = 'perf'; S.basket = []; document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('on', b.dataset.v === 'perf')); $('cpView').style.display = 'none'; $('perfView').style.display = ''; $('basketLbl').textContent = 'Product basket (filter)'; $('pageTitle').textContent = 'Partners Performance'; }
+  await loadOptions(); await load(); } catch (e) { showErr(e.message); $('loading').classList.remove('on'); } })();
 </script>
 </body>
 </html>
