@@ -43,37 +43,35 @@ module.exports = async (req, res) => {
       // Fetches records by Created_Time ASC from FY_START (or since_created).
       // Paginate until we exhaust records or hit the deadline.
       // The caller can pass ?since_created=ISO to resume after a partial run.
-      const sinceCreated = req.query?.since_created || FY_START;
-
-      while (more && Date.now() < deadline) {
-        // Zoho COQL-style date range on Created_Time via search criteria
-        // We use the regular records API with Created_Time range filter
-        let url = `${ZOHO_API_DOMAIN}/crm/v8/Deals?fields=${POTENTIALS_FIELDS}&per_page=${PER_PAGE}&sort_by=Created_Time&sort_order=asc`;
-        // Use search criteria to filter by Created_Time >= sinceCreated
-        // Zoho supports: /Deals/search?criteria=(Created_Time:greater_equal:VALUE)
-        // For pagination after the first page we switch to page_token
-        if (!pageToken) {
-          url = `${ZOHO_API_DOMAIN}/crm/v8/Deals/search?criteria=(Created_Time:greater_equal:${encodeURIComponent(sinceCreated)})&fields=${POTENTIALS_FIELDS}&per_page=${PER_PAGE}&sort_by=Created_Time&sort_order=asc`;
-        } else {
-          url = `${ZOHO_API_DOMAIN}/crm/v8/Deals/search?criteria=(Created_Time:greater_equal:${encodeURIComponent(sinceCreated)})&fields=${POTENTIALS_FIELDS}&per_page=${PER_PAGE}&sort_by=Created_Time&sort_order=asc&page_token=${pageToken}`;
-        }
-
+      // Zoho's /search ignores page_token (it kept returning page 1, so 15,000 fetched = 200 deals).
+      // Walk forward by Created_Time instead: each call asks for the next 200 deals created at or after
+      // the last one seen. Repeats at the boundary are dropped by id.
+      let cursor = req.query?.since_created || FY_START;
+      const seen = new Set();
+      more = true;
+      while (Date.now() < deadline) {
+        const url = `${ZOHO_API_DOMAIN}/crm/v8/Deals/search?criteria=(Created_Time:greater_equal:${encodeURIComponent(cursor)})&fields=${POTENTIALS_FIELDS}&per_page=${PER_PAGE}&page=1&sort_by=Created_Time&sort_order=asc`;
         const r = await fetch(url, { headers: authHeader });
-        if (r.status === 204) break;
+        if (r.status === 204) { more = false; break; }
         if (!r.ok) {
           const t = await r.text();
           throw new Error(`Zoho fetch failed: ${r.status} ${t}`);
         }
         const data = await r.json();
         const pageRecords = data.data || [];
+        const fresh = pageRecords.filter(rec => !seen.has(rec.id));
+        fresh.forEach(rec => seen.add(rec.id));
+        records = records.concat(fresh);
+        if (pageRecords.length > 0) lastCreatedAt = pageRecords[pageRecords.length - 1].Created_Time;
 
-        records = records.concat(pageRecords);
-        if (pageRecords.length > 0) {
-          lastCreatedAt = pageRecords[pageRecords.length - 1].Created_Time;
+        if (!data.info?.more_records || pageRecords.length < PER_PAGE) { more = false; break; }
+        if (!fresh.length || lastCreatedAt === cursor) {
+          // a full page all with one Created_Time — step past it so we never loop forever
+          const t = new Date(new Date(cursor).getTime() + 1000 + 19800000); // +1 s, shown in IST
+          cursor = t.toISOString().substring(0, 19) + '+05:30';
+        } else {
+          cursor = lastCreatedAt;
         }
-
-        more = data.info?.more_records || false;
-        pageToken = data.info?.next_page_token || null;
       }
 
     } else {
