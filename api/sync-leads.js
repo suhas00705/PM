@@ -40,32 +40,34 @@ module.exports = async (req, res) => {
 
     if (mode === 'full') {
       // ── FULL FY SCAN ──────────────────────────────────────────────────────
-      const sinceCreated = req.query?.since_created || FY_START;
-
-      while (more && Date.now() < deadline) {
-        let url;
-        if (!pageToken) {
-          url = `${ZOHO_API_DOMAIN}/crm/v8/Leads/search?criteria=(Created_Time:greater_equal:${encodeURIComponent(sinceCreated)})&fields=${LEADS_FIELDS}&per_page=${PER_PAGE}&sort_by=Created_Time&sort_order=asc`;
-        } else {
-          url = `${ZOHO_API_DOMAIN}/crm/v8/Leads/search?criteria=(Created_Time:greater_equal:${encodeURIComponent(sinceCreated)})&fields=${LEADS_FIELDS}&per_page=${PER_PAGE}&sort_by=Created_Time&sort_order=asc&page_token=${pageToken}`;
-        }
-
+      // Zoho's /search ignores page_token (it kept returning page 1). Walk forward by Created_Time:
+      // each call asks for the next 200 leads created at or after the last one seen; repeats dropped by id.
+      let cursor = req.query?.since_created || FY_START;
+      const seen = new Set();
+      more = true;
+      while (Date.now() < deadline) {
+        const url = `${ZOHO_API_DOMAIN}/crm/v8/Leads/search?criteria=(Created_Time:greater_equal:${encodeURIComponent(cursor)})&fields=${LEADS_FIELDS}&per_page=${PER_PAGE}&page=1&sort_by=Created_Time&sort_order=asc`;
         const r = await fetch(url, { headers: authHeader });
-        if (r.status === 204) break;
+        if (r.status === 204) { more = false; break; }
         if (!r.ok) {
           const t = await r.text();
           throw new Error(`Zoho fetch failed: ${r.status} ${t}`);
         }
         const data = await r.json();
         const pageRecords = data.data || [];
+        const fresh = pageRecords.filter(rec => !seen.has(rec.id));
+        fresh.forEach(rec => seen.add(rec.id));
+        leads = leads.concat(fresh);
+        if (pageRecords.length > 0) lastCreatedAt = pageRecords[pageRecords.length - 1].Created_Time;
 
-        leads = leads.concat(pageRecords);
-        if (pageRecords.length > 0) {
-          lastCreatedAt = pageRecords[pageRecords.length - 1].Created_Time;
+        if (!data.info?.more_records || pageRecords.length < PER_PAGE) { more = false; break; }
+        if (!fresh.length || lastCreatedAt === cursor) {
+          // a full page with one Created_Time: step 1 s past it so we never loop forever
+          const t = new Date(new Date(cursor).getTime() + 1000 + 19800000);
+          cursor = t.toISOString().substring(0, 19) + '+05:30';
+        } else {
+          cursor = lastCreatedAt;
         }
-
-        more = data.info?.more_records || false;
-        pageToken = data.info?.next_page_token || null;
       }
 
     } else {
@@ -99,6 +101,8 @@ module.exports = async (req, res) => {
       }
     }
 
+    // never send the same lead twice in one upsert (Postgres rejects it)
+    leads = [...new Map(leads.filter(l => l && l.id).map(l => [String(l.id), l])).values()];
     const leadsWritten = await supabaseLeads.upsertLeads(leads);
 
     // Always refresh engineers list
