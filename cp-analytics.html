@@ -132,6 +132,7 @@
   .ptitle{font-size:12.5px;font-weight:700;color:var(--t1);margin-bottom:8px}
   .btable{background:#fff;border:1px solid var(--line);border-radius:8px;font-size:12.5px}
   .btable th{position:static}
+  tr.sub .btable td{white-space:nowrap}
   .psplit .card.tile .val{font-size:20px}
   .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
   .loading.on{display:flex}
@@ -280,7 +281,7 @@
 
   <div class="sec card">
     <div class="sec-h"><div><h2>Region view — growth vs last year</h2>
-      <div class="sub">Click a region to look at only that region.</div></div>
+      <div class="sub">Click a region for its partner breakup — basket mix, partner share and month-by-month growth.</div></div>
       <button class="btn" id="pfDlRegion">Download CSV</button></div>
     <div class="tbl-wrap" id="pfRegionTable"></div>
   </div>
@@ -318,6 +319,16 @@
         <button data-k="all" class="on">All partners</button><button data-k="shifted">Shifted away</button><button data-k="down">Focus dropped</button><button data-k="growing">Focus growing</button></div>
         <button class="btn" id="rmCsv">Download CSV</button><button class="x" id="rmClose">✕</button></div></div>
     <div class="mb" id="rmBody"></div>
+  </div>
+</div>
+<div class="modal-bg" id="pfRegionModal">
+  <div class="modal">
+    <div class="mh"><div><h2 id="prTitle"></h2><div class="sub" id="prSub"></div></div>
+      <div class="tools"><div class="tabs" id="prTabs">
+        <button data-k="all" class="on">All</button><button data-k="growing">Growing</button><button data-k="declining">Declining</button><button data-k="new">New this year</button><button data-k="lost">Stopped buying</button></div>
+        <button class="btn" id="prFilter" title="Filter the whole dashboard to this region">Filter dashboard</button>
+        <button class="btn" id="prCsv">Download CSV</button><button class="x" id="prClose">✕</button></div></div>
+    <div class="mb" id="prBody"></div>
   </div>
 </div>
 <div class="tip" id="tip"></div>
@@ -425,7 +436,7 @@ async function loadOptions(){
   multiSelect($('f-acct'), 'acct', () => (S.opts.account_types||[]).map(a => ({value:a, label:a})), 'All account types',
     [{label:'Channel Partners only', pick:it => it.filter(i => /^Channel Partner/.test(i.value)).map(i=>i.value)},
      {label:'Direct only', pick:it => it.filter(i => !/^Channel Partner/.test(i.value)).map(i=>i.value)}]);
-  multiSelect($('f-region'), 'region', () => (S.opts.regions||[]).map(r => ({value:r, label:r})), 'All regions');
+  multiSelect($('f-region'), 'region', () => (S.view === 'perf' ? uniqRegions(S.opts.regions) : (S.opts.regions||[])).map(r => ({value:r, label:r})), 'All regions');
   multiSelect($('f-basket'), 'basket', () => (S.opts.baskets||[]).map(b => ({value:b, label:b})), () => S.view === 'perf' ? 'All baskets' : 'Choose basket(s)');
   multiSelect($('f-series'), 'series', seriesItems, 'All series in basket');
   const ls = S.opts.last_sync;
@@ -1034,7 +1045,8 @@ function setView(v){
   $('pageSub').textContent = v === 'cp'
     ? 'What channel partners buy, how their basket mix is shifting, and the discounts they get — value = DocTotalFC'
     : 'Overall growth of every partner and account type, this year vs last year — value = DocTotalFC';
-  MS.basket?.render(); MS.series?.render();
+  if (v === 'perf') { const keys = new Set(uniqRegions(S.region)); S.region = S.region.filter(r => keys.has(r)); }
+  MS.basket?.render(); MS.series?.render(); MS.region?.render();
   load();
 }
 
@@ -1133,7 +1145,7 @@ function renderPerf(){
   ], B, 'cy');
   // regions
   sortable($('pfRegionTable'), [
-    {k:'name', h:'U-Region', f:r => `<span class="clickable" data-region="${esc(r.name)}" title="Show only this region">${esc(r.name)} ›</span>`},
+    {k:'name', h:'U-Region', f:r => `<span class="clickable" data-region="${esc(r.name)}" title="Open the partner breakup for this region">${esc(r.name)} ›</span>`},
     {k:'b',  h:fyLabel(base), f:r => money(r.b)},
     {k:'cy', h:fyLabel(cy), f:r => money(r.cy)},
     {k:'ch', h:'Change', f:r => `${r.ch >= 0 ? '+' : '−'}${money(Math.abs(r.ch))}`},
@@ -1144,7 +1156,7 @@ function renderPerf(){
     {k:'dCy', h:'Avg disc', f:r => `${pct(r.dCy)} <span class="muted">(${pct(r.dB)})</span>`}
   ], R, 'cy', null, null,
     `<tr><td>All regions</td><td>${money(vB)}</td><td>${money(vC)}</td><td>${vC >= vB ? '+' : '−'}${money(Math.abs(vC - vB))}</td><td>${gChip(vC, vB)}</td><td>100%</td><td>${nC} <span class="muted">(${nB})</span></td><td>${money(nC ? vC/nC : 0)}</td><td>${pct(dC)} <span class="muted">(${pct(dB)})</span></td></tr>`);
-  $('pfRegionTable').onclick = e => { const el = e.target.closest('[data-region]'); if (!el) return; S.region = [el.dataset.region]; MS.region?.render(); load(); };
+  $('pfRegionTable').onclick = e => { const el = e.target.closest('[data-region]'); if (el) openPerfRegion(el.dataset.region); };
 
   const csvRows = list => list.map(r => [r.name, r.b.toFixed(0), r.cy.toFixed(0), r.ch.toFixed(0), r.b ? ((r.cy/r.b - 1)*100).toFixed(1) : '', r.shCy === null ? '' : (r.shCy*100).toFixed(2), r.shB === null ? '' : (r.shB*100).toFixed(2), r.nb, r.nc, r.dCy === null ? '' : (r.dCy*100).toFixed(1), r.dB === null ? '' : (r.dB*100).toFixed(1)]);
   const csvHead = first => [first, fyLabel(base), fyLabel(cy), 'Change', 'Growth %', `Share ${fyLabel(cy)} %`, `Share ${fyLabel(base)} %`, `Accounts ${fyLabel(base)}`, `Accounts ${fyLabel(cy)}`, `Avg disc ${fyLabel(cy)} %`, `Avg disc ${fyLabel(base)} %`];
@@ -1159,12 +1171,16 @@ function renderPerfPartners(P, vC, cy, base){
   const rows = P.map(p => ({ ...p, ch:p.v_cy - p.v_base, g_:growth(p.v_cy, p.v_base) ?? 9e9, sh:vC ? p.v_cy/vC : null, d:disc(p.lt, p.g), nb:n(p.nb) }));
   const tabs = { all:() => true, growing:p => p.ch > 0 && p.v_base > 0, declining:p => p.ch < 0 && p.v_cy > 0,
                  new:p => p.v_cy > 0 && p.v_base <= 0, lost:p => p.v_base > 0 && p.v_cy <= 0 };
-  document.querySelectorAll('#pfTabs button').forEach(b => { const c = rows.filter(tabs[b.dataset.k]).length;
+  const q = PF.search.trim().toLowerCase();
+  const matched = rows.filter(p => !q || [p.card, p.region, p.acct].some(s => String(s || '').toLowerCase().includes(q)));
+  // tab counts follow the search box, so the numbers always match what the list shows
+  document.querySelectorAll('#pfTabs button').forEach(b => { const c = matched.filter(tabs[b.dataset.k]).length;
     b.textContent = b.textContent.replace(/\s*\(\d+\)$/, '') + ` (${c})`; });
-  const q = PF.search.toLowerCase();
-  const shown = rows.filter(tabs[PF.tab]).filter(p => !q || [p.card, p.region, p.acct].some(s => String(s || '').toLowerCase().includes(q)));
+  const shown = matched.filter(tabs[PF.tab]);
   const sb = shown.reduce((a,p) => a + p.v_base, 0), sc = shown.reduce((a,p) => a + p.v_cy, 0);
-  $('pfSummary').innerHTML = `${shown.length} partners · ${money(sb)} → ${money(sc)} ${gChip(sc, sb)}`;
+  $('pfSummary').innerHTML = `${shown.length} partners · ${money(sb)} → ${money(sc)} ${gChip(sc, sb)}` +
+    (q ? ` · <b>search “${esc(PF.search.trim())}”</b> <button class="reset" id="pfClear" style="padding:0 4px">✕ clear search</button>` : '');
+  if (q) $('pfClear').onclick = () => { PF.search = ''; $('pfSearch').value = ''; renderPerf(); };
   const host = $('pfPartnerTable');
   if (host._tab !== PF.tab) { host._sortKey = null; host._sortDir = null; host._tab = PF.tab; }
   const defKey = { all:'v_cy', growing:'ch', declining:'chAbs', new:'v_cy', lost:'v_base' }[PF.tab];
@@ -1265,7 +1281,113 @@ async function openPerfPartner(card){
   } catch (e) { $('dBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
 }
 
+
+/* ---------- Partners Performance: region pop-up ---------- */
+const PR = { region:null, raw:null, rows:[], tab:'all', open:new Set() };
+function uniqRegions(list){   // one entry per region, whatever its case / spacing
+  const seen = new Map();
+  (list || []).forEach(r => { const k = String(r).trim().replace(/\s+/g,' ').toUpperCase(); if (!seen.has(k)) seen.set(k, r); });
+  return [...seen.values()];
+}
+async function openPerfRegion(region){
+  const { cy, base } = yearsCompared();
+  PR.region = region; PR.open = new Set(); PR.tab = 'all';
+  document.querySelectorAll('#prTabs button').forEach(b => b.classList.toggle('on', b.dataset.k === 'all'));
+  $('prTitle').textContent = `${region} — partners`;
+  $('prSub').textContent = `${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} · ${S.acct.length ? S.acct.join(', ') : 'all account types'} · ${S.basket.length ? S.basket.join(', ') : 'all baskets'} · ${fyLabel(base)} vs ${fyLabel(cy)}`;
+  $('prBody').innerHTML = '<div class="empty">Loading…</div>';
+  $('pfRegionModal').classList.add('open');
+  try {
+    PR.raw = await rpc('cp_perf_region', { p_doc:S.doc, p_cy:cy, p_base:base, p_region:region, p_acct:S.acct, p_basket:S.basket, p_series:S.series, p_months:S.months });
+    const m = {};
+    (PR.raw.rows || []).forEach(r => { const p = m[r.card] = m[r.card] || { card:r.card, acct:r.acct, c:0, b:0, months:{} };
+      const cur = r.fy === cy; p[cur ? 'c' : 'b'] += n(r.v);
+      const mm = p.months[r.m] = p.months[r.m] || { c:0, b:0 }; mm[cur ? 'c' : 'b'] += n(r.v); });
+    PR.rows = Object.values(m).map(p => ({ ...p, ch:p.c - p.b, g_:growth(p.c, p.b) ?? 9e9 }));
+    drawPerfRegion();
+  } catch (e) { $('prBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}</div>`; }
+}
+function prBasketTable(pb, title){
+  const { cy } = yearsCompared();
+  const m = {};
+  pb.forEach(r => { const x = m[r.basket] = m[r.basket] || { basket:r.basket, c:0, b:0, lc:0, gc:0, lb:0, gb:0 };
+    if (r.fy === cy) { x.c += n(r.v); x.lc += n(r.lt); x.gc += n(r.g); } else { x.b += n(r.v); x.lb += n(r.lt); x.gb += n(r.g); } });
+  const list = Object.values(m).sort((a,b) => b.c - a.c);
+  const tc = list.reduce((a,r) => a + r.c, 0), tb = list.reduce((a,r) => a + r.b, 0);
+  const max = Math.max(1, ...list.map(r => Math.max(r.c, r.b)));
+  return `<div class="ptitle">${title}</div>
+    <table class="btable"><thead><tr><th style="text-align:left">Basket</th><th>Value</th><th>Growth</th><th>Mix</th><th>Avg disc</th></tr></thead><tbody>${list.map(r => `
+      <tr><td style="text-align:left">${esc(r.basket)}<div style="margin-top:4px"><span class="bar" style="width:${Math.round(110*r.c/max)}px"></span><br><span class="bar b" style="width:${Math.round(110*r.b/max)}px"></span></div></td>
+      <td>${money(r.c)}<br><span class="muted">${money(r.b)}</span></td><td>${gChip(r.c, r.b)}</td>
+      <td>${pct(tc ? r.c/tc : null)}<br><span class="muted">${pct(tb ? r.b/tb : null)}</span></td>
+      <td>${NOISY_DISC.has(r.basket) ? '<span class="muted" title="List price is a placeholder">n/a</span>' : `${pct(disc(r.lc, r.gc))}<br><span class="muted">${pct(disc(r.lb, r.gb))}</span>`}</td></tr>`).join('')}
+      <tr style="font-weight:700;background:#f4f6fa"><td style="text-align:left">Total</td><td>${money(tc)}<br><span class="muted">${money(tb)}</span></td><td>${gChip(tc, tb)}</td><td>100%</td><td></td></tr></tbody></table>`;
+}
+function prMonthTable(p, cy, base){
+  const ms = MONTHS.filter(m => p.months[m]);
+  if (!ms.length) return '<span class="muted">No monthly data</span>';
+  let rc = 0, rb = 0;
+  return `<table class="mtable"><thead><tr><th>Month</th><th>${fyLabel(cy)}</th><th>${fyLabel(base)}</th><th>Growth</th><th>Cum. ${fyLabel(cy)}</th><th>Cum. ${fyLabel(base)}</th><th>Cum. growth</th></tr></thead><tbody>${
+    ms.map(m => { const x = p.months[m]; rc += x.c; rb += x.b;
+      return `<tr><td>${MNAME[m]}</td><td>${money(x.c)}</td><td class="muted">${money(x.b)}</td><td>${gChip(x.c, x.b)}</td><td>${money(rc)}</td><td class="muted">${money(rb)}</td><td>${gChip(rc, rb)}</td></tr>`; }).join('')}</tbody></table>`;
+}
+function drawPerfRegion(){
+  const { cy, base } = yearsCompared();
+  const tabs = { all:() => true, growing:p => p.ch > 0 && p.b > 0, declining:p => p.ch < 0 && p.c > 0, new:p => p.c > 0 && p.b <= 0, lost:p => p.b > 0 && p.c <= 0 };
+  document.querySelectorAll('#prTabs button').forEach(b => { b.textContent = b.textContent.replace(/\s*\(\d+\)$/, '') + ` (${PR.rows.filter(tabs[b.dataset.k]).length})`; });
+  const rows = PR.rows.filter(tabs[PR.tab]);
+  const allC = PR.rows.reduce((a,p) => a + p.c, 0), allB = PR.rows.reduce((a,p) => a + p.b, 0);
+  const tC = rows.reduce((a,p) => a + p.c, 0), tB = rows.reduce((a,p) => a + p.b, 0);
+  const nNew = PR.rows.filter(tabs.new), nLost = PR.rows.filter(tabs.lost);
+  const head = `<div class="grid g4" style="margin-bottom:12px">
+    <div class="card tile"><div class="lbl">Accounts buying</div><div class="val">${PR.rows.filter(p => p.c > 0).length}</div><div class="row">was ${PR.rows.filter(p => p.b > 0).length} in ${fyLabel(base)}</div></div>
+    <div class="card tile"><div class="lbl">Region total</div><div class="val">${money(allC)}</div><div class="row">${gChip(allC, allB)} vs ${money(allB)}</div></div>
+    <div class="card tile"><div class="lbl">New this year</div><div class="val">${nNew.length}</div><div class="row">worth ${money(nNew.reduce((a,p) => a + p.c, 0))}</div></div>
+    <div class="card tile"><div class="lbl">Stopped buying</div><div class="val">${nLost.length}</div><div class="row">was ${money(nLost.reduce((a,p) => a + p.b, 0))} last year</div></div></div>`;
+  const basketHtml = `<div class="card" style="margin-bottom:14px">${prBasketTable(PR.raw.pb || [], `${esc(PR.region)} — product basket breakdown (all accounts shown)`)}</div>`;
+  const D2 = donutsHtml(rows.map(p => ({ card:p.card, f_cy:p.c, f_b:p.b })), cy, base, `${PR.region}`);
+  $('prBody').innerHTML = head + basketHtml + D2.html +
+    `<div class="ptitle" style="margin:14px 0 8px">Partners in ${esc(PR.region)} — ${rows.length} shown · ${money(tB)} → ${money(tC)} ${gChip(tC, tB)} · click › for month-by-month and basket breakdown</div>`;
+  $('prBody').querySelectorAll('.donut').forEach(el => { const key = el.dataset.fy, tot = key === 'c' ? D2.tc : D2.tb;
+    el.querySelectorAll('[data-k]').forEach(seg => { const p = D2.parts.find(x => x.name === seg.dataset.k);
+      seg.onmousemove = e => showTip(e, `<b>${esc(p.name)}</b><br>${money(p[key])} · ${pct(tot ? p[key]/tot : null)} of region`); seg.onmouseleave = hideTip; }); });
+  const host = document.createElement('div'); host.className = 'tbl-wrap rmt'; host.style.maxHeight = 'none'; $('prBody').appendChild(host);
+  rows.forEach(r => { r.chn = -r.ch; r.sh = allC ? r.c/allC : null; });
+  const cols = [
+    {k:'_x', h:'', f:r => `<button class="exp ${PR.open.has(r.card) ? 'on' : ''}" data-exp="${esc(r.card)}" title="Month-by-month + basket breakdown">${PR.open.has(r.card) ? '⌄' : '›'}</button>`},
+    {k:'card', h:'Partner', f:r => `<b>${esc(r.card)}</b>`},
+    {k:'acct', h:'Account type', f:r => `<span class="muted">${esc(r.acct || '')}</span>`},
+    {k:'b',  h:fyLabel(base), f:r => money(r.b)},
+    {k:'c',  h:fyLabel(cy), f:r => money(r.c)},
+    {k:'ch', h:'Change', f:r => `${r.ch >= 0 ? '+' : '−'}${money(Math.abs(r.ch))}`},
+    {k:'g_', h:'Growth', f:r => gChip(r.c, r.b)},
+    {k:'sh', h:'Share of region', f:r => pct(r.sh)}
+  ];
+  const redrawSubs = () => {
+    host.querySelectorAll('tbody tr[data-card]').forEach(tr => {
+      const card = tr.dataset.card; if (!PR.open.has(card)) return;
+      const p = PR.rows.find(x => x.card === card); if (!p) return;
+      const sub = document.createElement('tr'); sub.className = 'sub';
+      sub.innerHTML = `<td colspan="${cols.length}"><div class="psplit">
+        <div>${prBasketTable((PR.raw.pb || []).filter(x => x.card === card), `${esc(card)} — product basket breakdown (${esc(PR.region)})`)}</div>
+        <div><div class="ptitle">Month by month — ${fyLabel(cy)} vs ${fyLabel(base)}</div>${prMonthTable(p, cy, base)}</div></div></td>`;
+      tr.after(sub); });
+  };
+  const draw = sortable(host, cols, rows, { all:'c', growing:'ch', declining:'chn', new:'c', lost:'b' }[PR.tab], r => `data-card="${esc(r.card)}"`, redrawSubs);
+  host.onclick = e => { const b = e.target.closest('[data-exp]'); if (!b) return; const c = b.dataset.exp; PR.open.has(c) ? PR.open.delete(c) : PR.open.add(c); draw(); };
+  $('prFilter').onclick = () => { $('pfRegionModal').classList.remove('open'); S.region = [PR.region]; MS.region?.render(); load(); };
+  $('prCsv').onclick = () => csv(safeName(`${PR.region}_partners_performance_${S.doc}_${fyLabel(cy)}.csv`),
+    ['Partner', 'Account type', fyLabel(base), fyLabel(cy), 'Change', 'Growth %', 'Share of region %', ...MONTHS.flatMap(m => [`${MNAME[m]} ${fyLabel(cy)}`, `${MNAME[m]} ${fyLabel(base)}`])],
+    rows.map(r => [r.card, r.acct, r.b.toFixed(0), r.c.toFixed(0), r.ch.toFixed(0), r.b ? ((r.c/r.b - 1)*100).toFixed(1) : '', r.sh === null ? '' : (r.sh*100).toFixed(1),
+      ...MONTHS.flatMap(m => [n(r.months[m]?.c).toFixed(0), n(r.months[m]?.b).toFixed(0)])]));
+}
+
 /* ---------------- wiring ---------------- */
+$('prClose').onclick = () => $('pfRegionModal').classList.remove('open');
+$('pfRegionModal').onclick = e => { if (e.target.id === 'pfRegionModal') $('pfRegionModal').classList.remove('open'); };
+$('prTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; PR.tab = b.dataset.k;
+  document.querySelectorAll('#prTabs button').forEach(x => x.classList.toggle('on', x === b)); drawPerfRegion(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('pfRegionModal').classList.remove('open'); });
 $('viewToggle').onclick = e => { const b = e.target.closest('button'); if (b) setView(b.dataset.v); };
 $('pfTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; PF.tab = b.dataset.k;
   document.querySelectorAll('#pfTabs button').forEach(x => x.classList.toggle('on', x === b)); if (PF.data) renderPerf(); };
