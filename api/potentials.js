@@ -8,6 +8,7 @@
 // ...without needing separate api/*.js functions (Vercel Hobby plan caps at
 // 12 serverless functions).
 const supabasePotentials = require('../lib/supabasePotentials');
+const { sendJson } = require('../lib/gzipJson');
 
 const N8N_BUILDER_PROJECTS_ENDPOINT = 'https://suhas00705.app.n8n.cloud/webhook/bangalore-builder-projects';
 const N8N_JARVIS_ASK_ENDPOINT = 'https://suhas00705.app.n8n.cloud/webhook/jarvis-ask';
@@ -137,7 +138,7 @@ module.exports = async (req, res) => {
       : [];
 
     const potentials = await supabasePotentials.getCachedPotentials(allowedRegions);
-    res.status(200).json({ potentials, count: potentials.length });
+    return sendJson(req, res, 200, { potentials, count: potentials.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

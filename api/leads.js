@@ -4,6 +4,7 @@
 // (leads, pipeline, OB & invoice) without needing a separate api/performance.js
 // function (Vercel Hobby plan caps at 12 serverless functions).
 const supabaseLeads = require('../lib/supabaseLeads');
+const { sendJson } = require('../lib/gzipJson');
 
 // ── Performance mode helpers ──────────────────────────────────────────────────
 
@@ -476,7 +477,7 @@ module.exports = async (req, res) => {
       engineers = engResult.value;
     }
     // engineers failure is non-fatal — return leads with empty engineers list
-    res.status(200).json({ leads, count: leads.length, engineers });
+    return sendJson(req, res, 200, { leads, count: leads.length, engineers });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

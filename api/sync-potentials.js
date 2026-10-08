@@ -124,12 +124,36 @@ module.exports = async (req, res) => {
 
     const written = await supabasePotentials.upsertPotentials(records);
 
+    // Deals deleted in Zoho in the last N days (default 7) -> remove from the cache. Never fails the sync.
+    let deletedRemoved = 0, deleteError;
+    try {
+      const days = parseInt(req.query?.deleted_days || '7', 10);
+      const since = Date.now() - days * 86400000;
+      const ids = [];
+      for (let p = 1; p <= 10 && Date.now() < deadline + 3000; p++) {
+        const r = await fetch(`${ZOHO_API_DOMAIN}/crm/v8/Deals/deleted?type=all&per_page=200&page=${p}`, { headers: authHeader });
+        if (r.status === 204) break;
+        if (!r.ok) throw new Error(`Zoho deleted list ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        const data = await r.json();
+        const list = data.data || [];
+        let older = false;
+        list.forEach(x => {
+          if (x.deleted_time && new Date(x.deleted_time).getTime() < since) older = true;
+          else if (x.id) ids.push(String(x.id));
+        });
+        if (older || !data.info?.more_records) break;
+      }
+      if (ids.length) deletedRemoved = await supabasePotentials.deletePotentials(ids);
+    } catch (e) { deleteError = e.message; }
+
     const response = {
       synced: written,
       totalFetched: records.length,
       syncedAt: new Date().toISOString(),
       mode,
+      deletedRemoved,
     };
+    if (deleteError) response.deleteError = deleteError;
 
     if (mode === 'incremental') {
       response.windowHours = parseInt(req.query?.window || '48', 10);
