@@ -10,6 +10,33 @@ const LEADS_FIELDS = [
 // FY2025-26 starts April 1, 2025 (IST)
 const FY_START = '2025-04-01T00:00:00+05:30';
 
+// Zoho COQL (same call lib/salesSync.js uses). /search ignores both page_token and sort order,
+// so a full scan through it silently skipped most records; COQL sorts properly (2,000 rows per call).
+async function coql(token, query) {
+  const api = process.env.ZOHO_API_DOMAIN || 'https://www.zohoapis.com';
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const res = await fetch(`${api}/crm/v8/coql`, {
+      method: 'POST',
+      headers: { Authorization: `Zoho-oauthtoken ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ select_query: query })
+    });
+    if (res.status === 204) return { data: [], more: false };
+    const body = await res.json().catch(() => ({}));
+    if (res.ok) return { data: body.data || [], more: !!body.info?.more_records };
+    if (attempt === 3 || (res.status < 500 && res.status !== 429)) {
+      throw new Error(`Zoho COQL ${res.status}: ${JSON.stringify(body).slice(0, 400)}`);
+    }
+    await new Promise(r => setTimeout(r, 1500 * attempt));
+  }
+}
+function ownerName(r) {
+  return [r['Owner.first_name'], r['Owner.last_name']].filter(Boolean).join(' ') || null;
+}
+function nextSecond(ts) {
+  const t = new Date(new Date(ts).getTime() + 1000 + 19800000);
+  return t.toISOString().substring(0, 19) + '+05:30';
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   try {
@@ -40,34 +67,19 @@ module.exports = async (req, res) => {
 
     if (mode === 'full') {
       // ── FULL FY SCAN ──────────────────────────────────────────────────────
-      // Zoho's /search ignores page_token (it kept returning page 1). Walk forward by Created_Time:
-      // each call asks for the next 200 leads created at or after the last one seen; repeats dropped by id.
+      // COQL, ordered by Created_Time, walking forward with a cursor (2,000 rows per call).
       let cursor = req.query?.since_created || FY_START;
       const seen = new Set();
       more = true;
       while (Date.now() < deadline) {
-        const url = `${ZOHO_API_DOMAIN}/crm/v8/Leads/search?criteria=(Created_Time:greater_equal:${encodeURIComponent(cursor)})&fields=${LEADS_FIELDS}&per_page=${PER_PAGE}&page=1&sort_by=Created_Time&sort_order=asc`;
-        const r = await fetch(url, { headers: authHeader });
-        if (r.status === 204) { more = false; break; }
-        if (!r.ok) {
-          const t = await r.text();
-          throw new Error(`Zoho fetch failed: ${r.status} ${t}`);
-        }
-        const data = await r.json();
-        const pageRecords = data.data || [];
-        const fresh = pageRecords.filter(rec => !seen.has(rec.id));
+        const q = `select id, Full_Name, Company, Account_Name, Owner.first_name, Owner.last_name, Lead_Status, Order_Value, Product_Solution_Type_Multi_Select, Region, Created_Time from Leads where (Created_Time >= '${FY_START}') and Created_Time >= '${cursor}' order by Created_Time asc limit 2000`;
+        const { data, more: zMore } = await coql(accessToken, q);
+        const fresh = data.filter(rec => !seen.has(rec.id));
         fresh.forEach(rec => seen.add(rec.id));
-        leads = leads.concat(fresh);
-        if (pageRecords.length > 0) lastCreatedAt = pageRecords[pageRecords.length - 1].Created_Time;
-
-        if (!data.info?.more_records || pageRecords.length < PER_PAGE) { more = false; break; }
-        if (!fresh.length || lastCreatedAt === cursor) {
-          // a full page with one Created_Time: step 1 s past it so we never loop forever
-          const t = new Date(new Date(cursor).getTime() + 1000 + 19800000);
-          cursor = t.toISOString().substring(0, 19) + '+05:30';
-        } else {
-          cursor = lastCreatedAt;
-        }
+        leads = leads.concat(fresh.map(r => ({ id: r.id, Full_Name: r.Full_Name, Company: r.Company, Account_Name: r.Account_Name, Owner: { name: ownerName(r) }, Lead_Status: r.Lead_Status, Order_Value: r.Order_Value, Region: r.Region, Product_Solution_Type_Multi_Select: r.Product_Solution_Type_Multi_Select || [], Created_Time: r.Created_Time })));
+        if (data.length) lastCreatedAt = data[data.length - 1].Created_Time;
+        if (!zMore || data.length < 2000) { more = false; break; }
+        cursor = (!fresh.length || lastCreatedAt === cursor) ? nextSecond(cursor) : lastCreatedAt;
       }
 
     } else {
