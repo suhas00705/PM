@@ -1,53 +1,6 @@
--- OEM accounts: every OB & Invoice line of these accounts is counted under the OEM product basket
--- (OEM Tracking tab, OEM row of PM Cumulative Tracking, and taken out of their original basket in the
--- PM Cumulative Tracking table, Growth and Product-series charts). Channel Partner tab is not changed.
--- Accounts in pm_oem_excluded (8-Oct) stay excluded from OEM.
--- To add an account later (all baskets):
---   insert into pm_oem_accounts values (public.pm_key('Account Name'), 'Account Name');
--- Only some baskets:
---   insert into pm_oem_accounts values (public.pm_key('Account Name'), 'Account Name', array['Panel Meters']);
-create table if not exists public.pm_oem_excluded (card_key text primary key, card_name text);
-create table if not exists public.pm_oem_accounts (card_key text primary key, card_name text);
-grant select on public.pm_oem_accounts to anon, authenticated;
+-- Govt Projects rule for Prepaid/Smart (9-Oct-2026): a line is Govt if the account type is 'Govt Projects'
+-- OR its region is 'GOVT PROJECTS' (any engineer / SE region). Re-defines the 3 PM Cumulative Tracking functions. Safe to re-run.
 
-create or replace function public.pm_key(t text) returns text
-language sql immutable as $$ select upper(regexp_replace(coalesce(t,''), '[^A-Za-z0-9]', '', 'g')) $$;
-
-insert into public.pm_oem_accounts values
-  (public.pm_key('SAI ADVANCED POWER SOLUTIONS, INC'), 'SAI ADVANCED POWER SOLUTIONS, INC'),
-  (public.pm_key('GREATWHITE GLOBAL PVT LTD'),         'GREATWHITE GLOBAL PVT LTD')
-on conflict do nothing;
-
--- only_baskets: when set, only those product baskets of the account move to OEM; its other baskets stay as they are.
-alter table public.pm_oem_accounts add column if not exists only_baskets text[];
-update public.pm_oem_accounts set only_baskets = array['Panel Meters','High End MFM','Nano VIP','Power Quality']
- where card_key = public.pm_key('SAI ADVANCED POWER SOLUTIONS, INC');
-
--- Override keys, by exact card_name spelling in the data:
---   'OEM'   ov_key = card_name               -> all lines of the account count as OEM
---   'OEM_B' ov_key = card_name|basket        -> only lines of that basket count as OEM
---   'EXCL'  ov_key = card_name               -> the account's OEM-basket lines are left out
-drop view if exists public.pm_card_override;
-create view public.pm_card_override as
-  with names as (select distinct card_name from public.sales_lines where card_name is not null)
-  select n.card_name as ov_card, 'OEM' as ov_mode, n.card_name as ov_key
-    from names n join public.pm_oem_accounts a on a.card_key = public.pm_key(n.card_name)
-   where a.only_baskets is null
-  union all
-  select n.card_name, 'OEM_B', n.card_name || '|' || b
-    from names n join public.pm_oem_accounts a on a.card_key = public.pm_key(n.card_name)
-         cross join unnest(a.only_baskets) b
-   where a.only_baskets is not null
-  union all
-  select n.card_name, 'EXCL', n.card_name
-    from names n join public.pm_oem_excluded e on e.card_key = public.pm_key(n.card_name);
-grant select on public.pm_card_override to anon, authenticated;
-
-grant execute on function public.pm_key(text) to anon, authenticated;
-
--- PM Cumulative Tracking: OB + Invoice value (DocTotalFC) by product basket and month for one FY.
--- Mapping basket -> product family (Panel Meters, ACCL, ATES …) is done in pm-tracking.html,
--- so it can be changed without touching SQL. Govt Projects are flagged so Prepaid/Smart can exclude them.
 create or replace function public.pm_tracking(p_fy int)
 returns jsonb language sql stable as $$
   select jsonb_build_object(
@@ -72,50 +25,6 @@ returns jsonb language sql stable as $$
 $$;
 grant execute on function public.pm_tracking(int) to anon, authenticated;
 
-
--- OEM tracking: OEM product basket lines (plus accounts in pm_oem_accounts, minus pm_oem_excluded), chosen FY vs the FY before, by month, product series, model (cat code) and customer.
--- Value = DocTotalFC, Qty = quantity. Last year's copy of the latest (still running) month is cut at the same day.
--- 'items' gives each cat code its model and description (most common spelling).
-create or replace function public.pm_oem(p_cy int)
-returns jsonb language plpgsql stable as $$
-declare v_max date; v_cut date; v_res jsonb;
-begin
-  select max(posting_date) into v_max from sales_lines where fy_start = p_cy;
-  v_cut := case when v_max is null then null else (v_max - interval '1 year')::date end;
-  select jsonb_build_object(
-    'cy', p_cy, 'base', p_cy - 1, 'max_date', v_max, 'base_cut', v_cut,
-    'fys', (select coalesce(jsonb_agg(f order by f desc), '[]') from (select distinct fy_start as f from sales_lines) x),
-    'last_sync', (select jsonb_build_object('at', finished_at, 'status', status) from sales_sync_log order by id desc limit 1),
-    'items', (select coalesce(jsonb_object_agg(k, jsonb_build_object('m', m, 'n', n)), '{}') from (
-      select coalesce(cat_code, '(no cat code)') as k,
-             mode() within group (order by nullif(trim(model_id), '')) as m,
-             mode() within group (order by nullif(trim(description), '')) as n
-      from sales_lines s
-      where s.fy_start in (p_cy, p_cy - 1) and (case when s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM')) or s.card_name || '|' || coalesce(s.product_basket,'') = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM_B')) then 'OEM' when coalesce(s.product_basket,'') = 'OEM' and s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'EXCL')) then null else coalesce(s.product_basket, '(blank)') end) = 'OEM' group by 1) i),
-    'rows', (select coalesce(jsonb_agg(x), '[]') from (
-      select doc_type as d, fy_start as fy, fy_month as m,
-             coalesce(product_series, '(blank)') as s,
-             coalesce(cat_code, '(no cat code)') as k,
-             coalesce(card_name, '(blank)') as c,
-             coalesce(account_type, '(blank)') as a,
-             round(sum(coalesce(doc_total_fc, 0)), 2) as v,
-             round(sum(coalesce(quantity, 0)), 2) as q
-      from sales_lines s
-      where fy_start in (p_cy, p_cy - 1)
-        and (case when s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM')) or s.card_name || '|' || coalesce(s.product_basket,'') = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM_B')) then 'OEM' when coalesce(s.product_basket,'') = 'OEM' and s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'EXCL')) then null else coalesce(s.product_basket, '(blank)') end) = 'OEM'
-        and not (fy_start = p_cy - 1 and v_max is not null
-                 and fy_month = extract(month from v_max) and posting_date > v_cut)
-      group by 1, 2, 3, 4, 5, 6, 7) x)
-  ) into v_res;
-  return v_res;
-end;
-$$;
-grant execute on function public.pm_oem(int) to anon, authenticated;
-
--- PM Cumulative Tracking — growth chart: this FY vs last FY by product basket, U-Region and month (DocTotalFC).
--- Region = U_region (the OB column). Invoices have no U_region, so an invoice takes its customer's U_region from
--- their orders; if the customer has no order, its SE region is matched to the U_region spelling.
--- Last year's copy of the latest (still running) month is cut at the same day, so the comparison is like-for-like.
 create or replace function public.pm_growth(p_cy int)
 returns jsonb language plpgsql stable as $$
 declare v_max date; v_cut date; v_res jsonb;
@@ -158,9 +67,6 @@ end;
 $$;
 grant execute on function public.pm_growth(int) to anon, authenticated;
 
--- PM Cumulative Tracking — product series growth: this FY vs last FY, value (DocTotalFC) and quantity,
--- by month, U-Region, product basket and product series. Same rules as pm_growth:
--- invoices take the customer's U_region; last year's latest month is cut at the same day.
 create or replace function public.pm_series_growth(p_cy int)
 returns jsonb language plpgsql stable as $$
 declare v_max date; v_cut date; v_res jsonb;
@@ -207,4 +113,5 @@ begin
 end;
 $$;
 grant execute on function public.pm_series_growth(int) to anon, authenticated;
+
 notify pgrst, 'reload schema';

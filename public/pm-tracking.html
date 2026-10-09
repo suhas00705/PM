@@ -326,7 +326,7 @@ function render(){
     const open = S.open.has(p.name);
     let h = `<tr class="prod" data-p="${esc(p.name)}"><td><span class="caret">${open ? '▾' : '▸'}</span>${esc(p.name)}</td><td class="pm">${esc(p.pm)}</td>
       <td>${f2(p.fyT)}</td><td>${f2(p.obT)}</td><td>${f2(p.ob)}</td><td>${chip(p.obC, p.obT, p.ob, p.obShort)}</td><td>${f2(p.invT)}</td><td>${f2(p.inv)}</td><td>${chip(p.invC, p.invT, p.inv, p.invShort)}</td></tr>`;
-    if (open) h += `<tr class="det"><td colspan="9"><b>${esc(p.name)}</b> counts product basket${p.baskets.length > 1 ? 's' : ''}: ${p.baskets.map(esc).join(', ')}${p.exclGovt ? ' · <b>excludes account type “Govt Projects”</b>' : ''}
+    if (open) h += `<tr class="det"><td colspan="9"><b>${esc(p.name)}</b> counts product basket${p.baskets.length > 1 ? 's' : ''}: ${p.baskets.map(esc).join(', ')}${p.exclGovt ? ' · <b>excludes Govt Projects (account type “Govt Projects” or region “GOVT PROJECTS”)</b>' : ''}
       <table class="mini"><thead><tr><th>Basket</th><th>Order booked</th><th>Billed</th>${p.exclGovt ? '<th>Govt OB (excluded)</th><th>Govt billed (excluded)</th>' : ''}</tr></thead><tbody>
       ${p.parts.map(x => `<tr><td>${esc(x.b)}</td><td>${f2(L(x.ob))}</td><td>${f2(L(x.inv))}</td>${p.exclGovt ? `<td>${f2(L(x.gob))}</td><td>${f2(L(x.ginv))}</td>` : ''}</tr>`).join('') || '<tr><td colspan="5">No sales in these months</td></tr>'}</tbody></table>
       ${p.fyT == null ? '' : `<div style="margin-top:10px"><b>Month by month — target with shortfall carried forward</b> (plan = yearly target × quarter share ÷ 3; a month's shortfall is added to the next month; extra above a month's target is not carried)</div>
