@@ -60,7 +60,7 @@ returns jsonb language sql stable as $$
     'rows', (select coalesce(jsonb_agg(x), '[]') from (
                select doc_type as d,
                       eb as b,
-                      (coalesce(account_type, '') = 'Govt Projects' or upper(trim(coalesce(region, ''))) = 'GOVT PROJECTS') as gov,
+                      (coalesce(account_type, '') = 'Govt Projects' or upper(trim(coalesce(region, ''))) = 'GOVT PROJECTS' or upper(trim(coalesce(se_reg, ''))) = 'GOVT PROJECTS') as gov,
                       fy_month as m,
                       round(sum(coalesce(doc_total_fc, 0)), 2) as v
                from (select s.*, (case when s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM')) or s.card_name || '|' || coalesce(s.product_basket,'') = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM_B')) then 'OEM' when coalesce(s.product_basket,'') = 'OEM' and s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'EXCL')) then null else coalesce(s.product_basket, '(blank)') end) as eb
@@ -133,7 +133,7 @@ begin
          from sales_lines where doc_type = 'OB' and region is not null
          group by region order by upper(trim(region)), count(*) desc),
        src as (
-         select s.doc_type, s.fy_start, s.fy_month, (case when s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM')) or s.card_name || '|' || coalesce(s.product_basket,'') = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM_B')) then 'OEM' when coalesce(s.product_basket,'') = 'OEM' and s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'EXCL')) then null else coalesce(s.product_basket, '(blank)') end) as product_basket, s.account_type, s.region as raw_region, s.doc_total_fc,
+         select s.doc_type, s.fy_start, s.fy_month, (case when s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM')) or s.card_name || '|' || coalesce(s.product_basket,'') = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM_B')) then 'OEM' when coalesce(s.product_basket,'') = 'OEM' and s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'EXCL')) then null else coalesce(s.product_basket, '(blank)') end) as product_basket, s.account_type, s.region as raw_region, s.se_reg as raw_sereg, s.doc_total_fc,
                 case when s.doc_type = 'OB' then s.region
                      else coalesce(c.region, sp.region, s.region) end as u_region
          from sales_lines s
@@ -149,7 +149,7 @@ begin
       select doc_type as d, fy_start as fy, fy_month as m,
              coalesce(u_region, '(blank)') as r,
              coalesce(product_basket, '(blank)') as b,
-             (coalesce(account_type, '') = 'Govt Projects' or upper(trim(coalesce(raw_region, ''))) = 'GOVT PROJECTS') as gov,
+             (coalesce(account_type, '') = 'Govt Projects' or upper(trim(coalesce(raw_region, ''))) = 'GOVT PROJECTS' or upper(trim(coalesce(raw_sereg, ''))) = 'GOVT PROJECTS') as gov,
              round(sum(coalesce(doc_total_fc, 0)), 2) as v
       from src where product_basket is not null group by 1, 2, 3, 4, 5, 6) x)
   ) into v_res;
@@ -178,7 +178,7 @@ begin
          from sales_lines where doc_type = 'OB' and region is not null
          group by region order by upper(trim(region)), count(*) desc),
        src as (
-         select s.doc_type, s.fy_start, s.fy_month, (case when s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM')) or s.card_name || '|' || coalesce(s.product_basket,'') = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM_B')) then 'OEM' when coalesce(s.product_basket,'') = 'OEM' and s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'EXCL')) then null else coalesce(s.product_basket, '(blank)') end) as product_basket, s.product_series, s.account_type, s.region as raw_region,
+         select s.doc_type, s.fy_start, s.fy_month, (case when s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM')) or s.card_name || '|' || coalesce(s.product_basket,'') = any(array(select ov_key from public.pm_card_override where ov_mode = 'OEM_B')) then 'OEM' when coalesce(s.product_basket,'') = 'OEM' and s.card_name = any(array(select ov_key from public.pm_card_override where ov_mode = 'EXCL')) then null else coalesce(s.product_basket, '(blank)') end) as product_basket, s.product_series, s.account_type, s.region as raw_region, s.se_reg as raw_sereg,
                 s.doc_total_fc, s.quantity,
                 case when s.doc_type = 'OB' then s.region
                      else coalesce(c.region, sp.region, s.region) end as u_region
@@ -198,7 +198,7 @@ begin
              coalesce(u_region, '(blank)') as r,
              product_basket as b,
              coalesce(product_series, '(blank)') as s,
-             (coalesce(account_type, '') = 'Govt Projects' or upper(trim(coalesce(raw_region, ''))) = 'GOVT PROJECTS') as gov,
+             (coalesce(account_type, '') = 'Govt Projects' or upper(trim(coalesce(raw_region, ''))) = 'GOVT PROJECTS' or upper(trim(coalesce(raw_sereg, ''))) = 'GOVT PROJECTS') as gov,
              round(sum(coalesce(doc_total_fc, 0)), 2) as v,
              round(sum(coalesce(quantity, 0)), 2) as q
       from src group by 1, 2, 3, 4, 5, 6, 7) x)

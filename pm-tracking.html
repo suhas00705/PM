@@ -330,10 +330,14 @@ function render(){
       <table class="mini"><thead><tr><th>Basket</th><th>Order booked</th><th>Billed</th>${p.exclGovt ? '<th>Govt OB (excluded)</th><th>Govt billed (excluded)</th>' : ''}</tr></thead><tbody>
       ${p.parts.map(x => `<tr><td>${esc(x.b)}</td><td>${f2(L(x.ob))}</td><td>${f2(L(x.inv))}</td>${p.exclGovt ? `<td>${f2(L(x.gob))}</td><td>${f2(L(x.ginv))}</td>` : ''}</tr>`).join('') || '<tr><td colspan="5">No sales in these months</td></tr>'}</tbody></table>
       ${p.fyT == null ? '' : `<div style="margin-top:10px"><b>Month by month — target with shortfall carried forward</b> (plan = yearly target × quarter share ÷ 3; a month's shortfall is added to the next month; extra above a month's target is not carried)</div>
-      <table class="mini"><thead><tr><th>Month</th><th>Plan target</th><th>OB carried in</th><th>OB target</th><th>Order booked</th><th>OB short → next</th><th>INV carried in</th><th>INV target</th><th>Billed</th><th>INV short → next</th></tr></thead><tbody>
-      ${p.mob.map((o,i) => { if (i > latestMonthIdx() + 1) return ''; const v = p.minv[i], on = S.months.includes(o.m), nxt = i === latestMonthIdx() + 1;
+      <table class="mini"><thead><tr><th>Month</th><th>Plan target</th><th>OB carried in</th><th>OB target</th><th>Order booked</th><th>OB short → next</th><th>INV carried in</th><th>INV target</th><th>Billed</th><th>INV short → next</th><th>Cum. plan</th><th>Cum. booked</th><th>Cum. OB ±</th><th>Cum. billed</th><th>Cum. INV ±</th></tr></thead><tbody>
+      ${(() => { let cP = 0, cO = 0, cI = 0; return p.mob.map((o,i) => { cP += o.plan || 0; cO += o.a || 0; cI += p.minv[i].a || 0;
+        if (i > latestMonthIdx() + 1) return ''; const v = p.minv[i], on = S.months.includes(o.m), nxt = i === latestMonthIdx() + 1;
+        const gap = x => { const d = x - cP; return `<span class="${d >= 0 ? 'gr-up' : 'gr-dn'}">${d >= 0 ? '+' : '−'}${f2(Math.abs(d))}</span>`; };
         return `<tr style="${nxt ? 'background:#f1f7ff' : on ? '' : 'color:#9aa6bf'}"><td>${MNAME[o.m]}${nxt ? ' — next month target' : on ? '' : ' (not selected)'}</td><td>${f2(o.plan)}</td><td>${f2(o.cin)}</td><td><b>${f2(o.tgt)}</b></td><td>${f2(o.a)}</td><td>${o.cout > 0.005 ? f2(o.cout) : '—'}</td>
-          <td>${f2(v.cin)}</td><td><b>${f2(v.tgt)}</b></td><td>${f2(v.a)}</td><td>${v.cout > 0.005 ? f2(v.cout) : '—'}</td></tr>`; }).join('')}</tbody></table>`}</td></tr>`;
+          <td>${f2(v.cin)}</td><td><b>${f2(v.tgt)}</b></td><td>${f2(v.a)}</td><td>${v.cout > 0.005 ? f2(v.cout) : '—'}</td>
+          <td>${f2(cP)}</td><td>${nxt ? '—' : f2(cO)}</td><td>${nxt ? '—' : gap(cO)}</td><td>${nxt ? '—' : f2(cI)}</td><td>${nxt ? '—' : gap(cI)}</td></tr>`; }).join(''); })()}</tbody></table>
+      <div class="sub" style="margin-top:4px">Cumulative columns: plan targets added up from April vs everything booked / billed so far. A month above target pushes the cumulative figure ahead (+) — it never lowers a later month's target.</div>`}</td></tr>`;
     return h;
   };
   const T1 = totRow('TOTAL', core), T2 = totRow('TOTAL', prods, 'grand');
