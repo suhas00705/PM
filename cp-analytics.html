@@ -127,6 +127,11 @@
   .sev{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px;margin-right:4px;vertical-align:1px}
   .sev.High{background:var(--bad-bg);color:var(--bad)} .sev.Medium{background:var(--warn-bg);color:#9a6400}
   .sev.Low{background:#eef1f6;color:var(--t2)} .sev.Healthy{background:var(--good-bg);color:var(--good)}
+  svg .hit{cursor:pointer}
+  .mpchip{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px}
+  .mpchip.y{background:var(--good-bg);color:var(--good)} .mpchip.n{background:var(--bad-bg);color:var(--bad)}
+  #mpRegion tr.rsel td{background:#e8f1fc}
+  #mpRegion tbody tr{cursor:pointer}
   .psplit{display:grid;grid-template-columns:minmax(320px,1fr) minmax(0,1.4fr);gap:18px;align-items:start}
   @media(max-width:1000px){.psplit{grid-template-columns:minmax(0,1fr)}}
   .ptitle{font-size:12.5px;font-weight:700;color:var(--t1);margin-bottom:8px}
@@ -193,7 +198,7 @@
   <div class="sec grid g2">
     <div class="card">
       <h2 id="shareTitle">Focus share of channel-partner spend, by month</h2>
-      <div class="sub">If this line sits below last year, partners are moving their money to other baskets</div>
+      <div class="sub">If this line sits below last year, partners are moving their money to other baskets. <b>Click a month</b> to see which partners bought it and which did not, region-wise.</div>
       <div class="legend" id="shareLegend"></div>
       <div class="chart" id="shareChart"></div>
     </div>
@@ -252,7 +257,8 @@
 
   <div class="sec grid g2">
     <div class="card">
-      <h2>Month by month — this year vs last year</h2>
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap"><h2>Month by month — this year vs last year</h2>
+        <div class="toggle" id="pfMetric"><button data-k="v" class="on">Value</button><button data-k="q">Qty</button></div></div>
       <div class="sub" id="pfMonthSub"></div>
       <div class="legend" id="pfMonthLegend"></div>
       <div class="chart" id="pfMonthChart"></div>
@@ -329,6 +335,16 @@
         <button class="btn" id="prFilter" title="Filter the whole dashboard to this region">Filter dashboard</button>
         <button class="btn" id="prCsv">Download CSV</button><button class="x" id="prClose">✕</button></div></div>
     <div class="mb" id="prBody"></div>
+  </div>
+</div>
+<div class="modal-bg" id="mpModal">
+  <div class="modal">
+    <div class="mh"><div><h2 id="mpTitle"></h2><div class="sub" id="mpSub"></div></div>
+      <div class="tools"><div class="tabs" id="mpTabs">
+        <button data-k="all">All partners</button><button data-k="yes" class="on">Contributed</button><button data-k="no">Not contributed</button><button data-k="noother">Not contributed — bought other baskets</button></div>
+        <input type="search" id="mpSearch" placeholder="Search partner…" style="padding:6px 9px;border:1px solid #cfd6e3;border-radius:8px;font:inherit;font-size:12.5px">
+        <button class="btn" id="mpCsv">Download CSV</button><button class="x" id="mpClose">✕</button></div></div>
+    <div class="mb" id="mpBody"></div>
   </div>
 </div>
 <div class="tip" id="tip"></div>
@@ -603,8 +619,8 @@ function renderShareChart(D, cy, base, focusName){
     const line = s => { const r = row(s.fy, m); return `<span class="swatch" style="background:${s.color}"></span>${s.label}: <b>${pct(get(s.fy,m))}</b> · ${esc(focusName)} ${money(r?.fv)} of ${money(r?.v)}`; };
     const sb = get(base, m), tc = n(row(cy, m)?.v), exp = sb !== null && tc ? sb * tc : null, gap = exp === null ? null : amt(cy, m) - exp;
     h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br>${series.slice().reverse().map(line).join('<br>')}` +
-      (exp !== null ? `<br>Expected value at ${pct(sb)}: ${money(exp)} → <b>${money(Math.abs(gap))} ${gap < 0 ? 'short' : 'ahead'}</b>` : ''));
-    h.onmouseleave = hideTip; });
+      (exp !== null ? `<br>Expected value at ${pct(sb)}: ${money(exp)} → <b>${money(Math.abs(gap))} ${gap < 0 ? 'short' : 'ahead'}</b>` : '') + '<br><i>Click for partners who bought / did not buy</i>');
+    h.onmouseleave = hideTip; h.onclick = () => { hideTip(); openMonthPartners(m, 'cp'); }; });
 }
 
 function renderMixChart(D, cy, base, focusName){
@@ -630,6 +646,7 @@ function renderMixChart(D, cy, base, focusName){
   svg += '</svg>';
   const el = $('mixChart'); el.innerHTML = ms.length ? svg : '<div class="empty">No data</div>';
   el.querySelectorAll('.hit').forEach(h => { const m = ms[+h.dataset.i]; const a = row(cy,m), b = row(base,m);
+    h.onclick = () => { hideTip(); openMonthPartners(m, 'cp'); };
     h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br><span class="swatch" style="background:var(--focus)"></span>${esc(focusName)}: ${money(a.fv)} <span style="opacity:.7">(${fyLabel(base)}: ${money(b.fv)})</span><br><span class="swatch" style="background:var(--rest)"></span>Rest: ${money(n(a.v)-n(a.fv))} <span style="opacity:.7">(${money(n(b.v)-n(b.fv))})</span><br>Total: ${money(a.v)} ${gChip(a.v,b.v)}`);
     h.onmouseleave = hideTip; });
 }
@@ -1024,7 +1041,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('regionM
 /* =====================================================================
    PARTNERS PERFORMANCE view — overall growth per account, no focus split
    ===================================================================== */
-const PF = { tab:'all', search:'', data:null };
+const PF = { tab:'all', search:'', data:null, metric:'v' };
 const VIEW_BASKET = { cp:{ basket:[...DEFAULT_FOCUS], series:[] }, perf:{ basket:[], series:[] } };
 
 async function loadPerf(){
@@ -1204,7 +1221,11 @@ function renderPerfPartners(P, vC, cy, base){
 }
 
 function renderPerfCharts(D, cy, base){
-  const M = {}; (D.monthly || []).forEach(r => { (M[r.fy] = M[r.fy] || {})[r.m] = n(r.v); });
+  const QTY = PF.metric === 'q';
+  const M = {}, MV = {}, MQ = {};
+  (D.monthly || []).forEach(r => { (MV[r.fy] = MV[r.fy] || {})[r.m] = n(r.v); (MQ[r.fy] = MQ[r.fy] || {})[r.m] = n(r.q); (M[r.fy] = M[r.fy] || {})[r.m] = QTY ? n(r.q) : n(r.v); });
+  const fmt = v => QTY ? Math.round(v).toLocaleString('en-IN') : money(v);
+  const axisF = v => QTY ? (v >= 1e5 ? (v/1e5).toFixed(1).replace(/\.0$/,'') + ' L' : v >= 1e3 ? (v/1e3).toFixed(0) + 'k' : String(Math.round(v))) : axisMoney(v);
   const ms = S.months.length ? MONTHS.filter(m => S.months.includes(m)) : MONTHS;
   const last = MONTHS.indexOf(new Date(D.meta.max_date || Date.now()).getMonth() + 1);
   const shownMs = ms.filter(m => (M[cy]?.[m] || M[base]?.[m]) || MONTHS.indexOf(m) <= last);
@@ -1219,21 +1240,23 @@ function renderPerfCharts(D, cy, base){
   const y = v => T + (H - T - Bm) * (1 - v / vmax);
   const bw = (W - L - R) / Math.max(shownMs.length, 1);
   let svg = `<svg viewBox="0 0 ${W} ${H}">`;
-  for (let i = 0; i <= 4; i++) { const v = vmax * i / 4; svg += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10.5" fill="var(--t3)">${axisMoney(v)}</text>`; }
+  for (let i = 0; i <= 4; i++) { const v = vmax * i / 4; svg += `<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="10.5" fill="var(--t3)">${axisF(v)}</text>`; }
   shownMs.forEach((m, i) => {
     const x0 = L + i * bw, w = Math.min(22, bw * 0.36);
     const vb = val(base, m), vc = val(cy, m);
     svg += `<rect x="${x0 + bw/2 - w - 1}" y="${y(vb)}" width="${w}" height="${Math.max(0, H - Bm - y(vb))}" fill="var(--base)" rx="2"/>`;
     svg += `<rect x="${x0 + bw/2 + 1}" y="${y(vc)}" width="${w}" height="${Math.max(0, H - Bm - y(vc))}" fill="var(--focus)" rx="2"/>`;
     if (vc) { const g = growth(vc, vb); if (g !== null) svg += `<text x="${x0 + bw/2}" y="${Math.min(y(vc), y(vb)) - 6}" text-anchor="middle" font-size="10" font-weight="700" fill="${g >= 0 ? 'var(--good)' : 'var(--bad)'}">${g >= 0 ? '+' : ''}${(g*100).toFixed(0)}%</text>`; }
+    if (vc) svg += `<text x="${x0 + bw/2 + 1 + w/2}" y="${y(vc) - (growth(vc, vb) !== null ? 18 : 5)}" text-anchor="middle" font-size="9.5" fill="var(--t2)" stroke="#fff" stroke-width="3" paint-order="stroke">${fmt(vc)}</text>`;
     svg += `<text x="${x0 + bw/2}" y="${H - 9}" text-anchor="middle" font-size="11" fill="var(--t2)">${MNAME[m]}</text>`;
     svg += `<rect class="hit" data-m="${m}" x="${x0}" y="${T}" width="${bw}" height="${H - T - Bm}" fill="transparent"/>`;
   });
   svg += '</svg>';
   $('pfMonthChart').innerHTML = svg;
   $('pfMonthChart').querySelectorAll('.hit').forEach(h => { const m = +h.dataset.m;
-    h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br>${fyLabel(cy)}: ${money(val(cy, m))}<br>${fyLabel(base)}: ${money(val(base, m))}<br>Growth: ${pct(growth(val(cy, m), val(base, m)))}`);
-    h.onmouseleave = hideTip; });
+    const vv = (o, fy) => n(o[fy]?.[m]);
+    h.onmousemove = e => showTip(e, `<b>${MNAME[m]}</b><br>${fyLabel(cy)}: ${money(vv(MV, cy))} · qty ${Math.round(vv(MQ, cy)).toLocaleString('en-IN')}<br>${fyLabel(base)}: ${money(vv(MV, base))} · qty ${Math.round(vv(MQ, base)).toLocaleString('en-IN')}<br>Growth: value ${pct(growth(vv(MV, cy), vv(MV, base)))} · qty ${pct(growth(vv(MQ, cy), vv(MQ, base)))}<br><i>Click for partners who bought / did not buy</i>`);
+    h.onmouseleave = hideTip; h.onclick = () => { hideTip(); openMonthPartners(m, 'perf'); }; });
   // cumulative
   const cum = fy => { let s = 0; return shownMs.map(m => (s += val(fy, m))); };
   const cc = cum(cy), cb = cum(base);
@@ -1242,7 +1265,7 @@ function renderPerfCharts(D, cy, base){
   const yc = v => T + (H - T - Bm) * (1 - v / cmax);
   const xc = i => L + (shownMs.length <= 1 ? (W - L - R)/2 : i * (W - L - R) / (shownMs.length - 1));
   let s2 = `<svg viewBox="0 0 ${W} ${H}">`;
-  for (let i = 0; i <= 4; i++) { const v = cmax * i / 4; s2 += `<line x1="${L}" x2="${W-R}" y1="${yc(v)}" y2="${yc(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${yc(v)+4}" text-anchor="end" font-size="10.5" fill="var(--t3)">${axisMoney(v)}</text>`; }
+  for (let i = 0; i <= 4; i++) { const v = cmax * i / 4; s2 += `<line x1="${L}" x2="${W-R}" y1="${yc(v)}" y2="${yc(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${yc(v)+4}" text-anchor="end" font-size="10.5" fill="var(--t3)">${axisF(v)}</text>`; }
   const path = (arr, upto) => arr.slice(0, upto + 1).map((v, i) => `${i ? 'L' : 'M'}${xc(i).toFixed(1)},${yc(v).toFixed(1)}`).join(' ');
   s2 += `<path d="${path(cb, shownMs.length - 1)}" fill="none" stroke="var(--base)" stroke-width="2.5"/>`;
   if (lastIdx >= 0) s2 += `<path d="${path(cc, lastIdx)}" fill="none" stroke="var(--focus)" stroke-width="3"/>`;
@@ -1253,11 +1276,11 @@ function renderPerfCharts(D, cy, base){
     s2 += `<rect class="hit" data-i="${i}" x="${xc(i) - (W-L-R)/Math.max(shownMs.length,1)/2}" y="${T}" width="${(W-L-R)/Math.max(shownMs.length,1)}" height="${H-T-Bm}" fill="transparent"/>`;
   });
   if (lastIdx >= 0) { const g = growth(cc[lastIdx], cb[lastIdx]);
-    s2 += `<text x="${xc(lastIdx)}" y="${yc(cc[lastIdx]) - 10}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--focus)" stroke="#fff" stroke-width="3" paint-order="stroke">${money(cc[lastIdx])}${g !== null ? ` (${g >= 0 ? '+' : ''}${(g*100).toFixed(1)}%)` : ''}</text>`; }
+    s2 += `<text x="${xc(lastIdx)}" y="${yc(cc[lastIdx]) - 10}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--focus)" stroke="#fff" stroke-width="3" paint-order="stroke">${fmt(cc[lastIdx])}${g !== null ? ` (${g >= 0 ? '+' : ''}${(g*100).toFixed(1)}%)` : ''}</text>`; }
   s2 += '</svg>';
   $('pfCumChart').innerHTML = s2;
   $('pfCumChart').querySelectorAll('.hit').forEach(h => { const i = +h.dataset.i;
-    h.onmousemove = e => showTip(e, `<b>Apr – ${MNAME[shownMs[i]]}</b><br>${fyLabel(cy)}: ${i <= lastIdx ? money(cc[i]) : '—'}<br>${fyLabel(base)}: ${money(cb[i])}${i <= lastIdx ? `<br>Growth: ${pct(growth(cc[i], cb[i]))}` : ''}`);
+    h.onmousemove = e => showTip(e, `<b>Apr – ${MNAME[shownMs[i]]}</b><br>${fyLabel(cy)}: ${i <= lastIdx ? fmt(cc[i]) : '—'}<br>${fyLabel(base)}: ${fmt(cb[i])}${i <= lastIdx ? `<br>Growth: ${pct(growth(cc[i], cb[i]))}` : ''}`);
     h.onmouseleave = hideTip; });
 }
 
@@ -1381,6 +1404,86 @@ function drawPerfRegion(){
     rows.map(r => [r.card, r.acct, r.b.toFixed(0), r.c.toFixed(0), r.ch.toFixed(0), r.b ? ((r.c/r.b - 1)*100).toFixed(1) : '', r.sh === null ? '' : (r.sh*100).toFixed(1),
       ...MONTHS.flatMap(m => [n(r.months[m]?.c).toFixed(0), n(r.months[m]?.b).toFixed(0)])]));
 }
+
+
+/* ---------------- month pop-up: who bought in the month, who did not (region-wise) ---------------- */
+const MP = { rows:[], tab:'yes', region:null, search:'', m:null, mode:'cp', title:'' };
+async function openMonthPartners(m, mode){
+  const { cy, base } = yearsCompared();
+  MP.m = m; MP.mode = mode; MP.region = null; MP.search = ''; $('mpSearch').value = '';
+  MP.tab = 'yes'; document.querySelectorAll('#mpTabs button').forEach(b => b.classList.toggle('on', b.dataset.k === 'yes'));
+  const yr = m >= 4 ? cy : cy + 1;
+  const bk = S.basket.length ? S.basket.join(', ') : 'all baskets';
+  const acct = mode === 'cp' || !S.acct.length ? 'Channel Partners' : S.acct.join(', ');
+  MP.what = mode === 'cp' ? bk : (S.basket.length ? bk : 'any product');
+  MP.title = `${MNAME[m]} ${yr}`;
+  $('mpTitle').textContent = `${MNAME[m]} ${yr} — who bought ${MP.what} and who did not`;
+  $('mpSub').textContent = `${S.doc === 'OB' ? 'Order Booking' : 'Invoicing'} · ${acct}${S.series.length ? ' · series: ' + S.series.join(', ') : ''}${S.region.length ? ' · regions: ' + S.region.join(', ') : ''} · partners in scope = bought anything in ${fyLabel(base)} or ${fyLabel(cy)}`;
+  $('mpBody').innerHTML = '<div class="empty">Loading…</div>';
+  $('mpModal').classList.add('open');
+  try {
+    const r = await rpc('cp_month_partners', { p_doc:S.doc, p_cy:cy, p_base:base, p_month:m,
+      p_acct: mode === 'cp' ? [] : S.acct, p_basket:S.basket, p_series:S.series, p_region:S.region });
+    MP.rows = (r.rows || []).map(x => ({ ...x, m_v:n(x.m_v), m_q:n(x.m_q), m_all:n(x.m_all), ly_v:n(x.ly_v), ytd_v:n(x.ytd_v), ly_ytd_v:n(x.ly_ytd_v),
+      other:Math.max(0, n(x.m_all) - n(x.m_v)), yes:n(x.m_v) > 0 ? 1 : 0,
+      last:x.last_i === null || x.last_i === undefined ? null : MONTHS[x.last_i] }));
+    drawMonthPartners();
+  } catch (e) { $('mpBody').innerHTML = `<div class="err" style="display:block">${esc(e.message)}${/cp_month_partners/.test(e.message) ? ' — run supabase/cp_month_partners.sql in Supabase.' : ''}</div>`; }
+}
+function drawMonthPartners(){
+  const { cy, base } = yearsCompared();
+  const all = MP.rows;
+  const regs = {};
+  all.forEach(p => { const r = regs[p.region] = regs[p.region] || { region:p.region, n:0, y:0, no:0, v:0, q:0, ly:0, noOther:0 };
+    r.n++; if (p.yes) { r.y++; r.v += p.m_v; r.q += p.m_q; } else { r.no++; if (p.other > 0) r.noOther++; } r.ly += p.ly_v; });
+  const RL = Object.values(regs).sort((a,b) => b.v - a.v || b.n - a.n);
+  const T = RL.reduce((a,r) => ({ n:a.n + r.n, y:a.y + r.y, no:a.no + r.no, v:a.v + r.v, q:a.q + r.q, ly:a.ly + r.ly, noOther:a.noOther + r.noOther }), { n:0, y:0, no:0, v:0, q:0, ly:0, noOther:0 });
+  const lyBuyers = all.filter(p => p.ly_v > 0).length;
+  const scope = MP.region ? all.filter(p => p.region === MP.region) : all;
+  const tabs = { all:() => true, yes:p => p.yes, no:p => !p.yes, noother:p => !p.yes && p.other > 0 };
+  const q = MP.search.trim().toLowerCase();
+  const inSearch = p => !q || p.card.toLowerCase().includes(q) || String(p.region).toLowerCase().includes(q);
+  document.querySelectorAll('#mpTabs button').forEach(b => { b.textContent = b.textContent.replace(/\s*\(\d+\)$/, '') + ` (${scope.filter(p => tabs[b.dataset.k](p) && inSearch(p)).length})`; });
+  const rows = scope.filter(p => tabs[MP.tab](p) && inSearch(p));
+  const qf = v => Math.round(v).toLocaleString('en-IN');
+  const head = `<div class="grid g4" style="margin-bottom:12px">
+    <div class="card tile"><div class="lbl">Partners in scope</div><div class="val">${T.n}</div><div class="row">bought anything in ${fyLabel(base)} or ${fyLabel(cy)}</div></div>
+    <div class="card tile"><div class="lbl">Contributed in ${MP.title}</div><div class="val" style="color:var(--good)">${T.y}</div><div class="row">${money(T.v)} · qty ${qf(T.q)} · ${pct(T.n ? T.y/T.n : null)} of partners</div></div>
+    <div class="card tile"><div class="lbl">Not contributed</div><div class="val" style="color:var(--bad)">${T.no}</div><div class="row">${T.noOther} of them bought other baskets this month</div></div>
+    <div class="card tile"><div class="lbl">Same month last year</div><div class="val">${lyBuyers}</div><div class="row">partners bought ${esc(MP.what)} · ${money(T.ly)}</div></div></div>`;
+  const regTable = `<div class="ptitle">Region-wise — click a region to list only its partners${MP.region ? ` · <a href="#" id="mpAllReg">show all regions</a>` : ''}</div>
+    <div class="tbl-wrap" style="max-height:none;margin-bottom:14px"><table id="mpRegion"><thead><tr><th style="text-align:left">Region</th><th>Partners</th><th>Contributed</th><th>Not contributed</th><th>% contributed</th><th>Value</th><th>Qty</th><th>Same month LY</th><th>Not contributed but bought other baskets</th></tr></thead><tbody>${
+      RL.map(r => `<tr data-r="${esc(r.region)}" class="${MP.region === r.region ? 'rsel' : ''}"><td style="text-align:left"><b>${esc(r.region)}</b></td><td>${r.n}</td><td><span class="mpchip y">${r.y}</span></td><td><span class="mpchip n">${r.no}</span></td><td>${pct(r.n ? r.y/r.n : null, 0)}</td><td>${money(r.v)}</td><td>${qf(r.q)}</td><td class="muted">${money(r.ly)}</td><td>${r.noOther}</td></tr>`).join('')}</tbody>
+      <tfoot><tr><td style="text-align:left">Total</td><td>${T.n}</td><td>${T.y}</td><td>${T.no}</td><td>${pct(T.n ? T.y/T.n : null, 0)}</td><td>${money(T.v)}</td><td>${qf(T.q)}</td><td>${money(T.ly)}</td><td>${T.noOther}</td></tr></tfoot></table></div>`;
+  $('mpBody').innerHTML = head + regTable + `<div class="ptitle">${MP.region ? esc(MP.region) + ' — ' : ''}${rows.length} partners shown</div>`;
+  $('mpBody').querySelectorAll('#mpRegion tbody tr').forEach(tr => tr.onclick = () => { MP.region = MP.region === tr.dataset.r ? null : tr.dataset.r; drawMonthPartners(); });
+  const ar = $('mpAllReg'); if (ar) ar.onclick = e => { e.preventDefault(); MP.region = null; drawMonthPartners(); };
+  const host = document.createElement('div'); host.className = 'tbl-wrap'; host.style.maxHeight = 'none'; $('mpBody').appendChild(host);
+  rows.forEach(r => { r.lastSort = r.last ? MONTHS.indexOf(r.last) : -1; });
+  const cols = [
+    {k:'card', h:'Partner', f:r => `<b>${esc(r.card)}</b>`},
+    {k:'region', h:'Region'},
+    {k:'yes', h:MP.title, f:r => r.yes ? '<span class="mpchip y">✔ Bought</span>' : '<span class="mpchip n">✖ Not bought</span>'},
+    {k:'m_v', h:'Value', f:r => r.m_v ? money(r.m_v) : '—'},
+    {k:'m_q', h:'Qty', f:r => r.m_q ? qf(r.m_q) : '—'},
+    {k:'ly_v', h:'Same month LY', f:r => r.ly_v ? money(r.ly_v) : '—'},
+    {k:'ytd_v', h:`${fyLabel(cy)} so far`, f:r => money(r.ytd_v)},
+    {k:'lastSort', h:'Last bought', f:r => r.last ? MNAME[r.last] : '<span class="muted">not this FY</span>'},
+    {k:'other', h:'Other baskets this month', f:r => r.other ? money(r.other) : '—'}
+  ];
+  sortable(host, cols, rows, MP.tab === 'yes' ? 'm_v' : 'ytd_v');
+  $('mpCsv').onclick = () => csv(safeName(`partners_${MP.title}_${MP.what}_${S.doc}.csv`),
+    ['Partner','Account type','Region',`Bought in ${MP.title}`,'Value','Qty','Same month last year',`${fyLabel(cy)} so far`,`${fyLabel(base)} total`,'Last bought','Other baskets this month'],
+    rows.map(r => [r.card, r.acct, r.region, r.yes ? 'Yes' : 'No', r.m_v.toFixed(0), r.m_q, r.ly_v.toFixed(0), r.ytd_v.toFixed(0), r.ly_ytd_v.toFixed(0), r.last ? MNAME[r.last] : '', r.other.toFixed(0)]));
+}
+$('mpClose').onclick = () => $('mpModal').classList.remove('open');
+$('mpModal').onclick = e => { if (e.target.id === 'mpModal') $('mpModal').classList.remove('open'); };
+$('mpTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; MP.tab = b.dataset.k;
+  document.querySelectorAll('#mpTabs button').forEach(x => x.classList.toggle('on', x === b)); drawMonthPartners(); };
+$('mpSearch').oninput = e => { MP.search = e.target.value; drawMonthPartners(); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('mpModal').classList.remove('open'); });
+$('pfMetric').onclick = e => { const b = e.target.closest('button'); if (!b) return; PF.metric = b.dataset.k;
+  document.querySelectorAll('#pfMetric button').forEach(x => x.classList.toggle('on', x === b)); if (PF.data) renderPerf(); };
 
 /* ---------------- wiring ---------------- */
 $('prClose').onclick = () => $('pfRegionModal').classList.remove('open');
