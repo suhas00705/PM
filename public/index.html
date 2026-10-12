@@ -41,6 +41,7 @@
   #hamburgerBtn .hbi{font-size:17px;line-height:1;}
   .seg{display:none;flex-direction:column;position:absolute;right:0;top:calc(100% + 8px);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:6px;box-shadow:0 8px 32px rgba(11,41,66,.20);z-index:300;min-width:210px;}
   .seg.open{display:flex;}
+  .seg::before{content:'';position:absolute;left:0;right:0;top:-12px;height:12px;} /* invisible bridge over the gap below the Menu button */
   .tab-btn{
     font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--text-mid);background:transparent;
     border:none;padding:10px 16px;border-radius:8px;cursor:pointer;transition:background .15s,color .15s;
@@ -187,9 +188,14 @@ document.addEventListener('click', e => {
   if(!e.target.closest('#hamburgerBtn') && !e.target.closest('#tabs'))
     document.getElementById('tabs').classList.remove('open');
 }, true);
+// Close the menu only after the mouse has really left it for a while (was 150 ms, which closed it
+// while moving from the Menu button down to the options). Coming back cancels the close.
+let __hambTimer = null;
 document.getElementById('hambWrap').addEventListener('mouseleave', () => {
-  setTimeout(() => document.getElementById('tabs').classList.remove('open'), 150);
+  clearTimeout(__hambTimer);
+  __hambTimer = setTimeout(() => document.getElementById('tabs').classList.remove('open'), 900);
 });
+document.getElementById('hambWrap').addEventListener('mouseenter', () => clearTimeout(__hambTimer));
 
 function activateTab(target){
   document.getElementById('tabs').classList.remove('open');
