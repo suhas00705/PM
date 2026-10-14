@@ -212,6 +212,16 @@ async function rpc(fn, body){
   if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
   return r.json();
 }
+// Growth data in compact form (same numbers, ~4x smaller); falls back to the old call if the new one is not installed yet.
+async function rpcRows(fn, body){
+  try {
+    const c = await rpc(fn + '_c', body);
+    if (c && c.fmt === 'c1') { const D = c.dict || {};
+      c.rows = (c.rows || []).map(a => { const o = {}; c.cols.forEach((k, i) => { const x = a[i]; o[k] = D[k] ? D[k][x] : (k === 'gov' ? !!x : x); }); return o; });
+      return c; }
+  } catch (e) { /* fall back below */ }
+  return rpc(fn, body);
+}
 function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').textContent = e ? 'Could not load data — ' + e : ''; }
 
 function monthTarget(p, m){ const t = p.target[S.fy]; return t == null ? null : t * QUARTER_SHARE[QOF(m)] / 3; }
@@ -412,7 +422,7 @@ async function loadGrowth(force){
   try {
     const oldDefault = G.data && G.fy === S.fy ? MONTHS.slice(0, MONTHS.indexOf(G.data.max_date ? new Date(G.data.max_date).getMonth() + 1 : 3) + 1).join() : null;
     const keep = force && G.fy === S.fy && G.months;
-    G.data = await rpc('pm_growth', { p_cy: S.fy }); G.fy = S.fy;
+    G.data = await rpcRows('pm_growth', { p_cy: S.fy }); G.fy = S.fy;
     const lm = G.data.max_date ? new Date(G.data.max_date).getMonth() + 1 : 3;
     if (!keep || G.months.join() === oldDefault) G.months = MONTHS.slice(0, MONTHS.indexOf(lm) + 1);
     // Merge region names that differ only in capitals/spacing (e.g. "Delhi NCR" and "DELHI NCR") — the most-used spelling wins
@@ -517,7 +527,7 @@ async function loadSeries(force){
   try {
     const oldDefault = SG.data && SG.fy === S.fy ? MONTHS.slice(0, MONTHS.indexOf(SG.data.max_date ? new Date(SG.data.max_date).getMonth() + 1 : 3) + 1).join() : null;
     const keep = force && SG.fy === S.fy && SG.months;
-    SG.data = await rpc('pm_series_growth', { p_cy: S.fy }); SG.fy = S.fy;
+    SG.data = await rpcRows('pm_series_growth', { p_cy: S.fy }); SG.fy = S.fy;
     const lm = SG.data.max_date ? new Date(SG.data.max_date).getMonth() + 1 : 3, ytd = () => MONTHS.slice(0, MONTHS.indexOf(lm) + 1);
     if (!keep || SG.months.join() === oldDefault) SG.months = ytd();
     // same region clean-up as the growth chart above
@@ -616,17 +626,34 @@ function renderSeries(){
 }
 
 /* ---------- keep data fresh: the daily Zoho sync writes to the same table, so re-read it ---------- */
+
+/* ---------- egress saver (14-Oct-2026): refresh only when on screen AND the data has changed ---------- */
+const AUTO = { ver:null, pending:false, busy:false };
+function isShown(){ try { return !document.hidden && (!window.frameElement || window.frameElement.classList.contains('active')); } catch (e) { return !document.hidden; } }
+async function dataVersion(){ try { const v = await rpc('pm_data_version', {}); return v == null ? null : String(v); } catch (e) { return null; } }
+async function autoRefresh(doRefresh){
+  if (!isShown()) { AUTO.pending = true; return; }          // hidden tab: remember, refresh when it is shown again
+  if (AUTO.busy) return; AUTO.busy = true; AUTO.pending = false;
+  try {
+    const v = await dataVersion();
+    if (v !== null && AUTO.ver !== null && v === AUTO.ver) return;   // nothing new in Supabase -> skip the big download
+    await doRefresh(); if (v !== null) AUTO.ver = v;
+  } finally { AUTO.busy = false; }
+}
 async function refreshAll(){ await load(false, true); await loadGrowth(true); await loadSeries(true); }
-$('refreshBtn').onclick = async () => { $('loading').classList.add('on'); try { await refreshAll(); } finally { $('loading').classList.remove('on'); } };
-setInterval(refreshAll, 30 * 60 * 1000);                       // every 30 minutes while the portal is open
-document.addEventListener('visibilitychange', () => {          // and when you come back to the browser tab after 10+ minutes
-  if (document.visibilityState === 'visible' && Date.now() - (S.loadedAt || 0) > 10 * 60 * 1000) refreshAll(); });
+$('refreshBtn').onclick = async () => { $('loading').classList.add('on'); try { await refreshAll(); const v = await dataVersion(); if (v !== null) AUTO.ver = v; } finally { $('loading').classList.remove('on'); } };
+setInterval(() => autoRefresh(refreshAll), 30 * 60 * 1000);   // every 30 min, only if this tab is on screen and the data changed
+document.addEventListener('visibilitychange', () => {          // back to the browser tab after 10+ minutes
+  if (document.visibilityState === 'visible' && Date.now() - (S.loadedAt || 0) > 10 * 60 * 1000) autoRefresh(refreshAll); });
+window.addEventListener('message', e => {                      // the portal shows this tab again
+  if (e.data && e.data.type === 'pm-tab-shown' && (AUTO.pending || Date.now() - (S.loadedAt || 0) > 10 * 60 * 1000)) autoRefresh(refreshAll); });
 
 (async () => {
   const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
   await load(true);
   loadGrowth();
   loadSeries();
+  AUTO.ver = await dataVersion();
 })();
 </script>
 </body>

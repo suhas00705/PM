@@ -385,8 +385,25 @@ const changeFy = async v => { S.fy = +v; await load(true); };
 $('fySel').onchange = e => changeFy(e.target.value);
 $('cFy').onchange = e => changeFy(e.target.value);
 $('refreshBtn').onclick = () => load(false);
-setInterval(() => load(false, true), 30 * 60 * 1000);
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - S.loadedAt > 10 * 60 * 1000) load(false, true); });
+
+/* ---------- egress saver (14-Oct-2026): refresh only when on screen AND the data has changed ---------- */
+const AUTO = { ver:null, pending:false, busy:false };
+function isShown(){ try { return !document.hidden && (!window.frameElement || window.frameElement.classList.contains('active')); } catch (e) { return !document.hidden; } }
+async function dataVersion(){ try { const v = await rpc('pm_data_version', {}); return v == null ? null : String(v); } catch (e) { return null; } }
+async function autoRefresh(doRefresh){
+  if (!isShown()) { AUTO.pending = true; return; }          // hidden tab: remember, refresh when it is shown again
+  if (AUTO.busy) return; AUTO.busy = true; AUTO.pending = false;
+  try {
+    const v = await dataVersion();
+    if (v !== null && AUTO.ver !== null && v === AUTO.ver) return;   // nothing new in Supabase -> skip the big download
+    await doRefresh(); if (v !== null) AUTO.ver = v;
+  } finally { AUTO.busy = false; }
+}
+const quietLoad = () => load(false, true);
+setInterval(() => autoRefresh(quietLoad), 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - S.loadedAt > 10 * 60 * 1000) autoRefresh(quietLoad); });
+window.addEventListener('message', e => { if (e.data && e.data.type === 'pm-tab-shown' && (AUTO.pending || Date.now() - S.loadedAt > 10 * 60 * 1000)) autoRefresh(quietLoad); });
+dataVersion().then(v => { if (AUTO.ver === null) AUTO.ver = v; });
 (async () => { const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1; await load(true); })();
 </script>
 </body>
