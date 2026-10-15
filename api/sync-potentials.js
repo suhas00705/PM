@@ -4,7 +4,7 @@ const supabasePotentials = require('../lib/supabasePotentials');
 const POTENTIALS_FIELDS = [
   'Deal_Name', 'Account_Name', 'Owner', 'Stage', 'Amount',
   'Product_Solution_Type_Multi_Select', 'Region',
-  'Created_Time', 'Modified_Time', 'Closing_Date', 'Probability'
+  'Created_Time', 'Modified_Time', 'Closing_Date', 'Probability', 'Last_Activity_Time', 'Lead_Source'
 ].join(',');
 
 // FY2025-26 starts April 1, 2025 (IST)
@@ -76,11 +76,11 @@ module.exports = async (req, res) => {
       const seen = new Set();
       more = true;
       while (Date.now() < deadline) {
-        const q = `select id, Deal_Name, Account_Name.Account_Name, Owner.first_name, Owner.last_name, Stage, Amount, Probability, Region, Closing_Date, Created_Time, Modified_Time, Product_Solution_Type_Multi_Select from Deals where (Created_Time >= '${FY_START}' or Closing_Date >= '${FY_START.substring(0, 10)}') and Created_Time >= '${cursor}' order by Created_Time asc limit 2000`;
+        const q = `select id, Deal_Name, Account_Name.Account_Name, Owner.first_name, Owner.last_name, Stage, Amount, Probability, Region, Closing_Date, Created_Time, Modified_Time, Last_Activity_Time, Lead_Source, Product_Solution_Type_Multi_Select from Deals where (Created_Time >= '${FY_START}' or Closing_Date >= '${FY_START.substring(0, 10)}') and Created_Time >= '${cursor}' order by Created_Time asc limit 2000`;
         const { data, more: zMore } = await coql(accessToken, q);
         const fresh = data.filter(rec => !seen.has(rec.id));
         fresh.forEach(rec => seen.add(rec.id));
-        records = records.concat(fresh.map(r => ({ id: r.id, Deal_Name: r.Deal_Name, Account_Name: { name: r['Account_Name.Account_Name'] || null }, Owner: { name: ownerName(r) }, Stage: r.Stage, Amount: r.Amount, Probability: r.Probability, Region: r.Region, Closing_Date: r.Closing_Date, Created_Time: r.Created_Time, Product_Solution_Type_Multi_Select: r.Product_Solution_Type_Multi_Select || [] })));
+        records = records.concat(fresh.map(r => ({ id: r.id, Deal_Name: r.Deal_Name, Account_Name: { name: r['Account_Name.Account_Name'] || null }, Owner: { name: ownerName(r) }, Stage: r.Stage, Amount: r.Amount, Probability: r.Probability, Region: r.Region, Closing_Date: r.Closing_Date, Created_Time: r.Created_Time, Modified_Time: r.Modified_Time, Last_Activity_Time: r.Last_Activity_Time, Lead_Source: r.Lead_Source, Product_Solution_Type_Multi_Select: r.Product_Solution_Type_Multi_Select || [] })));
         if (data.length) lastCreatedAt = data[data.length - 1].Created_Time;
         if (!zMore || data.length < 2000) { more = false; break; }
         cursor = (!fresh.length || lastCreatedAt === cursor) ? nextSecond(cursor) : lastCreatedAt;

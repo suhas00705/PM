@@ -133,7 +133,7 @@
   <div class="err" id="errBox"></div>
   <div class="scope" id="scopeNote"></div>
   <div class="sec-nav">
-    <a href="#secHead">Headline</a><a href="#secPath">Month path</a><a href="#secProd">Products</a><a href="#secReg">Regions</a>
+    <a href="#secHead">Headline</a><a href="#secPath">Month path</a><a href="#secProd">Products</a><a href="#secReg">Regions</a><a href="#secDem">Leads &amp; pipeline</a>
     <a href="#secMx">Region × product</a><a href="#secCh">Customer type</a><a href="#secPipe">Pipeline cover</a><a href="#secAcc">Accounts to chase</a>
   </div>
 
@@ -170,6 +170,23 @@
       <div class="sub">Click a region for its product, customer-type and customer breakdown.</div></div>
       <button class="btn ghost" id="dlReg">Download CSV</button></div>
     <div class="tbl" id="regTbl"></div>
+  </div>
+
+  <div class="card" id="secDem">
+    <div class="card-h"><div><h2>Demand engine — leads &amp; pipeline vs the gap</h2>
+      <div class="sub" id="demSub">Zoho leads and potentials (deals). Region filter above applies; product and customer-type filters do not (leads use their own product types).</div></div>
+      <div class="ctrls">
+        <div class="f ms" id="msOwner"><label>Engineer</label></div>
+        <div class="f"><label>No action for more than</label><select id="naSel"><option value="7">7 days</option><option value="15" selected>15 days</option><option value="30">30 days</option></select></div>
+        <button class="btn ghost" id="dlDem">Download CSV</button>
+      </div></div>
+    <div class="note" id="demWarn" style="display:none;background:#fff8e6;border:1px solid #f1d9a6;border-radius:8px;padding:8px 12px;margin-bottom:10px"></div>
+    <div class="kpis" id="demKpis"></div>
+    <div class="verdict" id="demVerdict"></div>
+    <div class="tabs" id="demTabs" style="margin:14px 0 10px">
+      <button data-k="reg" class="on">Regions: gap vs funnel</button><button data-k="eng">Engineers</button><button data-k="prod">Product types</button>
+      <button data-k="src">Lead sources</button><button data-k="trend">Lead flow trend</button><button data-k="act">Action lists</button></div>
+    <div id="demBody"></div>
   </div>
 
   <div class="card" id="secMx">
@@ -330,6 +347,7 @@ async function load(first){
   } catch (e) { showErr(e.message || e); }
   finally { $('loading').classList.remove('on'); }
   loadPipe();
+  if (typeof loadDemand === 'function') loadDemand();
 }
 async function loadPipe(){
   try { S.pipe = await rpc('ptt_pipeline', { p_cy: S.cy }); } catch (e) { S.pipe = { err: e.message || String(e) }; }
@@ -431,7 +449,7 @@ function renderAll(){
     + (S.raw.last_sync ? ` · last Zoho sync ${esc(new Date(S.raw.last_sync.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}))}` : '');
   const sc = scopeTarget();
   $('scopeNote').style.display = sc.why ? 'block' : 'none'; $('scopeNote').textContent = sc.why || '';
-  renderHead(sc); renderPath(sc); renderProd(); renderReg(); renderMx(); renderCh(); renderPipe(); loadAcc();
+  renderHead(sc); renderPath(sc); renderProd(); renderReg(); renderMx(); renderCh(); renderPipe(); loadAcc(); if (typeof renderDemand === 'function') renderDemand();
 }
 
 function renderHead(sc){
@@ -465,6 +483,13 @@ function renderHead(sc){
       }
     }
   } else v = `This selection has booked <b>${fCr(m.ytd)} Cr</b> so far, ${m.growth == null ? '' : `<b>${m.growth >= 0 ? '+' : ''}${Math.round(m.growth * 100)}%</b> vs last year same period, `}heading for about <b>${fCr(m.fc)} Cr</b> for the year.`;
+  if (typeof DEM !== 'undefined' && DEM.d && !S.ch.length) {
+    const dm = demOf(S.reg.length ? S.reg : null), C2 = clock();
+    const avg = dm.D.wn ? dm.D.wa / dm.D.wn : null;
+    v += `<br><b>Demand side:</b> weighted pipeline closing by 31-Mar is <b>${fCr(dm.D.ww)} Cr</b>`
+      + (m.T && m.gap > 0 ? ` — it covers <b>${(dm.D.ww / m.gap).toFixed(2)}×</b> of the ${fCr(m.gap)} Cr still needed, so <b>${fCr(Math.max(0, m.gap - dm.D.ww))} Cr</b> must come from deals not yet in Zoho${avg && C2.left > 0 ? ` (about ${Math.ceil(Math.max(0, m.gap - dm.D.ww) / avg / C2.left)} extra deals a month at an average ${fL1(avg)} L)` : ''}` : '')
+      + `. <b>${dm.L.na.toLocaleString('en-IN')}</b> open leads have had no action for over ${DEM.na} days, <b>${dm.L.Q.toLocaleString('en-IN')}</b> qualified leads are not deals yet, and <b>${dm.D.ns}</b> deals are past their closing date. <a href="#secDem">See the demand engine ↓</a>`;
+  }
   $('verdict').innerHTML = v;
 }
 
@@ -569,7 +594,7 @@ function cockpitRows(kind){
     const s = series(r => pass(r, ex) && (isP ? r.p : r.r) === k); return { k, who:'', nt:true, s, m: metrics(null, s) }; });
   return { rows, ntRows, crossFiltered };
 }
-const COLS = [
+const COLS = window.COLS0 = [
   { k:'k', h:'', l:true },
   { k:'st', h:'Status', f:x => status(x.m), v:x => statusRank(x.m) },
   { k:'T', h:'FY target', f:x => fL(x.m.T), v:x => x.m.T ?? -1 },
@@ -586,15 +611,29 @@ const COLS = [
   { k:'fc', h:'Forecast FY', f:x => fL(x.m.fc), v:x => x.m.fc },
   { k:'fcGap', h:'Forecast vs target', f:x => x.m.T == null ? '—' : `<span class="${x.m.fc >= x.m.T ? 'pos' : 'neg'}">${x.m.fc >= x.m.T ? '+' : ''}${fL(x.m.fc - x.m.T)}</span>`, v:x => x.m.T == null ? -1e9 : x.m.fc - x.m.T },
 ];
-function sortRows(id, rows){
+function sortRows(id, rows, cols = COLS){
   const st = S.sort[id]; if (!st) return rows;
-  const c = COLS.find(c => c.k === st.k) || { v:x => x.k }; const v = c.v || (x => x.k);
+  const c = cols.find(c => c.k === st.k) || { v:x => x.k }; const v = c.v || (x => x.k);
   return rows.slice().sort((a, b) => { const A = v(a), B = v(b); return (A > B ? 1 : A < B ? -1 : 0) * st.dir; });
+}
+// Region cockpit also shows the demand side (leads & pipeline) once it is loaded.
+function regDemandCols(){
+  if (typeof DEM === 'undefined' || !DEM.d) return [];
+  const g = x => x.dm || (x.dm = demOf(x.k === 'Total' ? (S.reg.length ? S.reg : null) : x.k === 'Not assigned to a region' ? ['Other regions'] : [x.k]));
+  return [
+    { k:'dww', h:'Weighted pipeline to Mar', f:x => fL(g(x).D.ww), v:x => g(x).D.ww },
+    { k:'dcov', h:'Pipeline cover', f:x => x.m.gap == null ? '—' : coverChip(g(x).D.ww, x.m.gap), v:x => x.m.gap > 0 ? g(x).D.ww / x.m.gap : 99 },
+    { k:'dna', h:`Leads no action &gt; ${DEM.na}d`, f:x => g(x).L.na ? `<span class="neg">${g(x).L.na}</span>` : '—', v:x => g(x).L.na },
+    { k:'dq', h:'Qualified leads, no deal', f:x => n0(g(x).L.Q), v:x => g(x).L.Q },
+    { k:'dns', h:'Deals past close date', f:x => g(x).D.ns ? `<span class="neg">${g(x).D.ns}</span>` : '—', v:x => g(x).D.ns },
+  ];
 }
 function cockpitTable(id, kind, title){
   const { rows, ntRows, crossFiltered } = cockpitRows(kind);
   const isP = kind === 'p';
-  const sorted = sortRows(id, rows);
+  const gi = window.COLS0.findIndex(c => c.k === 'gap') + 1;   // demand columns sit right after "Still to get"
+  const COLS = isP ? window.COLS0 : [...window.COLS0.slice(0, gi), ...regDemandCols(), ...window.COLS0.slice(gi)];
+  const sorted = sortRows(id, rows, COLS);
   const totS = { a:Array(12).fill(0), ly:Array(12).fill(0), ll:Array(12).fill(0) };
   [...rows, ...ntRows].forEach(x => ['a', 'ly', 'll'].forEach(k => x.s[k].forEach((v, i) => totS[k][i] += v)));
   const tgtSum = crossFiltered ? null : sum(rows.map(x => x.m.T || 0));
@@ -745,6 +784,294 @@ function renderAcc(){
 }
 </script>
 <script>
+/* ======================= Demand engine: leads & pipeline (16-Oct-2026) ======================= */
+const DEM = { d:null, err:null, tab:'reg', own:[], na:15, act:'noaction', list:null, q:'', sort:{} };
+S.own = [];
+async function loadDemand(){
+  try { DEM.d = await rpc('ptt_demand', { p_cy: S.cy }); DEM.err = null; }
+  catch (e) { DEM.d = null; DEM.err = e.message || String(e); }
+  if (DEM.d) {
+    const owners = [...new Set([...(DEM.d.lf || []).map(r => r[1]), ...(DEM.d.df || []).map(r => r[1])].filter(Boolean))].sort();
+    buildMS('msOwner', 'own', owners, 'engineers');
+    // engineer filter change re-renders this section only
+    $('msOwner').querySelector('.ms-list').onchange = e => { const v = e.target.value; S.own = e.target.checked ? [...S.own, v] : S.own.filter(x => x !== v); MS.own.setBtn(); renderDemand(); };
+    $('msOwner').querySelector('.ms-acts').onclick = e => { if (!e.target.dataset.a) return; S.own = []; MS.own.draw(); MS.own.setBtn(); renderDemand(); };
+    if (S.raw) { renderHead(scopeTarget()); renderReg(); }
+  }
+  renderDemand();
+}
+const naIdx = () => ({ 7:5, 15:6, 30:7 })[DEM.na] || 6;
+// leads & deal totals for a list of target regions (null = all), ignoring the engineer filter
+function demOf(regs){
+  const ok = r => !regs || regs.includes(r);
+  return { L: leadAgg((DEM.d?.lf || []).filter(r => ok(r[0]))), D: dealAgg((DEM.d?.df || []).filter(r => ok(r[0]))) };
+}
+const rgOk = r => !S.reg.length || S.reg.includes(r);
+const ownOk = o => !S.own.length || S.own.includes(o);
+function lfRows(){ return (DEM.d?.lf || []).filter(r => rgOk(r[0]) && ownOk(r[1])); }
+function dfRows(){ return (DEM.d?.df || []).filter(r => rgOk(r[0]) && ownOk(r[1])); }
+function leadAgg(rows){
+  const o = { n:0, U:0, W:0, Q:0, T:0, D:0, na:0, ct:0 }; const k = naIdx();
+  rows.forEach(r => { o.n += r[4]; o.na += r[k]; if (r[2] === 'Contacted') o.ct += r[4];
+    o[{ Untouched:'U', Working:'W', Qualified:'Q', 'To dealers':'T', Dropped:'D' }[r[3]]] += r[4]; });
+  return o;
+}
+function dealAgg(rows){
+  const o = { on:0, oa:0, ow:0, nw:0, aw:0, ww:0, ns:0, as:0, nn:0, wn:0, wa:0, ln:0 };
+  rows.forEach(r => { if (r[2] === 'Open') { o.on += r[4]; o.oa += r[5]; o.ow += r[6]; o.nw += r[7]; o.aw += r[8]; o.ww += r[9]; o.ns += r[10]; o.as += r[11]; o.nn += r[12]; }
+    else if (r[2] === 'Won') { o.wn += r[4]; o.wa += r[5]; } else o.ln += r[4]; });
+  return o;
+}
+// region gap (₹ L) from the order-booking / invoicing data; null when filters make the target meaningless
+function regionGap(rg){ const t = REGIONS.find(x => x.k === rg); if (!t || S.prod.length || S.ch.length) return null;
+  return metrics(t.t, series(r => pass(r, { r:true }) && r.r === rg)).gap; }
+function coverChip(w, gap){ if (gap == null) return '<span class="chip c-na">no target</span>'; if (gap <= 0) return '<span class="chip c-good">✓ target done</span>';
+  const c = w / gap; return `<span class="chip ${c >= 1.5 ? 'c-good' : c >= 1 ? 'c-warn' : 'c-bad'}">${c.toFixed(2)}×</span>`; }
+// leads are live (synced 3x a day), so their month-to-date uses today's date, not the sales data date
+function leadK(){ const d = new Date(), k = (d.getMonth() + 9) % 12, fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return fy > S.cy ? 11 : fy < S.cy ? -1 : k; }
+function ymList(fy, K){ const out = []; for (let i = 0; i <= K; i++) { const m = (i + 3) % 12 + 1, y = fy + (i >= 9 ? 1 : 0); out.push(`${y}-${String(m).padStart(2, '0')}`); } return out; }
+
+function renderDemand(){
+  const body = $('demBody');
+  if (!DEM.d) { $('demKpis').innerHTML = ''; $('demVerdict').innerHTML = '';
+    body.innerHTML = `<div class="note">${DEM.err ? `Lead analytics not available yet (${esc(DEM.err)}). Run <b>Part 5 and Part 6</b> of the SQL in Supabase.` : 'Loading leads &amp; pipeline…'}</div>`; return; }
+  const C = clock();
+  $('demWarn').style.display = DEM.d.has_activity ? 'none' : 'block';
+  $('demWarn').innerHTML = '<b>Last-activity dates are not filled yet.</b> Until the one-time full lead &amp; potential sync runs, "no action" is measured from the lead’s created date.';
+  const L = leadAgg(lfRows()), D = dealAgg(dfRows());
+  const sc = S.prod.length || S.ch.length ? { T:null } : (S.reg.length ? { T: sum(REGIONS.filter(x => S.reg.includes(x.k)).map(x => x.t)) || null } : { T: TOTAL_TARGET });
+  const gap = sc.T == null ? null : metrics(sc.T, series(r => pass(r, { p:true, c:true }))).gap;
+  const avgDeal = D.wn ? D.wa / D.wn : null, missing = gap == null ? null : Math.max(0, gap - D.ww);
+  const k = (t, v, s2) => `<div class="kpi"><div class="k">${t}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`;
+  $('demKpis').innerHTML = [
+    k('Open pipeline to 31-Mar', fCr(D.aw) + ' Cr', `${D.nw} deals · weighted ${fCr(D.ww)} Cr`),
+    k('Cover of the gap', gap == null ? '—' : gap <= 0 ? 'done' : (D.ww / gap).toFixed(2) + '×', gap == null ? 'no target for this selection' : `gap ${fCr(gap)} Cr · missing ${fCr(missing)} Cr`),
+    k('Leads this FY', L.n.toLocaleString('en-IN'), `${L.Q} qualified · ${L.T} to dealers · ${L.D} dropped`),
+    k(`No action > ${DEM.na} days`, `<span class="${L.na ? 'neg' : ''}">${L.na.toLocaleString('en-IN')}</span>`, `open leads · ${L.U} never contacted`),
+    k('Deals past closing date', `<span class="${D.ns ? 'neg' : ''}">${D.ns}</span>`, `${fL(D.as)} L still marked open`),
+    k('Won this FY (Zoho deals)', fCr(D.wa) + ' Cr', `${D.wn.toLocaleString('en-IN')} deals · avg ${avgDeal ? fL1(avgDeal) : '—'} L`),
+  ].join('');
+  let v = '';
+  if (gap != null && gap > 0) {
+    v = `Weighted pipeline closing by 31-Mar is <b>${fCr(D.ww)} Cr</b> against a gap of <b>${fCr(gap)} Cr</b> — `
+      + `<b>${fCr(missing)} Cr</b> has to come from deals that are not in Zoho yet`
+      + (avgDeal && C.left > 0 ? `: about <b>${Math.ceil(missing / avgDeal / C.left).toLocaleString('en-IN')} extra deals a month</b> at today’s average deal of ${fL1(avgDeal)} L (now ${fL1(D.wn / C.elapsed)} won a month).` : '.');
+  }
+  v += ` <b>${L.na.toLocaleString('en-IN')}</b> open leads have had no action for over ${DEM.na} days and <b>${L.Q.toLocaleString('en-IN')}</b> qualified leads are not deals yet — the fastest source of new pipeline.`;
+  if (D.ns) v += ` <b>${D.ns}</b> deals (${fCr(D.as)} Cr) are past their closing date: update or close them so the pipeline is real.`;
+  $('demVerdict').innerHTML = v;
+  ({ reg:demReg, eng:demEng, prod:demProd, src:demSrc, trend:demTrend, act:demAct })[DEM.tab]();
+}
+
+function demSortable(id, cols, rows, defKey){
+  const st = DEM.sort[id] || { k:defKey, dir:-1 }; const c = cols.find(x => x.k === st.k);
+  if (c && c.v) rows = rows.slice().sort((a, b) => { const A = c.v(a), B = c.v(b); return (A > B ? 1 : A < B ? -1 : 0) * st.dir; });
+  return { rows, st };
+}
+function demTable(id, cols, rows, defKey, totRow, clickFn){
+  const { rows: r2, st } = demSortable(id, cols, rows, defKey);
+  let h = `<div class="tbl" style="max-height:620px"><table><tr>${cols.map(c => `<th class="${c.l ? 'l' : ''}" data-k="${c.k}">${c.h}${st.k === c.k ? (st.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr>`;
+  h += r2.map((r, i) => `<tr class="${clickFn ? 'click' : ''}" data-i="${rows.indexOf(r)}">${cols.map(c => `<td class="${c.l ? 'l' : ''}">${c.f(r)}</td>`).join('')}</tr>`).join('');
+  if (totRow) h += `<tr class="tot">${cols.map(c => `<td class="${c.l ? 'l' : ''}">${c.t ? c.t(totRow) : ''}</td>`).join('')}</tr>`;
+  $('demBody').innerHTML = h + '</table></div>';
+  $('demBody').querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const kk = th.dataset.k, o = DEM.sort[id] || { k:defKey, dir:-1 };
+    DEM.sort[id] = { k:kk, dir: o.k === kk ? -o.dir : -1 }; renderDemand(); });
+  if (clickFn) $('demBody').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => clickFn(rows[+tr.dataset.i]));
+  DEM.csv = { id, cols, rows: r2 };
+}
+const n0 = v => v ? Number(v).toLocaleString('en-IN') : '—';
+const pctOf = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+
+/* ---- Regions: gap vs funnel ---- */
+function demReg(){
+  const C = clock(), lf = lfRows(), df = dfRows(), lt = (DEM.d.lt || []).filter(r => rgOk(r[0])), LK = leadK();
+  const fyM = new Set(ymList(S.cy, LK)), lyM = new Set(ymList(S.cy - 1, LK));
+  const regs = [...REGIONS.map(r => r.k), 'Other regions'].filter(rgOk);
+  const rows = regs.map(rg => {
+    const L = leadAgg(lf.filter(r => r[0] === rg)), D = dealAgg(df.filter(r => r[0] === rg)), gap = regionGap(rg);
+    const avg = D.wn ? D.wa / D.wn : null, miss = gap == null ? null : Math.max(0, gap - D.ww);
+    const fyN = sum(lt.filter(r => r[0] === rg && fyM.has(r[1])).map(r => r[2])), lyN = sum(lt.filter(r => r[0] === rg && lyM.has(r[1])).map(r => r[2]));
+    return { rg, L, D, gap, avg, miss, need: miss != null && avg && C.left > 0 ? miss / avg / C.left : null, won: D.wn / C.elapsed, fyN, lyN, cov: gap > 0 ? D.ww / gap : null };
+  }).filter(x => x.L.n || x.D.on || x.D.wn || x.gap);
+  const T = { rg:'Total', L: leadAgg(lf), D: dealAgg(df), gap: rows.reduce((s, x) => s + (x.gap || 0), 0), fyN: sum(rows.map(x => x.fyN)), lyN: sum(rows.map(x => x.lyN)) };
+  T.avg = T.D.wn ? T.D.wa / T.D.wn : null; T.miss = rows.reduce((s, x) => s + (x.miss || 0), 0); T.won = T.D.wn / C.elapsed; T.need = T.avg && C.left > 0 ? T.miss / T.avg / C.left : null;
+  const cols = [
+    { k:'rg', h:'Region', l:true, f:x => esc(x.rg), v:x => x.rg, t:x => 'Total' },
+    { k:'cov', h:'Cover', f:x => coverChip(x.D.ww, x.gap), v:x => x.gap == null ? 99 : x.gap <= 0 ? 98 : x.cov, t:x => coverChip(x.D.ww, x.gap) },
+    { k:'gap', h:'Gap to FY ₹L', f:x => x.gap == null ? '—' : fL(x.gap), v:x => x.gap ?? -1, t:x => fL(x.gap) },
+    { k:'aw', h:'Pipeline to Mar ₹L', f:x => fL(x.D.aw), v:x => x.D.aw, t:x => fL(x.D.aw) },
+    { k:'ww', h:'Weighted ₹L', f:x => `<b>${fL(x.D.ww)}</b>`, v:x => x.D.ww, t:x => fL(x.D.ww) },
+    { k:'miss', h:'Missing demand ₹L', f:x => x.miss == null ? '—' : `<span class="${x.miss > 0 ? 'neg' : 'pos'}">${fL(x.miss)}</span>`, v:x => x.miss ?? -1, t:x => fL(x.miss) },
+    { k:'avg', h:'Avg won deal ₹L', f:x => x.avg ? fL1(x.avg) : '—', v:x => x.avg ?? -1, t:x => x.avg ? fL1(x.avg) : '' },
+    { k:'need', h:'Extra deals / month needed', f:x => x.need == null ? '—' : `<b>${Math.ceil(x.need)}</b>`, v:x => x.need ?? -1, t:x => x.need == null ? '' : Math.ceil(x.need) },
+    { k:'won', h:'Deals won / month now', f:x => fL1(x.won), v:x => x.won, t:x => fL1(x.won) },
+    { k:'ns', h:'Deals past close date', f:x => x.D.ns ? `<span class="neg">${x.D.ns}</span> <span class="muted">(${fL(x.D.as)} L)</span>` : '—', v:x => x.D.ns, t:x => T.D.ns },
+    { k:'n', h:'Leads FY', f:x => n0(x.L.n), v:x => x.L.n, t:x => n0(x.L.n) },
+    { k:'flow', h:'Leads vs LY (same months)', f:x => `${n0(x.fyN)} <span class="${gcls(x.fyN, x.lyN)}" style="font-size:11px">${gtxt(x.fyN, x.lyN)}</span>`, v:x => x.lyN ? x.fyN / x.lyN : 9, t:x => `${n0(x.fyN)} ${gtxt(x.fyN, x.lyN)}` },
+    { k:'U', h:'Never contacted', f:x => x.L.U ? `${x.L.U} <span class="muted">(${pctOf(x.L.U, x.L.n)})</span>` : '—', v:x => x.L.U, t:x => n0(x.L.U) },
+    { k:'na', h:`No action &gt; ${DEM.na}d`, f:x => x.L.na ? `<span class="neg"><b>${x.L.na}</b></span>` : '—', v:x => x.L.na, t:x => n0(x.L.na) },
+    { k:'ct', h:'Stuck at "Contacted"', f:x => n0(x.L.ct), v:x => x.L.ct, t:x => n0(x.L.ct) },
+    { k:'Q', h:'Qualified, no deal', f:x => n0(x.L.Q), v:x => x.L.Q, t:x => n0(x.L.Q) },
+    { k:'T', h:'To dealers', f:x => n0(x.L.T), v:x => x.L.T, t:x => n0(x.L.T) },
+    { k:'D', h:'Dropped', f:x => x.L.D ? `${x.L.D} <span class="muted">(${pctOf(x.L.D, x.L.n)})</span>` : '—', v:x => x.L.n ? x.L.D / x.L.n : 0, t:x => n0(x.L.D) },
+  ];
+  demTable('reg', cols, rows, 'miss', T, x => { DEM.tab = 'act'; DEM.act = 'noaction'; S.reg = [x.rg]; MS.reg.setBtn(); setDemTab(); renderAll(); });
+  $('demBody').insertAdjacentHTML('beforeend', `<div class="sub" style="margin-top:6px">Gap = region FY target − booked so far (same as the Regions table). Weighted = open deals closing up to 31-Mar × probability. Missing demand = gap − weighted pipeline. Extra deals / month = missing ÷ average won deal ÷ months left. Click a region for its action lists.</div>`);
+}
+
+/* ---- Engineers ---- */
+function demEng(){
+  const lf = lfRows(), df = dfRows(), by = new Map();
+  const get = o => { if (!by.has(o)) by.set(o, { o, lf:[], df:[], rg:new Map() }); return by.get(o); };
+  lf.forEach(r => { const x = get(r[1] || '(no owner)'); x.lf.push(r); x.rg.set(r[0], (x.rg.get(r[0]) || 0) + r[4]); });
+  df.forEach(r => { const x = get(r[1] || '(no owner)'); x.df.push(r); x.rg.set(r[0], (x.rg.get(r[0]) || 0) + r[4]); });
+  const rows = [...by.values()].map(x => ({ o:x.o, rg:[...x.rg.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '', L: leadAgg(x.lf), D: dealAgg(x.df) }));
+  rows.forEach(x => x.att = x.L.na + x.D.ns * 3 + x.D.nn);
+  const T = { o:'Total', L: leadAgg(lf), D: dealAgg(df) };
+  const cols = [
+    { k:'o', h:'Engineer', l:true, f:x => esc(x.o), v:x => x.o, t:x => 'Total' },
+    { k:'rg', h:'Main region', l:true, f:x => esc(x.rg), v:x => x.rg },
+    { k:'att', h:'Needs attention', f:x => x.att ? `<span class="chip ${x.att > 40 ? 'c-bad' : x.att > 10 ? 'c-warn' : 'c-good'}">${x.att}</span>` : '<span class="chip c-good">0</span>', v:x => x.att },
+    { k:'n', h:'Leads FY', f:x => n0(x.L.n), v:x => x.L.n, t:x => n0(x.L.n) },
+    { k:'U', h:'Never contacted', f:x => n0(x.L.U), v:x => x.L.U, t:x => n0(x.L.U) },
+    { k:'na', h:`No action &gt; ${DEM.na}d`, f:x => x.L.na ? `<span class="neg"><b>${x.L.na}</b></span>` : '—', v:x => x.L.na, t:x => n0(x.L.na) },
+    { k:'ct', h:'Stuck "Contacted"', f:x => n0(x.L.ct), v:x => x.L.ct, t:x => n0(x.L.ct) },
+    { k:'Q', h:'Qualified, no deal', f:x => n0(x.L.Q), v:x => x.L.Q, t:x => n0(x.L.Q) },
+    { k:'T', h:'To dealers', f:x => n0(x.L.T), v:x => x.L.T, t:x => n0(x.L.T) },
+    { k:'D', h:'Dropped', f:x => n0(x.L.D), v:x => x.L.D, t:x => n0(x.L.D) },
+    { k:'on', h:'Open deals', f:x => n0(x.D.on), v:x => x.D.on, t:x => n0(x.D.on) },
+    { k:'oa', h:'Open ₹L', f:x => fL(x.D.oa), v:x => x.D.oa, t:x => fL(x.D.oa) },
+    { k:'ww', h:'Weighted to Mar ₹L', f:x => fL(x.D.ww), v:x => x.D.ww, t:x => fL(x.D.ww) },
+    { k:'ns', h:'Past close date', f:x => x.D.ns ? `<span class="neg">${x.D.ns}</span>` : '—', v:x => x.D.ns, t:x => n0(x.D.ns) },
+    { k:'nn', h:'Deals idle &gt; 15d', f:x => n0(x.D.nn), v:x => x.D.nn, t:x => n0(x.D.nn) },
+    { k:'wn', h:'Won deals FY', f:x => n0(x.D.wn), v:x => x.D.wn, t:x => n0(x.D.wn) },
+    { k:'wa', h:'Won ₹L FY', f:x => fL(x.D.wa), v:x => x.D.wa, t:x => fL(x.D.wa) },
+  ];
+  demTable('eng', cols, rows, 'att', T, x => { DEM.tab = 'act'; DEM.act = 'noaction'; S.own = [x.o]; MS.own.setBtn(); setDemTab(); renderDemand(); });
+  $('demBody').insertAdjacentHTML('beforeend', `<div class="sub" style="margin-top:6px">Needs attention = leads with no action + 3 × deals past closing date + deals idle over 15 days. Click an engineer to see their exact leads and deals.</div>`);
+}
+
+/* ---- Product types (Zoho multi-select; a record with 2 types counts in both) ---- */
+function splitPt(p){ return String(p || '(blank)').split(/\s*,\s*/).filter(Boolean); }
+function demProd(){
+  const m = new Map(), get = k => { if (!m.has(k)) m.set(k, { k, n:0, Q:0, T:0, D:0, U:0, on:0, oa:0, ww:0, wn:0, wa:0 }); return m.get(k); };
+  (DEM.d.lp || []).filter(r => rgOk(r[1])).forEach(r => splitPt(r[0]).forEach(p => { const x = get(p); x.n += r[3];
+    const g = { Untouched:'U', Qualified:'Q', 'To dealers':'T', Dropped:'D' }[r[2]]; if (g) x[g] += r[3]; }));
+  (DEM.d.dp || []).filter(r => rgOk(r[1])).forEach(r => splitPt(r[0]).forEach(p => { const x = get(p);
+    if (r[2] === 'Open') { x.on += r[3]; x.oa += r[4]; x.ww += r[5]; } else if (r[2] === 'Won') { x.wn += r[3]; x.wa += r[4]; } }));
+  const rows = [...m.values()];
+  const cols = [
+    { k:'k', h:'Product type (Zoho)', l:true, f:x => esc(x.k), v:x => x.k },
+    { k:'n', h:'Leads FY', f:x => n0(x.n), v:x => x.n },
+    { k:'U', h:'Never contacted', f:x => n0(x.U), v:x => x.U },
+    { k:'Q', h:'Qualified, no deal', f:x => n0(x.Q), v:x => x.Q },
+    { k:'T', h:'To dealers', f:x => n0(x.T), v:x => x.T },
+    { k:'D', h:'Dropped', f:x => x.D ? `${x.D} <span class="muted">(${pctOf(x.D, x.n)})</span>` : '—', v:x => x.D },
+    { k:'on', h:'Open deals', f:x => n0(x.on), v:x => x.on },
+    { k:'oa', h:'Open ₹L', f:x => fL(x.oa), v:x => x.oa },
+    { k:'ww', h:'Weighted to Mar ₹L', f:x => `<b>${fL(x.ww)}</b>`, v:x => x.ww },
+    { k:'wn', h:'Won deals FY', f:x => n0(x.wn), v:x => x.wn },
+    { k:'wa', h:'Won ₹L FY', f:x => fL(x.wa), v:x => x.wa },
+  ];
+  demTable('prod', cols, rows, 'ww', null, null);
+  $('demBody').insertAdjacentHTML('beforeend', `<div class="sub" style="margin-top:6px">Product types are Zoho’s lead / potential multi-select values, not the SAP baskets used above — compare with the Products table for each product’s gap. Engineer filter does not apply to this tab.</div>`);
+}
+
+/* ---- Lead sources ---- */
+function demSrc(){
+  const m = new Map(), get = k => { if (!m.has(k)) m.set(k, { k, n:0, U:0, Q:0, T:0, D:0, W:0, wn:0, wa:0, on:0, oa:0 }); return m.get(k); };
+  (DEM.d.ls || []).filter(r => rgOk(r[0])).forEach(r => { const x = get(r[1]); x.n += r[3]; const g = { Untouched:'U', Working:'W', Qualified:'Q', 'To dealers':'T', Dropped:'D' }[r[2]]; if (g) x[g] += r[3]; });
+  (DEM.d.ds || []).forEach(r => { const x = get(r[0]); if (r[1] === 'Won') { x.wn += r[2]; x.wa += r[3]; } else if (r[1] === 'Open') { x.on += r[2]; x.oa += r[3]; } });
+  const rows = [...m.values()];
+  const cols = [
+    { k:'k', h:'Lead source', l:true, f:x => esc(x.k), v:x => x.k },
+    { k:'n', h:'Leads FY', f:x => n0(x.n), v:x => x.n },
+    { k:'qr', h:'Qualified + to dealers', f:x => pctOf(x.Q + x.T, x.n), v:x => x.n ? (x.Q + x.T) / x.n : -1 },
+    { k:'dr', h:'Dropped', f:x => x.n ? `<span class="${x.D / x.n > 0.25 ? 'neg' : ''}">${pctOf(x.D, x.n)}</span>` : '—', v:x => x.n ? x.D / x.n : -1 },
+    { k:'U', h:'Never contacted', f:x => n0(x.U), v:x => x.U },
+    { k:'W', h:'Still working', f:x => n0(x.W), v:x => x.W },
+    { k:'on', h:'Open deals', f:x => n0(x.on), v:x => x.on },
+    { k:'oa', h:'Open deals ₹L', f:x => fL(x.oa), v:x => x.oa },
+    { k:'wn', h:'Won deals FY', f:x => n0(x.wn), v:x => x.wn },
+    { k:'wa', h:'Won ₹L FY', f:x => `<b>${fL(x.wa)}</b>`, v:x => x.wa },
+    { k:'avg', h:'Avg won deal ₹L', f:x => x.wn ? fL1(x.wa / x.wn) : '—', v:x => x.wn ? x.wa / x.wn : -1 },
+  ];
+  demTable('src', cols, rows, 'wa', null, null);
+  $('demBody').insertAdjacentHTML('beforeend', `<div class="sub" style="margin-top:6px">Which sources bring business, not just leads. Deal columns are company-wide (region filter applies to the lead columns only). "(not synced yet)" disappears after the one-time full sync.</div>`);
+}
+
+/* ---- Lead flow trend ---- */
+function demTrend(){
+  const C = { K: leadK() }, lt = (DEM.d.lt || []).filter(r => rgOk(r[0])), fy = ymList(S.cy, 11), ly = ymList(S.cy - 1, 11);
+  const cnt = (ym, rg) => sum(lt.filter(r => r[1] === ym && (!rg || r[0] === rg)).map(r => r[2]));
+  const a = fy.map(m => cnt(m)), b = ly.map(m => cnt(m));
+  const F = svgFrame(1300, 240), iw = F.W - F.l - F.r, ih = F.H - F.t - F.b, bw = iw / 12, max = niceMax(Math.max(...a, ...b));
+  const Y = v => F.H - F.b - ih * (v / max);
+  let g = axisY(F, max, v => Math.round(v).toLocaleString('en-IN'));
+  for (let i = 0; i < 12; i++) { const x = F.l + i * bw;
+    if (i <= C.K) g += `<rect x="${x + bw * 0.22}" y="${Y(a[i])}" width="${bw * 0.56}" height="${Math.max(0, F.H - F.b - Y(a[i]))}" rx="3" fill="var(--act)" ${i === C.K ? 'opacity=".55"' : ''}/>`;
+    g += `<text x="${x + bw / 2}" y="${F.H - 8}" text-anchor="middle" font-size="11" fill="#3b5384">${MN[i]}</text><rect class="hit" data-i="${i}" x="${x}" y="${F.t}" width="${bw}" height="${ih}" fill="transparent"/>`; }
+  g += `<polyline fill="none" stroke="var(--ly)" stroke-width="2" points="${b.map((v, i) => `${F.l + i * bw + bw / 2},${Y(v)}`).join(' ')}"/>`;
+  b.forEach((v, i) => g += `<circle cx="${F.l + i * bw + bw / 2}" cy="${Y(v)}" r="3" fill="var(--ly)" stroke="#fff" stroke-width="1.5"/>`);
+  const regs = [...new Set(lt.map(r => r[0]))].sort((x, y) => cnt(fy[0], y) - cnt(fy[0], x));
+  const rTot = rg => sum(fy.slice(0, C.K + 1).map(m => cnt(m, rg))), rLy = rg => sum(ly.slice(0, C.K + 1).map(m => cnt(m, rg)));
+  regs.sort((x, y) => rTot(y) - rTot(x));
+  let t = `<div class="tbl" style="margin-top:10px"><table class="mini"><tr><th class="l">Region</th>${MN.slice(0, C.K + 1).map(m => `<th>${m}</th>`).join('')}<th>FY total</th><th>LY same months</th><th>Change</th></tr>`;
+  t += regs.map(rg => `<tr><td class="l">${esc(rg)}</td>${fy.slice(0, C.K + 1).map(m => `<td>${n0(cnt(m, rg))}</td>`).join('')}<td><b>${n0(rTot(rg))}</b></td><td class="muted">${n0(rLy(rg))}</td><td class="${gcls(rTot(rg), rLy(rg))}">${gtxt(rTot(rg), rLy(rg))}</td></tr>`).join('');
+  t += `<tr class="tot"><td class="l">Total</td>${a.slice(0, C.K + 1).map(v => `<td>${n0(v)}</td>`).join('')}<td>${n0(sum(a.slice(0, C.K + 1)))}</td><td>${n0(sum(b.slice(0, C.K + 1)))}</td><td>${gtxt(sum(a.slice(0, C.K + 1)), sum(b.slice(0, C.K + 1)))}</td></tr></table></div>`;
+  $('demBody').innerHTML = `<div class="legend"><span><i class="sw" style="background:var(--act)"></i>New leads this FY</span><span><i class="sw ln" style="background:var(--ly)"></i>Last FY</span></div><div class="chart" id="demChart"><svg viewBox="0 0 ${F.W} ${F.H}" role="img" aria-label="New leads per month">${g}</svg></div>${t}
+    <div class="sub" style="margin-top:6px">New leads created per month (all statuses). Current month is to date. Engineer filter does not apply to this tab.</div>`;
+  $('demChart').querySelectorAll('.hit').forEach(h => { h.onmousemove = e => { const i = +h.dataset.i; showTip(e, `<b>${MN[i]}</b><br>This FY: ${i <= C.K ? n0(a[i]) : '—'}<br>Last FY: ${n0(b[i])}`); }; h.onmouseleave = hideTip; });
+  DEM.csv = { id:'trend', cols:[{ k:'rg', h:'Region', f:x => x }, ...fy.slice(0, C.K + 1).map((m, i) => ({ k:m, h:MN[i], f:rg => cnt(m, rg) }))], rows: regs, raw:true };
+}
+
+/* ---- Action lists ---- */
+const ACT = [
+  { k:'noaction', h:'Leads: no action', t:'leads', note:d => `Open leads (not dropped / not with dealers) with no activity for more than ${d} days, oldest first.` },
+  { k:'untouched', h:'Leads: never contacted', t:'leads', note:d => `Leads still "Not Contacted" / no response, older than ${d} days.` },
+  { k:'qualified', h:'Leads: qualified, no deal', t:'leads', note:() => 'Qualified leads that have not been converted into a potential — create the deal or close the lead.' },
+  { k:'stale', h:'Deals past closing date', t:'deals', note:() => 'Open potentials whose closing date has passed — update the date / stage or mark lost.' },
+  { k:'bigdeals', h:'Big deals this quarter', t:'deals', note:() => 'Open potentials of ₹25 L or more closing by the end of this quarter — review each one.' },
+  { k:'idledeals', h:'Deals: no action', t:'deals', note:d => `Open potentials with no activity for more than ${d} days.` },
+];
+let actSeq = 0;
+async function demAct(){
+  const a = ACT.find(x => x.k === DEM.act) || ACT[0];
+  $('demBody').innerHTML = `<div class="ctrls" style="margin-bottom:8px"><div class="tabs" id="actTabs">${ACT.map(x => `<button data-k="${x.k}" class="${x.k === a.k ? 'on' : ''}">${x.h}</button>`).join('')}</div>
+    <input class="srch" id="actSearch" type="search" placeholder="Search…" value="${esc(DEM.q)}"></div><div class="note" id="actNote">${esc(a.note(DEM.na))} ${S.reg.length ? 'Region: ' + esc(S.reg.join(', ')) + '. ' : ''}${S.own.length ? 'Engineer: ' + esc(S.own.join(', ')) + '. ' : ''}</div><div class="tbl" id="actTbl" style="max-height:620px;margin-top:6px">Loading…</div>`;
+  $('actTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; DEM.act = b.dataset.k; demAct(); };
+  $('actSearch').oninput = () => { DEM.q = $('actSearch').value; drawAct(); };
+  const my = ++actSeq;
+  try { const d = await rpc('ptt_demand_list', { p_cy:S.cy, p_kind:a.k, p_rg:S.reg, p_owner:S.own, p_days: a.k === 'untouched' ? Math.min(DEM.na, 7) : DEM.na });
+    if (my !== actSeq) return; DEM.list = { a, d }; drawAct(); }
+  catch (e) { if (my === actSeq) $('actTbl').innerHTML = `<div class="note">Could not load — ${esc(e.message || e)}</div>`; }
+}
+const fD = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+function drawAct(){
+  if (!DEM.list) return; const { a, d } = DEM.list, q = DEM.q.toLowerCase();
+  const rows = (a.t === 'leads' ? d.leads : d.deals || []).filter(r => !q || r.join(' ').toLowerCase().includes(q));
+  let h;
+  if (a.t === 'leads') {
+    h = `<table><tr><th class="l">#</th><th class="l">Lead</th><th class="l">Company</th><th class="l">Engineer</th><th class="l">Region</th><th class="l">Status</th><th class="l">Source</th><th class="l">Product type</th><th>Created</th><th>Last action</th><th>Days idle</th></tr>`
+      + rows.map((r, i) => `<tr><td class="l muted">${i + 1}</td><td class="l">${esc(r[0])}</td><td class="l">${esc(r[1])}</td><td class="l">${esc(r[2])}</td><td class="l">${esc(r[3])}</td><td class="l">${esc(r[4] || 'Not Contacted')}</td><td class="l">${esc(r[5] || '')}</td><td class="l">${esc(r[6] || '')}</td><td>${fD(r[7])}</td><td>${fD(r[8])}</td><td><b class="${r[9] > 30 ? 'neg' : ''}">${r[9] ?? '—'}</b></td></tr>`).join('') + '</table>';
+    DEM.csv = { id:'act', head:['Lead', 'Company', 'Engineer', 'Region', 'Status', 'Source', 'Product type', 'Created', 'Last action', 'Days idle'], rows };
+  } else {
+    h = `<table><tr><th class="l">#</th><th class="l">Deal</th><th class="l">Account</th><th class="l">Engineer</th><th class="l">Region</th><th class="l">Stage</th><th class="l">Product type</th><th>₹ L</th><th>Prob %</th><th>Closing</th><th>Last action</th><th>Days idle</th></tr>`
+      + rows.map((r, i) => `<tr><td class="l muted">${i + 1}</td><td class="l">${esc(r[0])}</td><td class="l">${esc(r[1])}</td><td class="l">${esc(r[2])}</td><td class="l">${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td class="l">${esc(r[5] || '')}</td><td><b>${fL1(r[6])}</b></td><td>${r[7] ?? ''}</td><td class="${r[8] && r[8] < new Date().toISOString().slice(0, 10) ? 'neg' : ''}">${fD(r[8])}</td><td>${fD(r[9])}</td><td>${r[10] ?? '—'}</td></tr>`).join('') + '</table>';
+    DEM.csv = { id:'act', head:['Deal', 'Account', 'Engineer', 'Region', 'Stage', 'Product type', 'Amount L', 'Probability', 'Closing', 'Last action', 'Days idle', 'Source'], rows };
+  }
+  $('actTbl').innerHTML = (rows.length ? h : '<div class="note">Nothing in this list — good.</div>') + `<div class="sub" style="margin-top:6px">${rows.length} rows${rows.length >= 1000 ? ' (first 1,000)' : ''}.</div>`;
+}
+
+function setDemTab(){ $('demTabs').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.k === DEM.tab)); }
+$('demTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; DEM.tab = b.dataset.k; setDemTab(); renderDemand(); };
+$('naSel').onchange = () => { DEM.na = +$('naSel').value; renderDemand(); renderHead(scopeTarget()); renderReg(); };
+$('dlDem').onclick = () => { const c = DEM.csv; if (!c) return;
+  if (c.head) return csv(`demand_${DEM.act}.csv`, c.head, c.rows);
+  const strip = s => String(s ?? '').replace(/<[^>]+>/g, '').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
+  csv(`demand_${c.id}.csv`, c.cols.map(x => strip(x.h)), c.rows.map(r => c.cols.map(x => strip(x.f(r))))); };
+</script>
+<script>
 /* ======================= drill-down drawer ======================= */
 // sel: any of {p, r, c}; the global filters still apply for the other dims
 async function openDrawer(sel){
@@ -778,12 +1105,26 @@ async function openDrawer(sel){
       + keys.map(k => { const o = g.get(k); return `<tr ${clickDim ? `class="click" data-${clickDim}="${esc(k)}"` : ''}><td class="l">${esc(k)}</td><td><b>${fL1(o.cy)}</b></td><td class="muted">${fL1(o.ly)}</td><td class="${gcls(o.cy, o.ly)}">${gtxt(o.cy, o.ly)}</td><td>${t.cy ? pct(o.cy / t.cy) : '—'}</td></tr>`; }).join('')
       + `<tr class="tot"><td class="l">Total</td><td>${fL1(t.cy)}</td><td>${fL1(t.ly)}</td><td>${gtxt(t.cy, t.ly)}</td><td></td></tr></table></div></div>`;
   };
+  if (sel.r && typeof DEM !== 'undefined' && DEM.d) {
+    const dm = demOf([sel.r]), gap = !sel.p && !sel.c ? m.gap : null;
+    h += `<div class="cbox" style="margin-top:12px"><div class="card-h" style="margin-bottom:6px"><h3>Leads &amp; pipeline — ${esc(sel.r)}</h3>
+      <div class="tabs"><button data-go="noaction">Leads with no action</button><button data-go="qualified">Qualified, no deal</button><button data-go="stale">Deals past closing date</button><button data-go="bigdeals">Big deals this quarter</button></div></div>
+      <div class="kpis" style="grid-template-columns:repeat(6,minmax(0,1fr))">
+      ${kp('Weighted pipeline to Mar', fCr(dm.D.ww) + ' Cr', `${dm.D.nw} deals · ${fCr(dm.D.aw)} Cr unweighted`)}
+      ${kp('Pipeline cover', gap == null ? '—' : gap <= 0 ? 'done' : (dm.D.ww / gap).toFixed(2) + '×', gap == null ? '' : `gap ${fCr(gap)} Cr`)}
+      ${kp('Leads this FY', dm.L.n.toLocaleString('en-IN'), `${dm.L.U} never contacted · ${dm.L.D} dropped`)}
+      ${kp(`No action &gt; ${DEM.na}d`, `<span class="${dm.L.na ? 'neg' : ''}">${dm.L.na}</span>`, `${dm.L.ct} stuck at "Contacted"`)}
+      ${kp('Qualified, no deal', dm.L.Q, `${dm.L.T} passed to dealers`)}
+      ${kp('Deals past close date', `<span class="${dm.D.ns ? 'neg' : ''}">${dm.D.ns}</span>`, `${fL(dm.D.as)} L · ${dm.D.nn} idle &gt; 15d`)}</div></div>`;
+  }
   h += `<div class="dgrid" style="margin-top:12px">${!sel.r ? brk('region', r => r.r, 'r') : ''}${!sel.p ? brk('product', r => r.p, 'p') : ''}${!sel.c ? brk('customer type', r => r.c, 'c') : ''}${brk('basket', r => r.b)}</div>`;
   h += `<div class="cbox" style="margin-top:12px"><div class="card-h" style="margin-bottom:6px"><h3>Customers — ${esc(periodLabel())}</h3><div class="tabs" id="dAccTabs"><button data-k="top" class="on">Top</button><button data-k="down">Buying less</button><button data-k="lapsed">Lapsed</button></div></div><div class="note" id="dAccSum"></div><div class="tbl" id="dAcc" style="max-height:460px">Loading…</div></div>`;
   $('dBody').innerHTML = h;
   drawMonth($('dChM'), s, m.plan || Array(12).fill(null), C);
   drawCum($('dChC'), s, m.plan || Array(12).fill(null), m, C);
   // a breakdown row opens a narrower drill (adds that dimension)
+  $('dBody').querySelectorAll('button[data-go]').forEach(b => b.onclick = () => { closeDrawer(); S.reg = [sel.r]; MS.reg.setBtn();
+    DEM.tab = 'act'; DEM.act = b.dataset.go; setDemTab(); renderAll(); setTimeout(() => $('secDem').scrollIntoView({ behavior:'smooth' }), 300); });
   $('dBody').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { const add = {}; ['p', 'r', 'c'].forEach(k => { if (tr.dataset[k]) add[k] = tr.dataset[k]; }); openDrawer({ ...sel, ...add }); });
   $('drawer').classList.add('on'); $('dbg').classList.add('on'); $('drawer').scrollTop = 0; $('dBody').scrollTop = 0;
   try {

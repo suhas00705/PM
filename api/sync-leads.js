@@ -4,7 +4,7 @@ const supabaseLeads = require('../lib/supabaseLeads');
 const LEADS_FIELDS = [
   'Full_Name', 'Company', 'Account_Name', 'Owner', 'Lead_Status',
   'Order_Value', 'Product_Solution_Type_Multi_Select',
-  'Region', 'Created_Time', 'Modified_Time'
+  'Region', 'Created_Time', 'Modified_Time', 'Last_Activity_Time', 'Lead_Source'
 ].join(',');
 
 // FY2025-26 starts April 1, 2025 (IST)
@@ -72,11 +72,11 @@ module.exports = async (req, res) => {
       const seen = new Set();
       more = true;
       while (Date.now() < deadline) {
-        const q = `select id, Full_Name, Company, Account_Name, Owner.first_name, Owner.last_name, Lead_Status, Order_Value, Product_Solution_Type_Multi_Select, Region, Created_Time from Leads where (Created_Time >= '${FY_START}') and Created_Time >= '${cursor}' order by Created_Time asc limit 2000`;
+        const q = `select id, Full_Name, Company, Account_Name, Owner.first_name, Owner.last_name, Lead_Status, Order_Value, Product_Solution_Type_Multi_Select, Region, Created_Time, Modified_Time, Last_Activity_Time, Lead_Source from Leads where (Created_Time >= '${FY_START}') and Created_Time >= '${cursor}' order by Created_Time asc limit 2000`;
         const { data, more: zMore } = await coql(accessToken, q);
         const fresh = data.filter(rec => !seen.has(rec.id));
         fresh.forEach(rec => seen.add(rec.id));
-        leads = leads.concat(fresh.map(r => ({ id: r.id, Full_Name: r.Full_Name, Company: r.Company, Account_Name: r.Account_Name, Owner: { name: ownerName(r) }, Lead_Status: r.Lead_Status, Order_Value: r.Order_Value, Region: r.Region, Product_Solution_Type_Multi_Select: r.Product_Solution_Type_Multi_Select || [], Created_Time: r.Created_Time })));
+        leads = leads.concat(fresh.map(r => ({ id: r.id, Full_Name: r.Full_Name, Company: r.Company, Account_Name: r.Account_Name, Owner: { name: ownerName(r) }, Lead_Status: r.Lead_Status, Order_Value: r.Order_Value, Region: r.Region, Product_Solution_Type_Multi_Select: r.Product_Solution_Type_Multi_Select || [], Created_Time: r.Created_Time, Modified_Time: r.Modified_Time, Last_Activity_Time: r.Last_Activity_Time, Lead_Source: r.Lead_Source })));
         if (data.length) lastCreatedAt = data[data.length - 1].Created_Time;
         if (!zMore || data.length < 2000) { more = false; break; }
         cursor = (!fresh.length || lastCreatedAt === cursor) ? nextSecond(cursor) : lastCreatedAt;
