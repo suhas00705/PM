@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Path to Target</title>
+<style>
+  :root{
+    --navy:#0B2942; --head:#1a5f9e; --volt:#0073C8; --bg:#eef2f8; --panel:#fff; --line:#e3e7ef;
+    --t1:#16264d; --t2:#3b5384; --t3:#6f84ad;
+    --act:#0073C8; --plan:#aab4c4; --ly:#7b5ea7; --fc:#c2731a;
+    --good:#0f7a36; --good-bg:#e3f4e8; --warn:#9a5b00; --warn-bg:#fff1d9; --bad:#b42323; --bad-bg:#fde8e8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:'Calibri','Carlito','Segoe UI',sans-serif;font-size:14px}
+  .wrap{max-width:1440px;margin:0 auto;padding:16px 16px 60px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:12px;position:sticky;top:0;z-index:40;background:var(--bg);padding:8px 0}
+  .ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .f{display:flex;flex-direction:column;gap:3px;position:relative}
+  .f label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  select,.ms-btn{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 10px;font:inherit;color:var(--t1);cursor:pointer}
+  .ms-btn{min-width:170px;max-width:230px;text-align:left;padding-right:28px;position:relative;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ms-btn:after{content:'▾';position:absolute;right:10px;top:7px;color:var(--t3)}
+  .ms-pop{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:60;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(11,41,66,.18);width:270px;padding:8px}
+  .ms-pop.open{display:block}
+  .ms-pop input[type=search]{width:100%;padding:6px 8px;border:1px solid #cfd6e3;border-radius:6px;font:inherit;margin-bottom:6px}
+  .ms-acts{display:flex;gap:5px;margin-bottom:6px}
+  .ms-acts button{font:inherit;font-size:11.5px;border:1px solid #cfd6e3;background:#f6f8fb;border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--t2)}
+  .ms-list{max-height:300px;overflow:auto}
+  .ms-list label{display:flex;gap:6px;align-items:center;padding:5px 4px;border-radius:5px;cursor:pointer;font-size:13px}
+  .ms-list label:hover{background:#f1f5fb}
+  .toggle{display:inline-flex;background:#dfe6f1;border-radius:10px;padding:3px}
+  .toggle button{border:0;background:transparent;padding:7px 14px;border-radius:8px;font:inherit;font-weight:700;color:var(--t2);cursor:pointer}
+  .toggle button.on{background:#fff;color:var(--volt);box-shadow:0 1px 4px rgba(11,41,66,.15)}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--volt);color:var(--volt);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700}
+  .btn.ghost{border-color:#cfd6e3;color:var(--t2);font-weight:400}
+  .sync{font-size:12px;color:var(--t3);text-align:right;line-height:1.5}
+  .sync b{color:var(--t2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  h1{font-size:18px;margin:0}
+  h2{font-size:15px;margin:0}
+  h3{font-size:13.5px;margin:0 0 4px}
+  .sub{font-size:12px;color:var(--t3);margin-top:2px}
+  .note{font-size:12px;color:var(--t2);line-height:1.55}
+  .note b{color:var(--t1)}
+  .scope{background:#fff8e6;border:1px solid #f1d9a6;color:#6b4a00;border-radius:10px;padding:8px 12px;font-size:12.5px;margin-bottom:12px;display:none}
+  /* headline */
+  .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+  @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:600px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfcfe}
+  .kpi .k{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  .kpi .v{font-size:24px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:12px;color:var(--t2);margin-top:2px}
+  .meter{height:8px;border-radius:6px;background:#e7ecf4;margin-top:8px;position:relative;overflow:hidden}
+  .meter i{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--act)}
+  .meter b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--t1)}
+  .verdict{margin-top:12px;font-size:13px;line-height:1.6;color:var(--t1);background:#f4f8fd;border-left:4px solid var(--volt);padding:10px 12px;border-radius:0 8px 8px 0}
+  /* tables */
+  .tbl{overflow:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{background:var(--head);color:#fff;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:700;text-align:right;padding:8px 7px;white-space:nowrap;position:sticky;top:0;cursor:pointer;user-select:none}
+  th.l,td.l{text-align:left}
+  td{padding:7px 7px;border-bottom:1px solid #edf0f5;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  tr.click{cursor:pointer}
+  tr.click:hover td{background:#f5f8fd}
+  tr.tot td{color:var(--volt);font-weight:700;background:#f7faff}
+  tr.grp td{background:#fafbfd;font-weight:700}
+  tr.child td:first-child{padding-left:26px;color:var(--t2)}
+  td.muted,.muted{color:var(--t3)}
+  .chip{display:inline-flex;gap:4px;align-items:center;justify-content:center;min-width:58px;white-space:nowrap;font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:20px}
+  .c-good{color:var(--good);background:var(--good-bg)} .c-warn{color:var(--warn);background:var(--warn-bg)} .c-bad{color:var(--bad);background:var(--bad-bg)} .c-na{color:var(--t3);background:#eceff4}
+  .pos{color:var(--good)} .neg{color:var(--bad)}
+  table.mini{font-size:12px}
+  table.mini td,table.mini th{padding:5px 6px}
+  .bar-in{display:inline-block;height:8px;border-radius:4px;background:var(--act);vertical-align:middle;margin-left:6px}
+  /* charts */
+  .cgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+  @media(max-width:1000px){.cgrid{grid-template-columns:minmax(0,1fr)}}
+  .cbox{border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--t2);margin:4px 0 6px}
+  .sw{display:inline-block;width:12px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .sw.ln{height:3px;vertical-align:3px;border-radius:2px}
+  .sw.dash{height:0;border-top:2px dashed;vertical-align:3px;border-radius:0}
+  .chart svg{display:block;width:100%;height:auto;overflow:visible}
+  .tip{position:fixed;pointer-events:none;background:#0f1f3a;color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:300;display:none;line-height:1.5;max-width:320px}
+  /* heatmap */
+  .hm td{padding:6px 8px;font-size:12px;min-width:64px}
+  .hm td.cell{cursor:pointer;border:2px solid #fff;border-radius:6px}
+  .hm td.cell:hover{outline:2px solid var(--t1);outline-offset:-2px}
+  .tabs{display:inline-flex;gap:4px;flex-wrap:wrap}
+  .tabs button{font:inherit;font-size:12.5px;border:1px solid #cfd6e3;background:#fff;border-radius:20px;padding:5px 12px;cursor:pointer;color:var(--t2)}
+  .tabs button.on{background:var(--volt);border-color:var(--volt);color:#fff;font-weight:700}
+  input.srch{padding:6px 10px;border:1px solid #cfd6e3;border-radius:8px;font:inherit;min-width:200px}
+  /* drawer */
+  .dbg{position:fixed;inset:0;background:rgba(11,41,66,.35);display:none;z-index:200}
+  .dbg.on{display:block}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(980px,100vw);background:#fff;z-index:210;transform:translateX(105%);transition:transform .2s ease;display:flex;flex-direction:column;box-shadow:-10px 0 30px rgba(11,41,66,.2)}
+  .drawer.on{transform:none}
+  .dh{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .db{overflow:auto;padding:14px 18px 40px}
+  .x{border:0;background:#eef2f8;border-radius:8px;font-size:16px;width:34px;height:34px;cursor:pointer;color:var(--t2)}
+  .dgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  @media(max-width:800px){.dgrid{grid-template-columns:minmax(0,1fr)}}
+  .err{background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:none}
+  .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
+  .loading.on{display:flex}
+  .sec-nav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+  .sec-nav a{font-size:12px;color:var(--t2);background:#fff;border:1px solid var(--line);border-radius:20px;padding:4px 10px;text-decoration:none}
+  .sec-nav a:hover{border-color:var(--volt);color:var(--volt)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div>
+      <h1>🏁 Path to Target</h1>
+      <div class="sub" id="subTitle">FY target ₹520 Cr · where we are, what is left, and who has to deliver it</div>
+    </div>
+    <div class="ctrls">
+      <div class="f"><label>Year</label><select id="fySel"></select></div>
+      <div class="f"><label>Measure</label><div class="toggle" id="docTg"><button data-d="OB" class="on">Order booking</button><button data-d="INV">Invoicing</button></div></div>
+      <div class="f ms" id="msProd"><label>Product</label></div>
+      <div class="f ms" id="msReg"><label>Region</label></div>
+      <div class="f ms" id="msCh"><label>Customer type</label></div>
+      <div class="f"><label>Breakdown period</label><select id="perSel"></select></div>
+      <button class="btn ghost" id="clearBtn">Clear filters</button>
+      <button class="btn" id="refreshBtn">⟳ Refresh</button>
+    </div>
+  </div>
+  <div class="sync" id="syncInfo"></div>
+  <div class="err" id="errBox"></div>
+  <div class="scope" id="scopeNote"></div>
+  <div class="sec-nav">
+    <a href="#secHead">Headline</a><a href="#secPath">Month path</a><a href="#secProd">Products</a><a href="#secReg">Regions</a>
+    <a href="#secMx">Region × product</a><a href="#secCh">Customer type</a><a href="#secPipe">Pipeline cover</a><a href="#secAcc">Accounts to chase</a>
+  </div>
+
+  <div class="card" id="secHead">
+    <div class="card-h"><div><h2 id="headTitle">Headline</h2><div class="sub" id="headSub"></div></div></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+
+  <div class="card" id="secPath">
+    <div class="card-h"><div><h2>Month by month — plan vs actual</h2>
+      <div class="sub">Plan = FY target split 20 / 25 / 25 / 30 % by quarter. Shortfall carries to the next month; extra first clears any shortfall, then is kept against later shortfalls (same rule as PM Cumulative).</div></div>
+      <button class="btn ghost" id="dlMonth">Download CSV</button></div>
+    <div class="cgrid">
+      <div class="cbox"><h3>Each month</h3>
+        <div class="legend"><span><i class="sw" style="background:var(--act)"></i>Actual</span><span><i class="sw" style="background:var(--plan)"></i>Plan</span><span><i class="sw ln" style="background:var(--ly)"></i>Last year</span></div>
+        <div class="chart" id="chMonth"></div></div>
+      <div class="cbox"><h3>Cumulative — the path to the FY target</h3>
+        <div class="legend"><span><i class="sw ln" style="background:var(--act)"></i>Actual</span><span><i class="sw dash" style="border-color:var(--plan)"></i>Plan path</span><span><i class="sw dash" style="border-color:var(--fc)"></i>Forecast</span><span><i class="sw ln" style="background:var(--ly)"></i>Last year</span></div>
+        <div class="chart" id="chCum"></div></div>
+    </div>
+    <div class="tbl" style="margin-top:12px" id="monthTbl"></div>
+  </div>
+
+  <div class="card" id="secProd">
+    <div class="card-h"><div><h2>Products — who is on track</h2>
+      <div class="sub">Click a product for its region, customer-type, basket and customer breakdown. Need / month = what is still missing ÷ months left; Run-rate = average per month so far.</div></div>
+      <button class="btn ghost" id="dlProd">Download CSV</button></div>
+    <div class="tbl" id="prodTbl"></div>
+  </div>
+
+  <div class="card" id="secReg">
+    <div class="card-h"><div><h2>Regions — who is on track</h2>
+      <div class="sub">Click a region for its product, customer-type and customer breakdown.</div></div>
+      <button class="btn ghost" id="dlReg">Download CSV</button></div>
+    <div class="tbl" id="regTbl"></div>
+  </div>
+
+  <div class="card" id="secMx">
+    <div class="card-h"><div><h2>Region × product</h2>
+      <div class="sub" id="mxSub">There are no targets for region × product combinations, so this shows value and growth vs last year (same period). Click a cell to drill in.</div></div>
+      <div class="ctrls"><div class="tabs" id="mxTabs"><button data-k="v" class="on">Value (₹ L)</button><button data-k="g">Growth vs LY</button><button data-k="s">Share of region</button><button data-k="d">Change ₹ L vs LY</button></div>
+      <button class="btn ghost" id="dlMx">Download CSV</button></div></div>
+    <div class="tbl hm" id="mxTbl"></div>
+  </div>
+
+  <div class="card" id="secCh">
+    <div class="card-h"><div><h2>Customer type — channel partners vs direct</h2>
+      <div class="sub">Breakdown period value vs last year same period. Click a row to see the customers.</div></div>
+      <button class="btn ghost" id="dlCh">Download CSV</button></div>
+    <div class="tbl" id="chTbl"></div>
+  </div>
+
+  <div class="card" id="secPipe">
+    <div class="card-h"><div><h2>Pipeline cover — is there enough in the funnel to close the gap?</h2>
+      <div class="sub" id="pipeSub">Open potentials in Zoho (not won / lost) with a closing date up to 31-Mar. Weighted = amount × probability. Cover = weighted pipeline ÷ remaining gap; below 1.0× the gap cannot be closed from today's funnel.</div></div>
+      <div class="ctrls"><div class="tabs" id="pipeTabs"><button data-k="r" class="on">By region</button><button data-k="p">By product type</button><button data-k="m">By closing month</button><button data-k="s">By stage</button></div>
+      <button class="btn ghost" id="dlPipe">Download CSV</button></div></div>
+    <div class="tbl" id="pipeTbl"></div>
+  </div>
+
+  <div class="card" id="secAcc">
+    <div class="card-h"><div><h2>Accounts to chase</h2>
+      <div class="sub" id="accSub"></div></div>
+      <div class="ctrls"><div class="tabs" id="accTabs"><button data-k="top" class="on">Top customers</button><button data-k="down">Buying less than last year</button><button data-k="lapsed">Lapsed (bought last year, nothing this year)</button></div>
+      <input class="srch" id="accSearch" type="search" placeholder="Search customer…"><button class="btn ghost" id="dlAcc">Download CSV</button></div></div>
+    <div class="note" id="accSum" style="margin-bottom:8px"></div>
+    <div class="tbl" id="accTbl" style="max-height:560px"></div>
+  </div>
+</div>
+
+<div class="dbg" id="dbg"></div>
+<div class="drawer" id="drawer">
+  <div class="dh"><div><h2 id="dTitle"></h2><div class="sub" id="dSub"></div></div><button class="x" id="dClose" aria-label="Close">✕</button></div>
+  <div class="db" id="dBody"></div>
+</div>
+<div class="tip" id="tip"></div>
+<div class="loading" id="loading">Loading…</div>
+
+<script>
+/* ======================= CONFIG — targets (₹ lakhs), FY 2026-27 ======================= */
+// Entered 15-Oct-2026. Same targets are used for Order booking and Invoicing.
+const TOTAL_TARGET = 52000;
+const QSHARE = [0.20, 0.25, 0.25, 0.30];          // quarter split of every annual target
+const PRODUCTS = [                                 // order = display order
+  { k:'Panel Meters', t:8960,  pm:'Manikanda S',  note:'Panel Meters + High End MFM + Nano VIP + Power Quality' },
+  { k:'ATES',         t:9550,  pm:'Gurubaran N',  note:'Transfer Switch basket' },
+  { k:'ACCL',         t:2680,  pm:'Gurubaran N',  note:'ACCL basket' },
+  { k:'Prepaid/Smart',t:5150,  pm:'Suhas G',      note:'Prepaid & Smart Meters, excluding Govt' },
+  { k:'LVS',          t:7610,  pm:'Nirmal B',     note:'SWITCHGEAR basket' },
+  { k:'FDP',          t:3000,  pm:'Nirmal B',     note:'FDP basket' },
+  { k:'OEM',          t:10000, pm:'Krishna KN',   note:'OEM basket + OEM accounts' },
+  { k:'Software',     t:2000,  pm:'—',            note:'Software basket' },
+];
+const NOTARGET_PRODUCTS = ['Others', 'Prepaid/Smart – Govt'];   // no own target: they share the balance
+const REGIONS = [
+  { k:'HO / OEM', t:10000 }, { k:'Hyderabad', t:6600 }, { k:'Karnataka', t:5000 }, { k:'Delhi NCR', t:3500 },
+  { k:'Mumbai', t:2660 }, { k:'Gujarat', t:2200 }, { k:'Chennai', t:2100 }, { k:'Pune', t:2100 },
+  { k:'Export', t:2000 }, { k:'Data Centre', t:2000 }, { k:'Vijayawada', t:1700 }, { k:'Madurai & Salem', t:1300 },
+  { k:'Coimbatore', t:1200 }, { k:'Punjab', t:1080 }, { k:'East India', t:1050 }, { k:'Eastern UP', t:710 },
+  { k:'Nagpur & CG', t:700 }, { k:'North Kerala', t:600 }, { k:'MP', t:550 }, { k:'Rajasthan', t:360 },
+  { k:'South Kerala', t:300 }, { k:'Govt Projects', t:300 }, { k:'Goa', t:240 },
+];
+const NOTARGET_REGIONS = ['Other regions'];       // EMS South, North 1-3, Kerala, blank
+const REGION_RULES = 'HO / OEM = regions HO and HO - ISTATIC · Export = all EXPORT regions + IBU · Data Centre = orders of Dileep A K (taken out of Mumbai / HO) · Invoices use the customer’s main order-booking region.';
+// Zoho potentials use the raw region names; map them to the target regions above.
+function pipeRegion(r){
+  const u = String(r || '').trim().toUpperCase();
+  if (u.startsWith('HO')) return 'HO / OEM';
+  if (u.startsWith('EXPORT') || u.startsWith('IBU')) return 'Export';
+  const m = { 'HYDERABAD':'Hyderabad','VIJAYAWADA':'Vijayawada','KARNATAKA':'Karnataka','DELHI NCR':'Delhi NCR','MUMBAI':'Mumbai','GUJARAT':'Gujarat',
+    'CHENNAI':'Chennai','PUNE':'Pune','MADURAI AND SALEM':'Madurai & Salem','COIMBATORE':'Coimbatore','PUNJAB':'Punjab','EAST INDIA':'East India','EAST':'East India',
+    'EASTERN UP':'Eastern UP','NAGPUR AND CG':'Nagpur & CG','NAGPUR & CG':'Nagpur & CG','NORTH KERALA':'North Kerala','SOUTH KERALA':'South Kerala','MP':'MP',
+    'RAJASTHAN':'Rajasthan','GOA':'Goa','GOVT PROJECTS':'Govt Projects','DATA CENTRE':'Data Centre','DATA CENTER':'Data Centre' };
+  return m[u] || 'Other regions';
+}
+
+/* ======================= plumbing ======================= */
+const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+const $ = id => document.getElementById(id);
+const MN = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
+const sum = a => a.reduce((s, x) => s + (x || 0), 0);
+const fL = v => v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString('en-IN');           // lakhs, no decimals
+const fL1 = v => v == null || !isFinite(v) ? '—' : v.toLocaleString('en-IN', {maximumFractionDigits:1, minimumFractionDigits:1});
+const fCr = v => v == null || !isFinite(v) ? '—' : (v / 100).toLocaleString('en-IN', {maximumFractionDigits:1, minimumFractionDigits:1});
+const pct = v => v == null || !isFinite(v) ? '—' : `${Math.round(v * 100)}%`;
+const gtxt = (c, b) => !(b > 0) ? (c > 0 ? 'new' : '—') : `${c >= b ? '+' : ''}${Math.round((c / b - 1) * 100)}%`;
+const gcls = (c, b) => !(b > 0) ? '' : (c >= b ? 'pos' : 'neg');
+
+async function rpc(fn, body){
+  const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer '+KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json();
+}
+function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').textContent = e ? 'Could not load data — ' + e : ''; }
+function csv(name, head, rows){
+  const q = x => { const s = String(x ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const blob = new Blob(['﻿' + [head, ...rows].map(r => r.map(q).join(',')).join('\n')], {type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name.replace(/[^\w.-]+/g, '_'); document.body.appendChild(a); a.click(); a.remove();
+}
+const tip = $('tip');
+function showTip(e, html){ tip.innerHTML = html; tip.style.display = 'block';
+  const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+function hideTip(){ tip.style.display = 'none'; }
+
+/* ======================= state ======================= */
+const S = { cy:null, doc:'OB', prod:[], reg:[], ch:[], per:'ytd', raw:null, rows:[], dict:null, pipe:null,
+            mxK:'v', pipeK:'r', accK:'top', acc:null, accSearch:'', sort:{}, loadedAt:0 };
+
+/* ---- multi-select filter ---- */
+const MS = {};
+function buildMS(id, key, options, label){
+  const host = $(id); host.querySelectorAll('.ms-btn,.ms-pop').forEach(n => n.remove());
+  const btn = document.createElement('button'); btn.className = 'ms-btn'; host.appendChild(btn);
+  const pop = document.createElement('div'); pop.className = 'ms-pop'; host.appendChild(pop);
+  pop.innerHTML = `<input type="search" placeholder="Search…"><div class="ms-acts"><button data-a="all">All</button><button data-a="none">Clear</button></div><div class="ms-list"></div>`;
+  const list = pop.querySelector('.ms-list');
+  const draw = () => { const q = pop.querySelector('input').value.toLowerCase();
+    list.innerHTML = options.filter(o => o.toLowerCase().includes(q)).map(o => `<label><input type="checkbox" value="${esc(o)}" ${S[key].includes(o) ? 'checked' : ''}>${esc(o)}</label>`).join(''); };
+  const setBtn = () => { btn.textContent = !S[key].length ? `All ${label}` : S[key].length === 1 ? S[key][0] : `${S[key].length} ${label}`; };
+  pop.querySelector('input').oninput = draw;
+  list.onchange = e => { const v = e.target.value; S[key] = e.target.checked ? [...S[key], v] : S[key].filter(x => x !== v); setBtn(); renderAll(); };
+  pop.querySelector('.ms-acts').onclick = e => { const a = e.target.dataset.a; if (!a) return; S[key] = a === 'all' ? [] : []; draw(); setBtn(); renderAll(); };
+  btn.onclick = e => { e.stopPropagation(); document.querySelectorAll('.ms-pop.open').forEach(p => p !== pop && p.classList.remove('open')); pop.classList.toggle('open'); draw(); };
+  pop.onclick = e => e.stopPropagation();
+  MS[key] = { setBtn, draw }; setBtn();
+}
+document.addEventListener('click', () => document.querySelectorAll('.ms-pop.open').forEach(p => p.classList.remove('open')));
+
+/* ======================= data ======================= */
+async function load(first){
+  $('loading').classList.add('on'); showErr(null);
+  try {
+    const c = await rpc('ptt_cube', { p_cy: S.cy });
+    S.raw = c; S.dict = { rg:c.rg || [], ch:c.ch || [], pr:c.pr || [], bk:c.bk || [] };
+    // row: {d 0/1, y 0 this FY / 1 last FY, i month index Apr=0, r, c, p, b, v, lv}
+    S.rows = (c.rows || []).map(a => ({ d:a[0], y:a[1], i:(a[2] + 8) % 12, r:S.dict.rg[a[3]], c:S.dict.ch[a[4]], p:S.dict.pr[a[5]], b:S.dict.bk[a[6]], v:+a[7], lv:+a[8] }));
+    if (first) {
+      const fys = (c.fys || []).filter(f => f >= 2025);
+      $('fySel').innerHTML = (fys.length ? fys : [S.cy]).map(f => `<option value="${f}" ${f === S.cy ? 'selected' : ''}>${fyLabel(f)}</option>`).join('');
+    }
+    const allProd = [...PRODUCTS.map(p => p.k), ...NOTARGET_PRODUCTS];
+    const allReg = [...REGIONS.map(r => r.k), ...NOTARGET_REGIONS];
+    buildMS('msProd', 'prod', allProd, 'products');
+    buildMS('msReg', 'reg', allReg, 'regions');
+    buildMS('msCh', 'ch', S.dict.ch.slice().sort(), 'types');
+    S.loadedAt = Date.now();
+    buildPeriod();
+    renderAll();
+  } catch (e) { showErr(e.message || e); }
+  finally { $('loading').classList.remove('on'); }
+  loadPipe();
+}
+async function loadPipe(){
+  try { S.pipe = await rpc('ptt_pipeline', { p_cy: S.cy }); } catch (e) { S.pipe = { err: e.message || String(e) }; }
+  renderPipe();
+}
+
+/* ---- time: how much of the year has passed (for the measure shown) ---- */
+function clock(){
+  const md = S.doc === 'OB' ? S.raw?.max_ob : S.raw?.max_inv;
+  const fyEnd = new Date(S.cy + 1, 2, 31);
+  let d = md ? new Date(md + 'T00:00:00') : null;
+  if (!d || d > fyEnd) d = d ? fyEnd : new Date(S.cy, 3, 1);
+  const K = (d.getMonth() + 9) % 12;                       // month index Apr=0
+  const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  const frac = d >= fyEnd ? 1 : d.getDate() / dim;
+  const elapsed = K + frac, left = Math.max(0, 12 - elapsed);
+  return { date:d, K, frac, elapsed, left, label: d.toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) };
+}
+function planArr(T){ return MN.map((_, i) => T * QSHARE[Math.floor(i / 3)] / 3); }
+function periodMonths(){
+  const C = clock(), p = S.per;
+  if (p === 'ytd') return [...Array(C.K + 1).keys()];
+  if (p === 'fy') return [...Array(12).keys()];
+  if (p[0] === 'q') { const q = +p[1]; return [q*3-3, q*3-2, q*3-1]; }
+  return [+p.slice(1)];
+}
+function periodLabel(){ const o = $('perSel').selectedOptions[0]; return o ? o.textContent : ''; }
+
+/* ---- filtering & aggregation ---- */
+const docN = () => S.doc === 'OB' ? 0 : 1;
+function pass(r, ex){ // ex: dims to ignore from the global filter
+  if (r.d !== docN()) return false;
+  if (S.prod.length && !(ex && ex.p) && !S.prod.includes(r.p)) return false;
+  if (S.reg.length && !(ex && ex.r) && !S.reg.includes(r.r)) return false;
+  if (S.ch.length && !(ex && ex.c) && !S.ch.includes(r.c)) return false;
+  return true;
+}
+// monthly series for rows matching pred: a = this FY, ly = last FY, ll = last FY like-for-like
+function series(pred){
+  const a = Array(12).fill(0), ly = Array(12).fill(0), ll = Array(12).fill(0);
+  for (const r of S.rows) { if (!pred(r)) continue; if (r.y === 0) a[r.i] += r.v; else { ly[r.i] += r.v; ll[r.i] += r.lv; } }
+  return { a, ly, ll };
+}
+// key -> {cy, ly} over a set of months (like-for-like for the current month)
+function groupBy(pred, keyFn, months){
+  const ms = new Set(months), out = new Map();
+  for (const r of S.rows) { if (!ms.has(r.i) || !pred(r)) continue; const k = keyFn(r);
+    const o = out.get(k) || { cy:0, ly:0 }; if (r.y === 0) o.cy += r.v; else o.ly += r.lv; out.set(k, o); }
+  return out;
+}
+
+/* ---- the core numbers for one target-holder ---- */
+function metrics(T, s){
+  const C = clock(), plan = T != null ? planArr(T) : null;
+  const ytd = sum(s.a.slice(0, C.K + 1));
+  const lyYtd = sum(s.ll.slice(0, C.K + 1)), lyFull = sum(s.ly);
+  const planTD = plan ? sum(plan.slice(0, C.K)) + plan[C.K] * C.frac : null;
+  const run = C.elapsed > 0 ? ytd / C.elapsed : 0;
+  const gap = T != null ? Math.max(0, T - ytd) : null;
+  const need = T != null && C.left > 0 ? gap / C.left : null;
+  // forecast: this year so far × last year's full-year / same-period ratio (keeps the seasonality); run-rate when there is no usable last year
+  const mult = lyYtd > 0 ? lyFull / lyYtd : null;
+  const fc = mult && mult <= 3 && lyYtd >= ytd * 0.25 ? ytd * mult : ytd + run * C.left;
+  return { T, plan, ytd, lyYtd, lyFull, planTD, run, gap, need, fc, ratio: need != null && run > 0 ? need / run : null,
+           pPlan: planTD ? ytd / planTD : null, pFY: T ? ytd / T : null, growth: lyYtd > 0 ? ytd / lyYtd - 1 : null };
+}
+function status(m){
+  if (m.T == null) return '<span class="chip c-na">no target</span>';
+  if (m.gap <= 0) return '<span class="chip c-good">✓ achieved</span>';
+  if (m.fc >= m.T * 0.98 && (m.ratio == null || m.ratio <= 1.1)) return '<span class="chip c-good">● on track</span>';
+  if ((m.ratio != null && m.ratio <= 1.35) || m.fc >= m.T * 0.9) return '<span class="chip c-warn">▲ at risk</span>';
+  return '<span class="chip c-bad">■ off track</span>';
+}
+function statusRank(m){ if (m.T == null) return -1; if (m.gap <= 0) return 0; return m.ratio ?? 9; }
+
+/* ======================= target for the current filters ======================= */
+// Targets exist per product and per region (not per combination or per customer type).
+function scopeTarget(){
+  const P = S.prod, R = S.reg;
+  if (S.ch.length) return { T:null, why:'Targets are not split by customer type, so the headline shows actuals and growth only.' };
+  if (P.length && R.length) return { T:null, why:'Targets exist per product and per region, not for product × region combinations — showing actuals and growth only.' };
+  if (P.length) { if (P.some(p => !PRODUCTS.find(x => x.k === p))) {
+      const t = sum(PRODUCTS.filter(x => P.includes(x.k)).map(x => x.t)), nt = P.filter(p => !PRODUCTS.find(x => x.k === p));
+      return { T: t || null, why:`${nt.join(', ')} ${nt.length > 1 ? 'have' : 'has'} no own target${t ? '; target shown is for the other selected products only' : ''}.` }; }
+    return { T: sum(PRODUCTS.filter(x => P.includes(x.k)).map(x => x.t)) }; }
+  if (R.length) { if (R.some(r => !REGIONS.find(x => x.k === r))) {
+      const t = sum(REGIONS.filter(x => R.includes(x.k)).map(x => x.t));
+      return { T: t || null, why:'"Other regions" has no own target.' }; }
+    return { T: sum(REGIONS.filter(x => R.includes(x.k)).map(x => x.t)) }; }
+  return { T: TOTAL_TARGET };
+}
+</script>
+<script>
+/* ======================= render ======================= */
+function renderAll(){
+  if (!S.raw) return;
+  const C = clock();
+  $('syncInfo').innerHTML = `Data up to <b>${C.label}</b> (${S.doc === 'OB' ? 'order booking' : 'invoicing'}) · ${fyLabel(S.cy)} · ${Math.round(C.elapsed * 10) / 10} of 12 months gone`
+    + (S.raw.last_sync ? ` · last Zoho sync ${esc(new Date(S.raw.last_sync.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}))}` : '');
+  const sc = scopeTarget();
+  $('scopeNote').style.display = sc.why ? 'block' : 'none'; $('scopeNote').textContent = sc.why || '';
+  renderHead(sc); renderPath(sc); renderProd(); renderReg(); renderMx(); renderCh(); renderPipe(); loadAcc();
+}
+
+function renderHead(sc){
+  const C = clock(), s = series(r => pass(r)), m = metrics(sc.T, s);
+  const filt = [S.prod.length ? S.prod.join(', ') : null, S.reg.length ? S.reg.join(', ') : null, S.ch.length ? S.ch.join(', ') : null].filter(Boolean);
+  $('headTitle').textContent = filt.length ? `Headline — ${filt.join(' · ')}` : `Headline — company ${S.doc === 'OB' ? 'order booking' : 'invoicing'}`;
+  $('headSub').textContent = `All values ₹ Cr unless marked. Year to date = Apr → ${C.label}.`;
+  const k = (t, v, s2, extra = '') => `<div class="kpi"><div class="k">${t}</div><div class="v">${v}</div><div class="s">${s2}</div>${extra}</div>`;
+  const meter = m.T ? `<div class="meter" title="Actual vs FY target; black tick = where the plan says we should be today"><i style="width:${Math.min(100, m.ytd / m.T * 100)}%"></i><b style="left:${Math.min(100, m.planTD / m.T * 100)}%"></b></div>` : '';
+  $('kpis').innerHTML = [
+    k('FY target', m.T ? fCr(m.T) : '—', m.T ? `Plan to date ${fCr(m.planTD)}` : 'no target for this selection'),
+    k('Achieved YTD', fCr(m.ytd), m.T ? `${pct(m.pFY)} of FY · ${pct(m.pPlan)} of plan to date` : `LY same period ${fCr(m.lyYtd)}`, meter),
+    k('Still to get', m.T ? fCr(m.gap) : '—', `${fL1(C.left)} months left`),
+    k('Needed / month', m.need != null ? fCr(m.need) : '—', `vs run-rate ${fCr(m.run)} / month${m.ratio ? ` · <b>${m.ratio.toFixed(2)}×</b>` : ''}`),
+    k('Forecast FY', fCr(m.fc), m.T ? `${pct(m.fc / m.T)} of target · ${m.fc >= m.T ? '<span class="pos">+' + fCr(m.fc - m.T) + '</span>' : '<span class="neg">−' + fCr(m.T - m.fc) + '</span>'}` : `LY full year ${fCr(m.lyFull)}`),
+    k('Growth vs LY', m.growth == null ? '—' : `<span class="${m.growth >= 0 ? 'pos' : 'neg'}">${m.growth >= 0 ? '+' : ''}${Math.round(m.growth * 100)}%</span>`, `LY same period ${fCr(m.lyYtd)} · LY full ${fCr(m.lyFull)}`),
+  ].join('');
+  // plain-language verdict
+  let v = '';
+  if (m.T) {
+    if (m.gap <= 0) v = `Target already achieved — ${fCr(m.ytd - m.T)} Cr above it.`;
+    else {
+      v = `To reach <b>${fCr(m.T)} Cr</b> we need <b>${fCr(m.gap)} Cr</b> more in ${fL1(C.left)} months — <b>${fCr(m.need)} Cr a month</b>, against <b>${fCr(m.run)} Cr a month</b> so far (${m.ratio ? m.ratio.toFixed(2) + '×' : '—'} the current pace). `;
+      v += `On last year's seasonality the year ends at about <b>${fCr(m.fc)} Cr</b> (${m.fc >= m.T ? 'on target' : fCr(m.T - m.fc) + ' Cr short'}).`;
+      if (!S.prod.length && !S.reg.length && !S.ch.length) {
+        const pm = PRODUCTS.map(p => ({ p, m: metrics(p.t, series(r => pass(r) && r.p === p.k)) })).filter(x => x.m.gap > 0).sort((a, b) => (b.m.T - b.m.fc) - (a.m.T - a.m.fc));
+        const short = pm.filter(x => x.m.fc < x.m.T).slice(0, 3);
+        if (short.length) v += ` Biggest forecast shortfalls: ${short.map(x => `<b>${esc(x.p.k)}</b> ${fCr(x.m.T - x.m.fc)} Cr`).join(', ')}.`;
+        const rm = REGIONS.map(r => ({ r, m: metrics(r.t, series(x => pass(x) && x.r === r.k)) })).filter(x => x.m.fc < x.m.T).sort((a, b) => (b.m.T - b.m.fc) - (a.m.T - a.m.fc)).slice(0, 3);
+        if (rm.length) v += ` Regions: ${rm.map(x => `<b>${esc(x.r.k)}</b> ${fCr(x.m.T - x.m.fc)} Cr`).join(', ')}.`;
+      }
+    }
+  } else v = `This selection has booked <b>${fCr(m.ytd)} Cr</b> so far, ${m.growth == null ? '' : `<b>${m.growth >= 0 ? '+' : ''}${Math.round(m.growth * 100)}%</b> vs last year same period, `}heading for about <b>${fCr(m.fc)} Cr</b> for the year.`;
+  $('verdict').innerHTML = v;
+}
+
+/* ---- month path ---- */
+function carryTable(plan, a, K){
+  // same rule as PM Cumulative: net = net + plan - actual; target = plan + shortfall carried in; extra is kept against later shortfalls
+  let net = 0; const out = [];
+  for (let i = 0; i < 12; i++) {
+    const cin = Math.max(0, net), tgt = plan[i] + cin, act = i <= K ? a[i] : null;
+    if (act != null) net = net + plan[i] - act;
+    out.push({ cin, tgt, act, short: act != null ? Math.max(0, net) : null, kept: act != null ? Math.max(0, -net) : null });
+  }
+  return out;
+}
+function renderPath(sc){
+  const C = clock(), s = series(r => pass(r)), m = metrics(sc.T, s);
+  const plan = m.plan || Array(12).fill(null);
+  drawMonth($('chMonth'), s, plan, C);
+  drawCum($('chCum'), s, plan, m, C);
+  const ct = m.plan ? carryTable(plan, s.a, C.K) : null;
+  let cp = 0, ca = 0, cl = 0; const rows = [];
+  for (let i = 0; i < 12; i++) {
+    cp += plan[i] || 0; if (i <= C.K) ca += s.a[i]; cl += i < C.K ? s.ly[i] : i === C.K ? s.ll[i] : s.ly[i];
+    const lyM = i === C.K ? s.ll[i] : s.ly[i];
+    rows.push({ i, plan: plan[i], ct: ct ? ct[i] : null, act: i <= C.K ? s.a[i] : null, ly: lyM, lyF: s.ly[i], cp, ca: i <= C.K ? ca : null, cl });
+  }
+  S.monthRows = rows;
+  const head = `<tr><th class="l">Month</th><th>Plan</th>${ct ? '<th>Short carried in</th><th>Month target</th>' : ''}<th>Actual</th>${ct ? '<th>Short → next</th><th>Extra kept</th>' : ''}<th>LY same month</th><th>Growth</th><th>Cum. plan</th><th>Cum. actual</th><th>Cum. ±</th><th>Cum. LY</th></tr>`;
+  const body = rows.map(r => `<tr${r.i === C.K ? ' style="background:#fffbe9"' : ''}><td class="l">${MN[r.i]}${r.i === C.K && C.frac < 1 ? ' <span class="muted">(to date)</span>' : ''}</td>
+    <td>${fL(r.plan)}</td>${ct ? `<td class="muted">${r.ct.cin ? fL(r.ct.cin) : '—'}</td><td>${fL(r.ct.tgt)}</td>` : ''}
+    <td><b>${r.act == null ? '' : fL(r.act)}</b></td>${ct ? `<td class="neg">${r.ct.short ? fL(r.ct.short) : r.act == null ? '' : '—'}</td><td class="pos">${r.ct.kept ? fL(r.ct.kept) : r.act == null ? '' : '—'}</td>` : ''}
+    <td class="muted">${fL(r.i <= C.K ? r.ly : r.lyF)}</td><td class="${r.act == null ? '' : gcls(r.act, r.ly)}">${r.act == null ? '' : gtxt(r.act, r.ly)}</td>
+    <td>${fL(r.plan == null ? null : r.cp)}</td><td><b>${r.ca == null ? '' : fL(r.ca)}</b></td>
+    <td class="${r.ca == null || r.plan == null ? '' : r.ca >= r.cp ? 'pos' : 'neg'}">${r.ca == null || r.plan == null ? '' : (r.ca >= r.cp ? '+' : '') + fL(r.ca - r.cp)}</td><td class="muted">${fL(r.cl)}</td></tr>`).join('');
+  $('monthTbl').innerHTML = `<table>${head}${body}</table><div class="sub" style="margin-top:6px">₹ lakhs. Last year for the current month is counted only up to the same date (like-for-like).</div>`;
+}
+function svgFrame(W, H){ return { W, H, l:46, r:10, t:10, b:26 }; }
+function niceMax(v){ if (!(v > 0)) return 1; const p = Math.pow(10, Math.floor(Math.log10(v))); const n = v / p; return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p; }
+function axisY(F, max, fmt){
+  let g = ''; for (let k = 0; k <= 4; k++) { const v = max * k / 4, y = F.H - F.b - (F.H - F.t - F.b) * k / 4;
+    g += `<line x1="${F.l}" x2="${F.W - F.r}" y1="${y}" y2="${y}" stroke="#e6ebf2"/><text x="${F.l - 6}" y="${y + 4}" text-anchor="end" font-size="10.5" fill="#6f84ad">${fmt(v)}</text>`; }
+  return g;
+}
+function drawMonth(el, s, plan, C){
+  const F = svgFrame(620, 250), iw = F.W - F.l - F.r, ih = F.H - F.t - F.b, bw = iw / 12;
+  const lyShow = s.ly.map((v, i) => i === C.K ? s.ll[i] : v);
+  const max = niceMax(Math.max(...s.a, ...plan.map(x => x || 0), ...lyShow));
+  const Y = v => F.H - F.b - ih * (v / max);
+  let g = axisY(F, max, v => fL(v));
+  for (let i = 0; i < 12; i++) {
+    const x = F.l + i * bw, w = Math.max(4, bw / 2 - 5);
+    if (plan[i] != null) g += `<rect x="${x + bw / 2 - w - 1}" y="${Y(plan[i])}" width="${w}" height="${Math.max(0, F.H - F.b - Y(plan[i]))}" rx="3" fill="var(--plan)"/>`;
+    if (i <= C.K) g += `<rect x="${x + bw / 2 + 1}" y="${Y(s.a[i])}" width="${w}" height="${Math.max(0, F.H - F.b - Y(s.a[i]))}" rx="3" fill="var(--act)" ${i === C.K && C.frac < 1 ? 'opacity=".55"' : ''}/>`;
+    g += `<text x="${x + bw / 2}" y="${F.H - 8}" text-anchor="middle" font-size="11" fill="#3b5384">${MN[i]}</text>`;
+    g += `<rect class="hit" data-i="${i}" x="${x}" y="${F.t}" width="${bw}" height="${ih}" fill="transparent"/>`;
+  }
+  g += `<polyline fill="none" stroke="var(--ly)" stroke-width="2" points="${lyShow.map((v, i) => `${F.l + i * bw + bw / 2},${Y(v)}`).join(' ')}"/>`;
+  lyShow.forEach((v, i) => g += `<circle cx="${F.l + i * bw + bw / 2}" cy="${Y(v)}" r="3" fill="var(--ly)" stroke="#fff" stroke-width="1.5"/>`);
+  el.innerHTML = `<svg viewBox="0 0 ${F.W} ${F.H}" role="img" aria-label="Monthly actual vs plan">${g}</svg>`;
+  el.querySelectorAll('.hit').forEach(h => { h.onmousemove = e => { const i = +h.dataset.i;
+      showTip(e, `<b>${MN[i]}</b><br>Actual: ${i <= C.K ? fL(s.a[i]) + ' L' : '—'}${i === C.K && C.frac < 1 ? ' (to date)' : ''}<br>Plan: ${fL(plan[i])} L<br>Last year${i === C.K ? ' (same dates)' : ''}: ${fL(lyShow[i])} L`); };
+    h.onmouseleave = hideTip; });
+}
+function drawCum(el, s, plan, m, C){
+  const F = svgFrame(620, 250), iw = F.W - F.l - F.r, ih = F.H - F.t - F.b, step = iw / 12;
+  const cumA = [], cumP = [], cumL = []; let a = 0, p = 0, l = 0;
+  for (let i = 0; i < 12; i++) { a += s.a[i]; p += plan[i] || 0; l += s.ly[i]; cumA.push(a); cumP.push(p); cumL.push(l); }
+  // forecast: from today's actual to the forecast FY total, following last year's remaining-month shape
+  const fcPts = []; const remLy = sum(s.ly.slice(C.K + 1)), remFc = m.fc - m.ytd; let f = m.ytd;
+  fcPts.push([C.K, f]); for (let i = C.K + 1; i < 12; i++) { f += remLy > 0 ? remFc * s.ly[i] / remLy : remFc / (11 - C.K); fcPts.push([i, f]); }
+  const max = niceMax(Math.max(m.T || 0, l, m.fc, a));
+  const X = i => F.l + (i + 1) * step, Y = v => F.H - F.b - ih * (v / max);
+  let g = axisY(F, max, v => Math.round(v / 100).toLocaleString('en-IN') + ' Cr');
+  if (m.T) g += `<line x1="${F.l}" x2="${F.W - F.r}" y1="${Y(m.T)}" y2="${Y(m.T)}" stroke="#16264d" stroke-width="1" stroke-dasharray="2 3"/><text x="${F.l + 4}" y="${Y(m.T) - 5}" font-size="11" fill="#16264d" font-weight="700">Target ${fCr(m.T)} Cr</text>`;
+  for (let i = 0; i < 12; i++) g += `<text x="${X(i)}" y="${F.H - 8}" text-anchor="middle" font-size="11" fill="#3b5384">${MN[i]}</text>`;
+  g += `<polyline fill="none" stroke="var(--ly)" stroke-width="2" points="${cumL.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+  if (m.T) g += `<polyline fill="none" stroke="#8d99ad" stroke-width="2" stroke-dasharray="6 4" points="${cumP.map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+  g += `<polyline fill="none" stroke="var(--fc)" stroke-width="2" stroke-dasharray="4 4" points="${fcPts.map(([i, v]) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+  g += `<polyline fill="none" stroke="var(--act)" stroke-width="2.5" points="${cumA.slice(0, C.K + 1).map((v, i) => `${X(i)},${Y(v)}`).join(' ')}"/>`;
+  g += `<circle cx="${X(C.K)}" cy="${Y(m.ytd)}" r="4.5" fill="var(--act)" stroke="#fff" stroke-width="2"/>`;
+  g += `<text x="${X(C.K) + 7}" y="${Y(m.ytd) + 14}" font-size="11" fill="#16264d">${fCr(m.ytd)} Cr</text>`;
+  g += `<text x="${X(11) - 2}" y="${Y(m.fc) - 6}" text-anchor="end" font-size="11" fill="#16264d">Forecast ${fCr(m.fc)} Cr</text>`;
+  for (let i = 0; i < 12; i++) g += `<rect class="hit" data-i="${i}" x="${X(i) - step / 2}" y="${F.t}" width="${step}" height="${ih}" fill="transparent"/>`;
+  el.innerHTML = `<svg viewBox="0 0 ${F.W} ${F.H}" role="img" aria-label="Cumulative path to target">${g}</svg>`;
+  el.querySelectorAll('.hit').forEach(h => { h.onmousemove = e => { const i = +h.dataset.i, fp = fcPts.find(x => x[0] === i);
+      showTip(e, `<b>End of ${MN[i]}</b><br>Actual: ${i <= C.K ? fCr(cumA[i]) + ' Cr' : '—'}<br>${m.T ? `Plan path: ${fCr(cumP[i])} Cr<br>` : ''}${fp && i > C.K ? `Forecast: ${fCr(fp[1])} Cr<br>` : ''}Last year: ${fCr(cumL[i])} Cr`); };
+    h.onmouseleave = hideTip; });
+}
+</script>
+<script>
+/* ---- product & region cockpits ---- */
+function cockpitRows(kind){
+  const isP = kind === 'p';
+  const list = isP ? PRODUCTS : REGIONS, nt = isP ? NOTARGET_PRODUCTS : NOTARGET_REGIONS;
+  const ex = isP ? { p:true } : { r:true };
+  const crossFiltered = isP ? (S.reg.length || S.ch.length) : (S.prod.length || S.ch.length);   // targets don't apply to the cut
+  const rows = list.filter(x => !(isP ? S.prod : S.reg).length || (isP ? S.prod : S.reg).includes(x.k)).map(x => {
+    const s = series(r => pass(r, ex) && (isP ? r.p : r.r) === x.k);
+    return { k:x.k, who: isP ? x.pm : '', note: x.note || '', s, m: metrics(crossFiltered ? null : x.t, s) };
+  });
+  const ntRows = nt.filter(k => !(isP ? S.prod : S.reg).length || (isP ? S.prod : S.reg).includes(k)).map(k => {
+    const s = series(r => pass(r, ex) && (isP ? r.p : r.r) === k); return { k, who:'', nt:true, s, m: metrics(null, s) }; });
+  return { rows, ntRows, crossFiltered };
+}
+const COLS = [
+  { k:'k', h:'', l:true },
+  { k:'st', h:'Status', f:x => status(x.m), v:x => statusRank(x.m) },
+  { k:'T', h:'FY target', f:x => fL(x.m.T), v:x => x.m.T ?? -1 },
+  { k:'planTD', h:'Plan to date', f:x => fL(x.m.planTD), v:x => x.m.planTD ?? -1 },
+  { k:'ytd', h:'Actual YTD', f:x => `<b>${fL(x.m.ytd)}</b>`, v:x => x.m.ytd },
+  { k:'pPlan', h:'% of plan', f:x => x.m.pPlan == null ? '—' : `<span class="${x.m.pPlan >= 1 ? 'pos' : 'neg'}">${pct(x.m.pPlan)}</span>`, v:x => x.m.pPlan ?? -1 },
+  { k:'pFY', h:'% of FY', f:x => x.m.pFY == null ? '—' : `${pct(x.m.pFY)}<span class="bar-in" style="width:${Math.min(60, x.m.pFY * 60)}px"></span>`, v:x => x.m.pFY ?? -1 },
+  { k:'gap', h:'Still to get', f:x => x.m.gap == null ? '—' : x.m.gap <= 0 ? '<span class="pos">done</span>' : fL(x.m.gap), v:x => x.m.gap ?? -1 },
+  { k:'need', h:'Need / month', f:x => fL(x.m.need), v:x => x.m.need ?? -1 },
+  { k:'run', h:'Run-rate / month', f:x => fL(x.m.run), v:x => x.m.run },
+  { k:'ratio', h:'Step-up', f:x => x.m.ratio == null ? '—' : `<span class="${x.m.ratio <= 1 ? 'pos' : x.m.ratio > 1.35 ? 'neg' : ''}">${x.m.ratio.toFixed(2)}×</span>`, v:x => x.m.ratio ?? -1 },
+  { k:'lyYtd', h:'LY same period', f:x => fL(x.m.lyYtd), v:x => x.m.lyYtd },
+  { k:'growth', h:'Growth', f:x => x.m.growth == null ? (x.m.ytd > 0 ? 'new' : '—') : `<span class="${x.m.growth >= 0 ? 'pos' : 'neg'}">${x.m.growth >= 0 ? '+' : ''}${Math.round(x.m.growth * 100)}%</span>`, v:x => x.m.growth ?? -9 },
+  { k:'fc', h:'Forecast FY', f:x => fL(x.m.fc), v:x => x.m.fc },
+  { k:'fcGap', h:'Forecast vs target', f:x => x.m.T == null ? '—' : `<span class="${x.m.fc >= x.m.T ? 'pos' : 'neg'}">${x.m.fc >= x.m.T ? '+' : ''}${fL(x.m.fc - x.m.T)}</span>`, v:x => x.m.T == null ? -1e9 : x.m.fc - x.m.T },
+];
+function sortRows(id, rows){
+  const st = S.sort[id]; if (!st) return rows;
+  const c = COLS.find(c => c.k === st.k) || { v:x => x.k }; const v = c.v || (x => x.k);
+  return rows.slice().sort((a, b) => { const A = v(a), B = v(b); return (A > B ? 1 : A < B ? -1 : 0) * st.dir; });
+}
+function cockpitTable(id, kind, title){
+  const { rows, ntRows, crossFiltered } = cockpitRows(kind);
+  const isP = kind === 'p';
+  const sorted = sortRows(id, rows);
+  const totS = { a:Array(12).fill(0), ly:Array(12).fill(0), ll:Array(12).fill(0) };
+  [...rows, ...ntRows].forEach(x => ['a', 'ly', 'll'].forEach(k => x.s[k].forEach((v, i) => totS[k][i] += v)));
+  const tgtSum = crossFiltered ? null : sum(rows.map(x => x.m.T || 0));
+  const allSel = !(isP ? S.prod : S.reg).length;
+  const balance = !crossFiltered && allSel ? TOTAL_TARGET - tgtSum : null;
+  const ntS = { a:Array(12).fill(0), ly:Array(12).fill(0), ll:Array(12).fill(0) };
+  ntRows.forEach(x => ['a', 'ly', 'll'].forEach(k => x.s[k].forEach((v, i) => ntS[k][i] += v)));
+  const tot = { k:'Total', m: metrics(crossFiltered ? null : (allSel ? TOTAL_TARGET : tgtSum), totS) };
+  const head = `<tr>${COLS.map((c, i) => `<th class="${i === 0 ? 'l' : ''}" data-k="${c.k}">${i === 0 ? title : c.h}${S.sort[id]?.k === c.k ? (S.sort[id].dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}${isP ? '<th class="l">PM</th>' : ''}</tr>`;
+  const tr = (x, cls = 'click') => `<tr class="${cls}" data-k="${esc(x.k)}" title="${esc(x.note || '')}">${COLS.map((c, i) => i === 0 ? `<td class="l">${esc(x.k)}</td>` : `<td>${c.f(x)}</td>`).join('')}${isP ? `<td class="l muted">${esc(x.who || '')}</td>` : ''}</tr>`;
+  let body = sorted.map(x => tr(x)).join('');
+  if (ntRows.length) {
+    const g = { k: isP ? 'No-target baskets (share the balance)' : 'Not assigned to a region', m: metrics(balance, ntS) };
+    body += tr(g, 'grp') + ntRows.map(x => tr(x, 'click child')).join('');
+  }
+  body += tr(tot, 'tot');
+  return { html:`<table>${head}${body}</table>`, rows:[...sorted, ...ntRows], tot, balance };
+}
+function bindCockpit(id, kind){
+  const el = $(id);
+  el.querySelectorAll('th[data-k]').forEach(th => th.onclick = () => { const k = th.dataset.k, st = S.sort[id];
+    S.sort[id] = { k, dir: st && st.k === k ? -st.dir : (k === 'k' ? 1 : -1) }; kind === 'p' ? renderProd() : renderReg(); });
+  el.querySelectorAll('tr.click').forEach(tr => tr.onclick = () => openDrawer(kind === 'p' ? { p:tr.dataset.k } : { r:tr.dataset.k }));
+}
+function renderProd(){
+  const t = cockpitTable('prodTbl', 'p', 'Product'); S.prodT = t;
+  $('prodTbl').innerHTML = t.html + `<div class="sub" style="margin-top:6px">₹ lakhs. ${t.balance != null ? `No-target baskets carry the balance of ₹${fCr(t.balance)} Cr (₹520 Cr − product targets). ` : ''}Govt Prepaid/Smart is outside the Prepaid/Smart PM target. Forecast = this year so far × (last year full ÷ last year same period); where last year is missing or that ratio is above 3×, the current run-rate is used instead.</div>`;
+  bindCockpit('prodTbl', 'p');
+}
+function renderReg(){
+  const t = cockpitTable('regTbl', 'r', 'Region'); S.regT = t;
+  $('regTbl').innerHTML = t.html + `<div class="sub" style="margin-top:6px">₹ lakhs. ${esc(REGION_RULES)}${t.balance != null ? ` ₹${fCr(t.balance)} Cr of the ₹520 Cr is not assigned to any region.` : ''} Madurai & Salem, North Kerala and South Kerala are new regions this year, so they show no last-year figures (last year that business sat under Coimbatore and "KERALA", now in Other regions).</div>`;
+  bindCockpit('regTbl', 'r');
+}
+function cockpitCsv(t, kind){
+  const C = clock();
+  csv(`path_${kind === 'p' ? 'products' : 'regions'}_${S.doc}_${fyLabel(S.cy)}_to_${C.label}.csv`,
+    [kind === 'p' ? 'Product' : 'Region', 'FY target L', 'Plan to date L', 'Actual YTD L', '% of plan', '% of FY', 'Still to get L', 'Need per month L', 'Run-rate per month L', 'Step-up x', 'LY same period L', 'Growth %', 'Forecast FY L', 'Forecast vs target L'],
+    [...t.rows, t.tot].map(x => [x.k, x.m.T ?? '', x.m.planTD?.toFixed(1) ?? '', x.m.ytd.toFixed(1), x.m.pPlan == null ? '' : Math.round(x.m.pPlan * 100), x.m.pFY == null ? '' : Math.round(x.m.pFY * 100),
+      x.m.gap?.toFixed(1) ?? '', x.m.need?.toFixed(1) ?? '', x.m.run.toFixed(1), x.m.ratio?.toFixed(2) ?? '', x.m.lyYtd.toFixed(1), x.m.growth == null ? '' : Math.round(x.m.growth * 100), x.m.fc.toFixed(1), x.m.T == null ? '' : (x.m.fc - x.m.T).toFixed(1)]));
+}
+
+/* ---- region × product matrix ---- */
+function heat(v, max){ if (!(v > 0) || !(max > 0)) return '#fff'; const t = Math.min(1, v / max); const l = 97 - t * 52; return `hsl(207 70% ${l}%)`; }
+function divHeat(g){ if (g == null) return '#fff'; const t = Math.max(-1, Math.min(1, g)); return t >= 0 ? `hsl(140 45% ${96 - t * 40}%)` : `hsl(0 65% ${96 + t * 36}%)`; }
+function renderMx(){
+  const months = periodMonths();
+  const prods = [...PRODUCTS.map(p => p.k), ...NOTARGET_PRODUCTS].filter(p => !S.prod.length || S.prod.includes(p));
+  const regs = [...REGIONS.map(r => r.k), ...NOTARGET_REGIONS].filter(r => !S.reg.length || S.reg.includes(r));
+  const g = groupBy(r => pass(r), r => r.r + '|' + r.p, months);
+  const cell = (r, p) => g.get(r + '|' + p) || { cy:0, ly:0 };
+  const rt = {}; regs.forEach(r => rt[r] = prods.reduce((s, p) => ({ cy: s.cy + cell(r, p).cy, ly: s.ly + cell(r, p).ly }), { cy:0, ly:0 }));
+  const pt = {}; prods.forEach(p => pt[p] = regs.reduce((s, r) => ({ cy: s.cy + cell(r, p).cy, ly: s.ly + cell(r, p).ly }), { cy:0, ly:0 }));
+  const sortedRegs = regs.slice().sort((a, b) => rt[b].cy - rt[a].cy);
+  const K = S.mxK; let max = 0; sortedRegs.forEach(r => prods.forEach(p => { const c = cell(r, p); max = Math.max(max, K === 'v' ? c.cy : K === 's' ? (rt[r].cy ? c.cy / rt[r].cy : 0) : Math.abs(c.cy - c.ly)); }));
+  const fmt = (c, r) => K === 'v' ? (c.cy ? fL(c.cy) : '') : K === 'g' ? (c.cy || c.ly ? gtxt(c.cy, c.ly) : '') : K === 's' ? (c.cy && rt[r].cy ? pct(c.cy / rt[r].cy) : '') : (c.cy || c.ly ? (c.cy >= c.ly ? '+' : '') + fL(c.cy - c.ly) : '');
+  const bg = (c, r) => K === 'v' ? heat(c.cy, max) : K === 's' ? heat(rt[r].cy ? c.cy / rt[r].cy : 0, max) : K === 'g' ? divHeat(c.ly > 0 ? c.cy / c.ly - 1 : (c.cy > 0 ? 1 : null)) : divHeat(max ? (c.cy - c.ly) / max : null);
+  const ink = col => /hsl\(207 70% (\d+)/.test(col) && +RegExp.$1 < 62 ? '#fff' : '#16264d';
+  $('mxSub').textContent = `${periodLabel()} · ${S.doc === 'OB' ? 'order booking' : 'invoicing'} · no targets exist for region × product, so this shows value, growth vs last year same period, share and ₹ change. Click a cell to drill in.`;
+  let h = `<table><tr><th class="l">Region</th>${prods.map(p => `<th>${esc(p)}</th>`).join('')}<th>Total</th><th>LY</th><th>Growth</th></tr>`;
+  sortedRegs.forEach(r => { h += `<tr><td class="l"><a href="#" data-r="${esc(r)}" class="rlink">${esc(r)}</a></td>${prods.map(p => { const c = cell(r, p), b = bg(c, r);
+      return `<td class="cell" data-r="${esc(r)}" data-p="${esc(p)}" style="background:${b};color:${ink(b)}">${fmt(c, r)}</td>`; }).join('')}
+      <td><b>${fL(rt[r].cy)}</b></td><td class="muted">${fL(rt[r].ly)}</td><td class="${gcls(rt[r].cy, rt[r].ly)}">${gtxt(rt[r].cy, rt[r].ly)}</td></tr>`; });
+  const T = sortedRegs.reduce((s, r) => ({ cy: s.cy + rt[r].cy, ly: s.ly + rt[r].ly }), { cy:0, ly:0 });
+  h += `<tr class="tot"><td class="l">Total</td>${prods.map(p => `<td>${fL(pt[p].cy)}</td>`).join('')}<td>${fL(T.cy)}</td><td>${fL(T.ly)}</td><td>${gtxt(T.cy, T.ly)}</td></tr>`;
+  h += `<tr class="tot"><td class="l">Growth</td>${prods.map(p => `<td class="${gcls(pt[p].cy, pt[p].ly)}">${gtxt(pt[p].cy, pt[p].ly)}</td>`).join('')}<td></td><td></td><td></td></tr></table>`;
+  $('mxTbl').innerHTML = h;
+  $('mxTbl').querySelectorAll('td.cell').forEach(td => {
+    td.onclick = () => openDrawer({ r:td.dataset.r, p:td.dataset.p });
+    td.onmousemove = e => { const c = cell(td.dataset.r, td.dataset.p); showTip(e, `<b>${esc(td.dataset.r)} · ${esc(td.dataset.p)}</b><br>${periodLabel()}: ${fL1(c.cy)} L<br>Last year same period: ${fL1(c.ly)} L<br>Growth: ${gtxt(c.cy, c.ly)}<br>Share of region: ${rt[td.dataset.r].cy ? pct(c.cy / rt[td.dataset.r].cy) : '—'}`); };
+    td.onmouseleave = hideTip; });
+  $('mxTbl').querySelectorAll('a.rlink').forEach(a => a.onclick = e => { e.preventDefault(); openDrawer({ r:a.dataset.r }); });
+  S.mx = { prods, regs: sortedRegs, cell, rt };
+}
+
+/* ---- customer type ---- */
+function renderCh(){
+  const months = periodMonths();
+  const prods = [...PRODUCTS.map(p => p.k), ...NOTARGET_PRODUCTS].filter(p => !S.prod.length || S.prod.includes(p));
+  const g = groupBy(r => pass(r), r => r.c + '|' + r.p, months), gt = groupBy(r => pass(r), r => r.c, months);
+  const chs = [...gt.keys()].sort((a, b) => gt.get(b).cy - gt.get(a).cy);
+  const all = [...gt.values()].reduce((s, o) => ({ cy: s.cy + o.cy, ly: s.ly + o.ly }), { cy:0, ly:0 });
+  let h = `<table><tr><th class="l">Customer type</th><th>${esc(periodLabel())}</th><th>LY same period</th><th>Growth</th><th>Share</th><th>Share LY</th>${prods.map(p => `<th>${esc(p)}</th>`).join('')}</tr>`;
+  chs.forEach(c => { const o = gt.get(c); h += `<tr class="click" data-c="${esc(c)}"><td class="l">${esc(c)}</td><td><b>${fL(o.cy)}</b></td><td class="muted">${fL(o.ly)}</td><td class="${gcls(o.cy, o.ly)}">${gtxt(o.cy, o.ly)}</td>
+    <td>${all.cy ? pct(o.cy / all.cy) : '—'}</td><td class="muted">${all.ly ? pct(o.ly / all.ly) : '—'}</td>
+    ${prods.map(p => { const x = g.get(c + '|' + p) || { cy:0, ly:0 }; return `<td title="LY ${fL(x.ly)} L · ${gtxt(x.cy, x.ly)}">${x.cy ? fL(x.cy) : ''}${x.cy || x.ly ? ` <span class="${gcls(x.cy, x.ly)}" style="font-size:11px">${gtxt(x.cy, x.ly)}</span>` : ''}</td>`; }).join('')}</tr>`; });
+  h += `<tr class="tot"><td class="l">Total</td><td>${fL(all.cy)}</td><td>${fL(all.ly)}</td><td>${gtxt(all.cy, all.ly)}</td><td></td><td></td>${prods.map(p => { const x = chs.reduce((s, c) => { const o = g.get(c + '|' + p); return o ? { cy: s.cy + o.cy, ly: s.ly + o.ly } : s; }, { cy:0, ly:0 }); return `<td>${fL(x.cy)}</td>`; }).join('')}</tr></table>`;
+  $('chTbl').innerHTML = h + `<div class="sub" style="margin-top:6px">₹ lakhs. Channel Partners = account type "Channel Partners" (same as CP Analytics). Dealers & Distributors = Dealer, Distributor, Retailer, VAR, Agent, SCP.</div>`;
+  $('chTbl').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => openDrawer({ c:tr.dataset.c }));
+  S.chData = { chs, gt, g, prods, all };
+}
+</script>
+<script>
+/* ---- pipeline cover ---- */
+function renderPipe(){
+  const el = $('pipeTbl');
+  if (!S.pipe) { el.innerHTML = '<div class="note">Loading pipeline…</div>'; return; }
+  if (S.pipe.err) { el.innerHTML = `<div class="note">Pipeline not available yet (${esc(S.pipe.err)}). Run <b>path_to_target.sql</b> in Supabase.</div>`; return; }
+  // pipeline rows: [region, product type, stage, closing month, count, amount L, weighted L]
+  const rows = (S.pipe.rows || []).map(a => ({ r: pipeRegion(a[0]), raw:a[0], p:a[1], s:a[2], mon:a[3], n:+a[4], a:+a[5], w:+a[6] }))
+    .filter(x => !S.reg.length || S.reg.includes(x.r));
+  const K = S.pipeK, C = clock();
+  const keyOf = x => K === 'r' ? x.r : K === 'p' ? x.p : K === 's' ? x.s : x.mon;
+  const m = new Map(); rows.forEach(x => { const k = keyOf(x); const o = m.get(k) || { n:0, a:0, w:0 }; o.n += x.n; o.a += x.a; o.w += x.w; m.set(k, o); });
+  // remaining gap per region (only for the region view)
+  const gapOf = k => { if (K !== 'r') return null; const t = REGIONS.find(x => x.k === k); if (!t || S.ch.length) return null;
+    return metrics(t.t, series(r => pass(r, { r:true }) && r.r === k)).gap; };
+  let keys = [...m.keys()];
+  if (K === 'm') keys.sort(); else keys.sort((a, b) => m.get(b).w - m.get(a).w);
+  if (K === 'r') REGIONS.forEach(r => { if (!m.has(r.k) && (!S.reg.length || S.reg.includes(r.k))) { m.set(r.k, { n:0, a:0, w:0 }); keys.push(r.k); } });
+  const lab = { r:'Region', p:'Product type (Zoho)', s:'Stage', m:'Closing month' }[K];
+  const tot = [...m.values()].reduce((s, o) => ({ n: s.n + o.n, a: s.a + o.a, w: s.w + o.w }), { n:0, a:0, w:0 });
+  const covCell = (w, gap) => gap == null ? '—' : gap <= 0 ? '<span class="chip c-good">target done</span>' : `<span class="chip ${w / gap >= 1.5 ? 'c-good' : w / gap >= 1 ? 'c-warn' : 'c-bad'}">${(w / gap).toFixed(2)}×</span>`;
+  let h = `<table><tr><th class="l">${lab}</th><th>Open deals</th><th>Pipeline ₹ L</th><th>Weighted ₹ L</th>${K === 'r' ? '<th>Gap to FY target ₹ L</th><th>Cover (weighted ÷ gap)</th>' : ''}</tr>`;
+  keys.forEach(k => { const o = m.get(k), gap = gapOf(k);
+    h += `<tr><td class="l">${esc(K === 'm' ? fmtMon(k) : k)}</td><td>${o.n}</td><td>${fL(o.a)}</td><td><b>${fL(o.w)}</b></td>${K === 'r' ? `<td>${gap == null ? '—' : fL(gap)}</td><td>${covCell(o.w, gap)}</td>` : ''}</tr>`; });
+  const totGap = K === 'r' && !S.ch.length && !S.prod.length ? metrics(scopeTarget().T, series(r => pass(r))).gap : null;
+  h += `<tr class="tot"><td class="l">Total</td><td>${tot.n}</td><td>${fL(tot.a)}</td><td>${fL(tot.w)}</td>${K === 'r' ? `<td>${totGap == null ? '—' : fL(totGap)}</td><td>${covCell(tot.w, totGap)}</td>` : ''}</tr></table>`;
+  el.innerHTML = h;
+  $('pipeSub').textContent = `Open potentials in Zoho (stage not won / lost / closed) with a closing date from last month to 31-Mar. Weighted = amount × probability. Cover = weighted pipeline ÷ gap still to get; below 1.0× the gap cannot be closed from today's funnel. ${S.prod.length || S.ch.length ? 'Product and customer-type filters do not apply here (potentials use their own product types).' : ''}`;
+  S.pipeView = { keys, m, lab, gapOf };
+}
+function fmtMon(k){ if (!/^\d{4}-\d\d$/.test(k)) return k; const [y, mo] = k.split('-').map(Number); return new Date(y, mo - 1, 1).toLocaleDateString('en-IN', {month:'short', year:'numeric'}); }
+
+/* ---- accounts ---- */
+let accSeq = 0;
+async function loadAcc(){
+  const my = ++accSeq;
+  $('accSub').textContent = `${periodLabel()} · ${S.doc === 'OB' ? 'order booking' : 'invoicing'} · uses all filters above. Last year = same period (like-for-like).`;
+  $('accTbl').innerHTML = '<div class="note">Loading customers…</div>';
+  try {
+    const d = await rpc('ptt_accounts', { p_cy:S.cy, p_doc:S.doc, p_months: periodMonths().map(i => (i + 3) % 12 + 1), p_rg:S.reg, p_ch:S.ch, p_prod:S.prod, p_bk:[] });
+    if (my !== accSeq) return; S.acc = d; renderAcc();
+  } catch (e) { if (my === accSeq) $('accTbl').innerHTML = `<div class="note">Could not load customers — ${esc(e.message || e)}</div>`; }
+}
+function accRows(d, k){ return (d[k] || []).map(a => ({ card:a[0], cy:+a[1], ly:+a[2], lyF:+a[3], last:a[4], rg:a[5], ch:a[6], prod:a[7] })); }
+function accTable(rows, k){
+  const q = S.accSearch.toLowerCase(); rows = rows.filter(x => !q || String(x.card).toLowerCase().includes(q));
+  return `<table><tr><th class="l">#</th><th class="l">Customer</th><th>This FY ₹ L</th><th>LY same period ₹ L</th><th>Change ₹ L</th><th>Growth</th><th>LY full year ₹ L</th><th class="l">Last order / invoice</th><th class="l">Region</th><th class="l">Type</th><th class="l">Main product</th></tr>`
+    + rows.map((x, i) => `<tr><td class="l muted">${i + 1}</td><td class="l">${esc(x.card)}</td><td><b>${x.cy ? fL1(x.cy) : '—'}</b></td><td class="muted">${fL1(x.ly)}</td>
+      <td class="${x.cy >= x.ly ? 'pos' : 'neg'}">${x.cy >= x.ly ? '+' : ''}${fL1(x.cy - x.ly)}</td><td class="${gcls(x.cy, x.ly)}">${gtxt(x.cy, x.ly)}</td><td class="muted">${fL1(x.lyF)}</td>
+      <td class="l">${x.last ? new Date(x.last + 'T00:00:00').toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'}) : '—'}</td><td class="l">${esc(x.rg)}</td><td class="l">${esc(x.ch)}</td><td class="l">${esc(x.prod || '')}</td></tr>`).join('') + '</table>';
+}
+function renderAcc(){
+  const d = S.acc; if (!d) return;
+  $('accSum').innerHTML = `<b>${d.n_cy}</b> customers this period (LY same period <b>${d.n_ly}</b>) · <b>${d.n_new}</b> new · <b class="neg">${d.n_lapsed}</b> lapsed, worth <b>${fL1(d.v_lapsed)} L</b> last year in the same period.`;
+  $('accTbl').innerHTML = accTable(accRows(d, S.accK), S.accK) + `<div class="sub" style="margin-top:6px">Top 150 per list. "Lapsed" = bought in this period last year, nothing in this FY at all.</div>`;
+}
+</script>
+<script>
+/* ======================= drill-down drawer ======================= */
+// sel: any of {p, r, c}; the global filters still apply for the other dims
+async function openDrawer(sel){
+  const C = clock();
+  const ex = { p: !!sel.p, r: !!sel.r, c: !!sel.c };
+  const pred = r => pass(r, ex) && (!sel.p || r.p === sel.p) && (!sel.r || r.r === sel.r) && (!sel.c || r.c === sel.c);
+  const one = Object.keys(sel).length === 1;
+  const others = (sel.p ? (S.reg.length || S.ch.length) : sel.r ? (S.prod.length || S.ch.length) : true);
+  const T = !one || others ? null : sel.p ? PRODUCTS.find(x => x.k === sel.p)?.t ?? null : sel.r ? REGIONS.find(x => x.k === sel.r)?.t ?? null : null;
+  const s = series(pred), m = metrics(T, s);
+  const title = [sel.p, sel.r, sel.c].filter(Boolean).join(' · ');
+  const filtTxt = [!sel.p && S.prod.length ? S.prod.join(', ') : null, !sel.r && S.reg.length ? S.reg.join(', ') : null, !sel.c && S.ch.length ? S.ch.join(', ') : null].filter(Boolean);
+  $('dTitle').textContent = title;
+  $('dSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ${fyLabel(S.cy)} · data to ${C.label}${filtTxt.length ? ' · also filtered: ' + filtTxt.join(' · ') : ''}`;
+  const months = periodMonths();
+  const kp = (t, v, s2) => `<div class="kpi"><div class="k">${t}</div><div class="v" style="font-size:20px">${v}</div><div class="s">${s2}</div></div>`;
+  let h = `<div class="kpis" style="grid-template-columns:repeat(5,minmax(0,1fr))">
+    ${kp('FY target', T ? fCr(T) + ' Cr' : '—', T ? `Plan to date ${fCr(m.planTD)} Cr` : 'no target for this cut')}
+    ${kp('Achieved YTD', fCr(m.ytd) + ' Cr', T ? `${pct(m.pFY)} of FY · ${pct(m.pPlan)} of plan` : `LY same period ${fCr(m.lyYtd)} Cr`)}
+    ${kp('Need / month', m.need != null ? fCr(m.need) + ' Cr' : '—', `run-rate ${fCr(m.run)} Cr${m.ratio ? ' · ' + m.ratio.toFixed(2) + '×' : ''}`)}
+    ${kp('Forecast FY', fCr(m.fc) + ' Cr', T ? (m.fc >= T ? '<span class="pos">on target</span>' : `<span class="neg">${fCr(T - m.fc)} Cr short</span>`) : `LY full ${fCr(m.lyFull)} Cr`)}
+    ${kp('Growth vs LY', m.growth == null ? '—' : `<span class="${m.growth >= 0 ? 'pos' : 'neg'}">${m.growth >= 0 ? '+' : ''}${Math.round(m.growth * 100)}%</span>`, `LY same period ${fCr(m.lyYtd)} Cr`)}</div>`;
+  h += `<div class="cgrid" style="margin-top:12px"><div class="cbox"><h3>Each month</h3><div class="legend"><span><i class="sw" style="background:var(--act)"></i>Actual</span>${T ? '<span><i class="sw" style="background:var(--plan)"></i>Plan</span>' : ''}<span><i class="sw ln" style="background:var(--ly)"></i>Last year</span></div><div class="chart" id="dChM"></div></div>
+        <div class="cbox"><h3>Cumulative</h3><div class="legend"><span><i class="sw ln" style="background:var(--act)"></i>Actual</span>${T ? '<span><i class="sw dash" style="border-color:var(--plan)"></i>Plan path</span>' : ''}<span><i class="sw dash" style="border-color:var(--fc)"></i>Forecast</span><span><i class="sw ln" style="background:var(--ly)"></i>Last year</span></div><div class="chart" id="dChC"></div></div></div>`;
+  // breakdowns for the breakdown period
+  const brk = (label, keyFn, clickDim) => {
+    const g = groupBy(pred, keyFn, months); const keys = [...g.keys()].sort((a, b) => g.get(b).cy - g.get(a).cy);
+    const t = [...g.values()].reduce((s, o) => ({ cy: s.cy + o.cy, ly: s.ly + o.ly }), { cy:0, ly:0 });
+    if (!keys.length) return '';
+    return `<div class="cbox"><h3>By ${label} <span class="muted" style="font-weight:400">— ${esc(periodLabel())}</span></h3><div class="tbl"><table class="mini"><tr><th class="l">${label}</th><th>₹ L</th><th>LY ₹ L</th><th>Growth</th><th>Share</th></tr>`
+      + keys.map(k => { const o = g.get(k); return `<tr ${clickDim ? `class="click" data-${clickDim}="${esc(k)}"` : ''}><td class="l">${esc(k)}</td><td><b>${fL1(o.cy)}</b></td><td class="muted">${fL1(o.ly)}</td><td class="${gcls(o.cy, o.ly)}">${gtxt(o.cy, o.ly)}</td><td>${t.cy ? pct(o.cy / t.cy) : '—'}</td></tr>`; }).join('')
+      + `<tr class="tot"><td class="l">Total</td><td>${fL1(t.cy)}</td><td>${fL1(t.ly)}</td><td>${gtxt(t.cy, t.ly)}</td><td></td></tr></table></div></div>`;
+  };
+  h += `<div class="dgrid" style="margin-top:12px">${!sel.r ? brk('region', r => r.r, 'r') : ''}${!sel.p ? brk('product', r => r.p, 'p') : ''}${!sel.c ? brk('customer type', r => r.c, 'c') : ''}${brk('basket', r => r.b)}</div>`;
+  h += `<div class="cbox" style="margin-top:12px"><div class="card-h" style="margin-bottom:6px"><h3>Customers — ${esc(periodLabel())}</h3><div class="tabs" id="dAccTabs"><button data-k="top" class="on">Top</button><button data-k="down">Buying less</button><button data-k="lapsed">Lapsed</button></div></div><div class="note" id="dAccSum"></div><div class="tbl" id="dAcc" style="max-height:460px">Loading…</div></div>`;
+  $('dBody').innerHTML = h;
+  drawMonth($('dChM'), s, m.plan || Array(12).fill(null), C);
+  drawCum($('dChC'), s, m.plan || Array(12).fill(null), m, C);
+  // a breakdown row opens a narrower drill (adds that dimension)
+  $('dBody').querySelectorAll('tr.click').forEach(tr => tr.onclick = () => { const add = {}; ['p', 'r', 'c'].forEach(k => { if (tr.dataset[k]) add[k] = tr.dataset[k]; }); openDrawer({ ...sel, ...add }); });
+  $('drawer').classList.add('on'); $('dbg').classList.add('on'); $('drawer').scrollTop = 0; $('dBody').scrollTop = 0;
+  try {
+    const d = await rpc('ptt_accounts', { p_cy:S.cy, p_doc:S.doc, p_months: months.map(i => (i + 3) % 12 + 1),
+      p_rg: sel.r ? [sel.r] : S.reg, p_ch: sel.c ? [sel.c] : S.ch, p_prod: sel.p ? [sel.p] : S.prod, p_bk: [] });
+    let k = 'top'; const draw = () => { $('dAcc').innerHTML = accTable(accRows(d, k), k); };
+    $('dAccSum').innerHTML = `<b>${d.n_cy}</b> customers (LY <b>${d.n_ly}</b>) · <b>${d.n_new}</b> new · <b class="neg">${d.n_lapsed}</b> lapsed worth <b>${fL1(d.v_lapsed)} L</b> last year.`;
+    $('dAccTabs').onclick = e => { const b = e.target.closest('button'); if (!b) return; k = b.dataset.k; $('dAccTabs').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); draw(); };
+    draw();
+  } catch (e) { $('dAcc').innerHTML = `<div class="note">Could not load customers — ${esc(e.message || e)}</div>`; }
+}
+function closeDrawer(){ $('drawer').classList.remove('on'); $('dbg').classList.remove('on'); }
+$('dClose').onclick = closeDrawer; $('dbg').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+/* ======================= controls ======================= */
+function buildPeriod(){
+  const C = clock(), cur = S.per;
+  let o = `<option value="ytd">Year to date (Apr → ${MN[C.K]})</option><option value="fy">Full year</option>`;
+  for (let q = 1; q <= 4; q++) o += `<option value="q${q}">Q${q} (${MN[q*3-3]}–${MN[q*3-1]})</option>`;
+  for (let i = 0; i <= C.K; i++) o += `<option value="m${i}">${MN[i]}${i === C.K ? ' (to date)' : ''}</option>`;
+  $('perSel').innerHTML = o; $('perSel').value = [...$('perSel').options].some(x => x.value === cur) ? cur : 'ytd'; S.per = $('perSel').value;
+}
+$('perSel').onchange = () => { S.per = $('perSel').value; renderMx(); renderCh(); loadAcc(); };
+$('docTg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.doc = b.dataset.d; $('docTg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); buildPeriod(); renderAll(); };
+$('fySel').onchange = () => { S.cy = +$('fySel').value; load(false).then(buildPeriod); };
+$('clearBtn').onclick = () => { S.prod = []; S.reg = []; S.ch = []; Object.values(MS).forEach(m => m.setBtn()); renderAll(); };
+const tabs = (id, key, fn) => $(id).onclick = e => { const b = e.target.closest('button'); if (!b) return; S[key] = b.dataset.k; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); fn(); };
+tabs('mxTabs', 'mxK', renderMx); tabs('pipeTabs', 'pipeK', renderPipe); tabs('accTabs', 'accK', renderAcc);
+$('accSearch').oninput = () => { S.accSearch = $('accSearch').value; renderAcc(); };
+$('dlProd').onclick = () => cockpitCsv(S.prodT, 'p');
+$('dlReg').onclick = () => cockpitCsv(S.regT, 'r');
+$('dlMonth').onclick = () => csv(`path_months_${S.doc}_${fyLabel(S.cy)}.csv`, ['Month', 'Plan L', 'Actual L', 'LY same month L', 'Cum plan L', 'Cum actual L', 'Cum LY L'],
+  (S.monthRows || []).map(r => [MN[r.i], r.plan?.toFixed(1) ?? '', r.act?.toFixed(1) ?? '', (r.ly ?? 0).toFixed(1), r.plan == null ? '' : r.cp.toFixed(1), r.ca?.toFixed(1) ?? '', r.cl.toFixed(1)]));
+$('dlMx').onclick = () => { const M = S.mx; if (!M) return; csv(`path_region_x_product_${S.doc}_${periodLabel()}.csv`, ['Region', ...M.prods.flatMap(p => [p + ' L', p + ' LY L']), 'Total L', 'Total LY L'],
+  M.regs.map(r => [r, ...M.prods.flatMap(p => { const c = M.cell(r, p); return [c.cy.toFixed(1), c.ly.toFixed(1)]; }), M.rt[r].cy.toFixed(1), M.rt[r].ly.toFixed(1)])); };
+$('dlCh').onclick = () => { const D = S.chData; if (!D) return; csv(`path_customer_type_${S.doc}_${periodLabel()}.csv`, ['Customer type', 'Value L', 'LY L', ...D.prods.flatMap(p => [p + ' L', p + ' LY L'])],
+  D.chs.map(c => { const o = D.gt.get(c); return [c, o.cy.toFixed(1), o.ly.toFixed(1), ...D.prods.flatMap(p => { const x = D.g.get(c + '|' + p) || { cy:0, ly:0 }; return [x.cy.toFixed(1), x.ly.toFixed(1)]; })]; })); };
+$('dlPipe').onclick = () => { const P = S.pipeView; if (!P) return; csv(`path_pipeline_${S.pipeK}.csv`, [P.lab, 'Open deals', 'Pipeline L', 'Weighted L', 'Gap L'],
+  P.keys.map(k => { const o = P.m.get(k), g = P.gapOf(k); return [k, o.n, o.a.toFixed(1), o.w.toFixed(1), g == null ? '' : g.toFixed(1)]; })); };
+$('dlAcc').onclick = () => { if (!S.acc) return; csv(`path_accounts_${S.accK}_${S.doc}_${periodLabel()}.csv`, ['Customer', 'This FY L', 'LY same period L', 'LY full L', 'Last date', 'Region', 'Type', 'Main product'],
+  accRows(S.acc, S.accK).map(x => [x.card, x.cy, x.ly, x.lyF, x.last, x.rg, x.ch, x.prod])); };
+
+/* ======================= keep data fresh (same egress rules as the other dashboards) ======================= */
+const AUTO = { ver:null, pending:false, busy:false };
+function isShown(){ try { return !document.hidden && (!window.frameElement || window.frameElement.classList.contains('active')); } catch (e) { return !document.hidden; } }
+async function dataVersion(){ try { const v = await rpc('pm_data_version', {}); return v == null ? null : String(v); } catch (e) { return null; } }
+async function autoRefresh(){
+  if (!isShown()) { AUTO.pending = true; return; }
+  if (AUTO.busy) return; AUTO.busy = true; AUTO.pending = false;
+  try { const v = await dataVersion(); if (v !== null && AUTO.ver !== null && v === AUTO.ver) return; await load(false); buildPeriod(); if (v !== null) AUTO.ver = v; }
+  finally { AUTO.busy = false; }
+}
+$('refreshBtn').onclick = async () => { await load(false); buildPeriod(); const v = await dataVersion(); if (v !== null) AUTO.ver = v; };
+setInterval(autoRefresh, 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - S.loadedAt > 10 * 60 * 1000) autoRefresh(); });
+window.addEventListener('message', e => { if (e.data && e.data.type === 'pm-tab-shown' && (AUTO.pending || Date.now() - S.loadedAt > 10 * 60 * 1000)) autoRefresh(); });
+
+(async () => {
+  const now = new Date(); S.cy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  S.per = 'ytd';
+  await load(true); buildPeriod();
+  AUTO.ver = await dataVersion();
+})();
+</script>
+</body>
+</html>
