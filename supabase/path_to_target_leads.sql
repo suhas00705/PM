@@ -85,7 +85,9 @@ language sql stable security definer set search_path = public as $$
            ptt_ts(to_jsonb(l.created_time)) as created,
            l.last_activity_time as la, l.modified_time as mt,
            ptt_txt(to_jsonb(l.order_value)) as val
-    from leads_cache l) x;
+    from leads_cache l
+    -- rows the new sync has not touched = converted / deleted in Zoho
+    where coalesce(l.last_activity_time, l.modified_time) is not null) x;
 $$;
 
 create or replace function public.ptt_deals_base()
@@ -120,7 +122,8 @@ language sql stable security definer set search_path = public as $$
            ptt_ts(to_jsonb(p.created_time)) as created,
            p.last_activity_time as la, p.modified_time as mt,
            nullif(trim(p.lead_source), '') as source
-    from potentials_cache p) x;
+    from potentials_cache p
+    where coalesce(p.last_activity_time, p.modified_time) is not null) x;
 $$;
 -- PART 6 : lead & pipeline summary + action lists (16-Oct-2026). Read-only.
 create or replace function public.ptt_demand(p_cy int)

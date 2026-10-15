@@ -32,6 +32,7 @@ async function coql(token, query) {
 function ownerName(r) {
   return [r['Owner.first_name'], r['Owner.last_name']].filter(Boolean).join(' ') || null;
 }
+const istIso = ms => new Date(ms + 19800000).toISOString().substring(0, 19) + '+05:30';
 function nextSecond(ts) {
   const t = new Date(new Date(ts).getTime() + 1000 + 19800000);
   return t.toISOString().substring(0, 19) + '+05:30';
@@ -64,6 +65,7 @@ module.exports = async (req, res) => {
     let pageToken = null;
     let more = true;
     let lastCreatedAt = null; // returned in full mode so caller can resume
+    let activityExtra = 0, activityError;
 
     if (mode === 'full') {
       // ── FULL FY SCAN ──────────────────────────────────────────────────────
@@ -120,6 +122,20 @@ module.exports = async (req, res) => {
         pageToken = data.info?.next_page_token || null;
         page++;
       }
+
+      // 16-Oct-2026: a call / task / note on a deal moves Last_Activity_Time but often NOT Modified_Time,
+      // so the Modified_Time pass above misses it. Also pick up every deal with activity inside the window.
+      // Never fails the sync.
+      try {
+        const since = istIso(cutoffTime);
+        for (let off = 0; off < 10000 && Date.now() < deadline; off += 2000) {
+          const q = `select id, Deal_Name, Account_Name.Account_Name, Owner.first_name, Owner.last_name, Stage, Amount, Probability, Region, Closing_Date, Created_Time, Modified_Time, Last_Activity_Time, Lead_Source, Product_Solution_Type_Multi_Select from Deals where Last_Activity_Time >= '${since}' order by Last_Activity_Time asc limit ${off}, 2000`;
+          const { data, more: zMore } = await coql(accessToken, q);
+          activityExtra += data.length;
+          records = records.concat(data.map(r => ({ id: r.id, Deal_Name: r.Deal_Name, Account_Name: { name: r['Account_Name.Account_Name'] || null }, Owner: { name: ownerName(r) }, Stage: r.Stage, Amount: r.Amount, Probability: r.Probability, Region: r.Region, Closing_Date: r.Closing_Date, Created_Time: r.Created_Time, Modified_Time: r.Modified_Time, Last_Activity_Time: r.Last_Activity_Time, Lead_Source: r.Lead_Source, Product_Solution_Type_Multi_Select: r.Product_Solution_Type_Multi_Select || [] })));
+          if (!zMore || data.length < 2000) break;
+        }
+      } catch (e) { activityError = String(e.message || e).slice(0, 200); }
     }
 
     const written = await supabasePotentials.upsertPotentials(records);
@@ -157,6 +173,8 @@ module.exports = async (req, res) => {
 
     if (mode === 'incremental') {
       response.windowHours = parseInt(req.query?.window || '48', 10);
+      response.activityPicked = activityExtra;
+      if (activityError) response.activityError = activityError;
     } else {
       response.lastCreatedAt = lastCreatedAt;
       response.hasMore = more; // true = deadline hit before exhausting records

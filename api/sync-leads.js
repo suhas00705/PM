@@ -32,6 +32,7 @@ async function coql(token, query) {
 function ownerName(r) {
   return [r['Owner.first_name'], r['Owner.last_name']].filter(Boolean).join(' ') || null;
 }
+const istIso = ms => new Date(ms + 19800000).toISOString().substring(0, 19) + '+05:30';
 function nextSecond(ts) {
   const t = new Date(new Date(ts).getTime() + 1000 + 19800000);
   return t.toISOString().substring(0, 19) + '+05:30';
@@ -64,6 +65,7 @@ module.exports = async (req, res) => {
     let pageToken = null;
     let more = true;
     let lastCreatedAt = null;
+    let activityExtra = 0, activityError;
 
     if (mode === 'full') {
       // ── FULL FY SCAN ──────────────────────────────────────────────────────
@@ -111,6 +113,20 @@ module.exports = async (req, res) => {
         pageToken = data.info?.next_page_token || null;
         page++;
       }
+
+      // 16-Oct-2026: a call / task / note on a lead moves Last_Activity_Time but often NOT Modified_Time,
+      // so the Modified_Time pass above misses it. Also pick up every lead with activity inside the window.
+      // Never fails the sync.
+      try {
+        const since = istIso(cutoffTime);
+        for (let off = 0; off < 10000 && Date.now() < deadline; off += 2000) {
+          const q = `select id, Full_Name, Company, Account_Name, Owner.first_name, Owner.last_name, Lead_Status, Order_Value, Product_Solution_Type_Multi_Select, Region, Created_Time, Modified_Time, Last_Activity_Time, Lead_Source from Leads where Last_Activity_Time >= '${since}' order by Last_Activity_Time asc limit ${off}, 2000`;
+          const { data, more: zMore } = await coql(accessToken, q);
+          activityExtra += data.length;
+          leads = leads.concat(data.map(r => ({ id: r.id, Full_Name: r.Full_Name, Company: r.Company, Account_Name: r.Account_Name, Owner: { name: ownerName(r) }, Lead_Status: r.Lead_Status, Order_Value: r.Order_Value, Region: r.Region, Product_Solution_Type_Multi_Select: r.Product_Solution_Type_Multi_Select || [], Created_Time: r.Created_Time, Modified_Time: r.Modified_Time, Last_Activity_Time: r.Last_Activity_Time, Lead_Source: r.Lead_Source })));
+          if (!zMore || data.length < 2000) break;
+        }
+      } catch (e) { activityError = String(e.message || e).slice(0, 200); }
     }
 
     // never send the same lead twice in one upsert (Postgres rejects it)
@@ -132,6 +148,8 @@ module.exports = async (req, res) => {
 
     if (mode === 'incremental') {
       response.windowHours = parseInt(req.query?.window || '48', 10);
+      response.activityPicked = activityExtra;
+      if (activityError) response.activityError = activityError;
     } else {
       response.lastCreatedAt = lastCreatedAt;
       response.hasMore = more;
