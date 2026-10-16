@@ -133,8 +133,8 @@
   <div class="err" id="errBox"></div>
   <div class="scope" id="scopeNote"></div>
   <div class="sec-nav">
-    <a href="#secHead">Headline</a><a href="#secPath">Month path</a><a href="#secProd">Products</a><a href="#secReg">Regions</a><a href="#secDem">Leads &amp; pipeline</a>
-    <a href="#secMx">Region × product</a><a href="#secCh">Customer type</a><a href="#secPipe">Pipeline cover</a><a href="#secAcc">Accounts to chase</a>
+    <a href="#secHead">Headline</a><a href="#secPath">Month path</a><a href="#secProd">Products</a><a href="#secReg">Regions</a>
+    <a href="#secMx">Region × product</a><a href="#secCh">Customer type</a><a href="#secPro">Lead proactiveness</a><a href="#secDem">Leads &amp; pipeline</a><a href="#secPipe">Pipeline cover</a><a href="#secAcc">Accounts to chase</a>
   </div>
 
   <div class="card" id="secHead">
@@ -172,6 +172,40 @@
     <div class="tbl" id="regTbl"></div>
   </div>
 
+  <div class="card" id="secMx">
+    <div class="card-h"><div><h2>Region × product</h2>
+      <div class="sub" id="mxSub">There are no targets for region × product combinations, so this shows value and growth vs last year (same period). Click a cell to drill in.</div></div>
+      <div class="ctrls"><div class="tabs" id="mxTabs"><button data-k="v" class="on">Value (₹ L)</button><button data-k="g">Growth vs LY</button><button data-k="s">Share of region</button><button data-k="d">Change ₹ L vs LY</button></div>
+      <button class="btn ghost" id="dlMx">Download CSV</button></div></div>
+    <div class="tbl hm" id="mxTbl"></div>
+  </div>
+
+  <div class="card" id="secCh">
+    <div class="card-h"><div><h2>Customer type — channel partners vs direct</h2>
+      <div class="sub">Breakdown period value vs last year same period. Click a row to see the customers.</div></div>
+      <button class="btn ghost" id="dlCh">Download CSV</button></div>
+    <div class="tbl" id="chTbl"></div>
+  </div>
+
+  <div class="card" id="secPro">
+    <div class="card-h"><div><h2>Lead proactiveness — were orders in Zoho before they were won?</h2>
+      <div class="sub" id="proSub">Every approved OA, by how many days its Zoho deal existed before the OA date. A deal created on the order day (or no deal at all) means the business was never in the funnel — nobody could see it, follow it up or forecast it.</div></div>
+      <div class="ctrls"><div class="toggle" id="proTg"><button data-k="v" class="on">Value</button><button data-k="n">No. of OAs</button></div>
+      <button class="btn ghost" id="dlPro">Download CSV</button></div></div>
+    <div class="kpis" id="proKpis"></div>
+    <div class="verdict" id="proVerdict"></div>
+    <div class="legend" id="proLegend" style="margin-top:12px"></div>
+    <div class="chart" id="proChart"></div>
+    <div class="tbl" id="proTbl" style="margin-top:12px"></div>
+    <div class="cbox" style="margin-top:14px">
+      <div class="card-h" style="margin-bottom:6px"><div><h3>Month by month — orders closed within a week of entering Zoho</h3>
+        <div class="sub">Share of each month's order value whose deal was created 0–7 days before the OA. Darker = more last-minute entry. Click a cell for those OAs.</div></div>
+        <div class="ctrls"><select id="proMonSel"><option value="12">Same day + 1–7 days</option><option value="1">Same day only</option><option value="2">1–7 days only</option><option value="012">Within a week + no deal</option></select>
+        <div class="toggle" id="proMonTg"><button data-k="p" class="on">% of value</button><button data-k="v">₹ L</button><button data-k="n">No. of OAs</button></div>
+        <button class="btn ghost" id="dlProMon">Download CSV</button></div></div>
+      <div class="tbl hm" id="proMon"></div>
+    </div>
+  </div>
   <div class="card" id="secDem">
     <div class="card-h"><div><h2>Demand engine — leads &amp; pipeline vs the gap</h2>
       <div class="sub" id="demSub">Zoho leads and potentials (deals). Region filter above applies; product and customer-type filters do not (leads use their own product types).</div></div>
@@ -187,21 +221,6 @@
       <button data-k="reg" class="on">Regions: gap vs funnel</button><button data-k="eng">Engineers</button><button data-k="prod">Product types</button>
       <button data-k="src">Lead sources</button><button data-k="trend">Lead flow trend</button><button data-k="act">Action lists</button></div>
     <div id="demBody"></div>
-  </div>
-
-  <div class="card" id="secMx">
-    <div class="card-h"><div><h2>Region × product</h2>
-      <div class="sub" id="mxSub">There are no targets for region × product combinations, so this shows value and growth vs last year (same period). Click a cell to drill in.</div></div>
-      <div class="ctrls"><div class="tabs" id="mxTabs"><button data-k="v" class="on">Value (₹ L)</button><button data-k="g">Growth vs LY</button><button data-k="s">Share of region</button><button data-k="d">Change ₹ L vs LY</button></div>
-      <button class="btn ghost" id="dlMx">Download CSV</button></div></div>
-    <div class="tbl hm" id="mxTbl"></div>
-  </div>
-
-  <div class="card" id="secCh">
-    <div class="card-h"><div><h2>Customer type — channel partners vs direct</h2>
-      <div class="sub">Breakdown period value vs last year same period. Click a row to see the customers.</div></div>
-      <button class="btn ghost" id="dlCh">Download CSV</button></div>
-    <div class="tbl" id="chTbl"></div>
   </div>
 
   <div class="card" id="secPipe">
@@ -348,6 +367,7 @@ async function load(first){
   finally { $('loading').classList.remove('on'); }
   loadPipe();
   if (typeof loadDemand === 'function') loadDemand();
+  if (typeof loadPro === 'function') loadPro();
 }
 async function loadPipe(){
   try { S.pipe = await rpc('ptt_pipeline', { p_cy: S.cy }); } catch (e) { S.pipe = { err: e.message || String(e) }; }
@@ -449,7 +469,7 @@ function renderAll(){
     + (S.raw.last_sync ? ` · last Zoho sync ${esc(new Date(S.raw.last_sync.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}))}` : '');
   const sc = scopeTarget();
   $('scopeNote').style.display = sc.why ? 'block' : 'none'; $('scopeNote').textContent = sc.why || '';
-  renderHead(sc); renderPath(sc); renderProd(); renderReg(); renderMx(); renderCh(); renderPipe(); loadAcc(); if (typeof renderDemand === 'function') renderDemand();
+  renderHead(sc); renderPath(sc); renderProd(); renderReg(); renderMx(); renderCh(); renderPipe(); loadAcc(); if (typeof renderDemand === 'function') renderDemand(); if (typeof renderPro === 'function') renderPro();
 }
 
 function renderHead(sc){
@@ -1070,6 +1090,157 @@ $('dlDem').onclick = () => { const c = DEM.csv; if (!c) return;
   csv(`demand_${c.id}.csv`, c.cols.map(x => strip(x.h)), c.rows.map(r => c.cols.map(x => strip(x.f(r))))); };
 </script>
 <script>
+/* ======================= Lead proactiveness (16-Oct-2026) ======================= */
+// Buckets = days the Zoho deal existed before the OA date
+const PB = [
+  { k:0, h:'No deal in Zoho',   s:'No deal',   c:'#7a1f1f' },
+  { k:1, h:'Deal on OA day / after', s:'Same day', c:'#c8423a' },
+  { k:2, h:'1–7 days before',   s:'1–7 d',     c:'#e8833a' },
+  { k:3, h:'8–30 days before',  s:'8–30 d',    c:'#d9b23b' },
+  { k:4, h:'31–90 days before', s:'31–90 d',   c:'#7cb87a' },
+  { k:5, h:'More than 90 days', s:'90+ d',     c:'#1f7a45' },
+];
+const PRO = { d:null, err:null, k:'v', mk:'p', mb:'12' };
+const calMonths = () => periodMonths().map(i => (i + 3) % 12 + 1);
+// rows: [region, owner, bucket, calendar month, OAs, value L]
+const proRows = (months) => { const ms = new Set(months || calMonths()); return (PRO.d?.rows || []).filter(r => ms.has(+r[3])); };
+const ZOHO_ORG = 'https://crm.zoho.com/crm/org286180109';
+async function loadPro(){
+  try { PRO.d = await rpc('ptt_proactive', { p_cy:S.cy, p_months: [] }); PRO.err = null; }
+  catch (e) { PRO.d = null; PRO.err = e.message || String(e); }
+  renderPro();
+}
+function proAgg(){
+  const m = new Map();
+  proRows().forEach(([rg, owner, b, mon, n, v]) => {
+    if (S.reg.length && !S.reg.includes(rg)) return;
+    const o = m.get(rg) || { rg, n:Array(6).fill(0), v:Array(6).fill(0) }; o.n[b] += +n; o.v[b] += +v; m.set(rg, o); });
+  const rows = [...m.values()].map(o => { const tv = sum(o.v), tn = sum(o.n);
+    return { ...o, tv, tn, re: tv ? (o.v[0] + o.v[1] + o.v[2]) / tv : 0, reN: tn ? (o.n[0] + o.n[1] + o.n[2]) / tn : 0, pr: tv ? (o.v[4] + o.v[5]) / tv : 0 }; });
+  const T = { rg:'All regions', n:Array(6).fill(0), v:Array(6).fill(0) };
+  rows.forEach(o => { for (let i = 0; i < 6; i++) { T.n[i] += o.n[i]; T.v[i] += o.v[i]; } });
+  T.tv = sum(T.v); T.tn = sum(T.n); T.re = T.tv ? (T.v[0] + T.v[1] + T.v[2]) / T.tv : 0; T.reN = T.tn ? (T.n[0] + T.n[1] + T.n[2]) / T.tn : 0; T.pr = T.tv ? (T.v[4] + T.v[5]) / T.tv : 0;
+  return { rows, T };
+}
+function renderPro(){
+  if (!PRO.d) { $('proKpis').innerHTML = ''; $('proVerdict').innerHTML = ''; $('proChart').innerHTML = ''; $('proLegend').innerHTML = '';
+    $('proTbl').innerHTML = `<div class="note">${PRO.err ? `Not available yet (${esc(PRO.err)}). Run <b>Part 7 and Part 8</b> of the SQL, then open <b>/api/sync-oa-deals?mode=full</b> once.` : 'Loading…'}</div>`; return; }
+  const { rows, T } = proAgg(), K = PRO.k;
+  const share = (o, b) => K === 'v' ? (o.tv ? o.v[b] / o.tv : 0) : (o.tn ? o.n[b] / o.tn : 0);
+  const reOf = o => K === 'v' ? o.re : o.reN;
+  rows.sort((a, b) => reOf(b) - reOf(a) || b.tv - a.tv);
+  const kp = (t, v, s2) => `<div class="kpi"><div class="k">${t}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`;
+  $('proKpis').innerHTML = [
+    kp('Approved OAs', T.tn.toLocaleString('en-IN'), `${fCr(T.tv)} Cr · ${esc(periodLabel())}`),
+    kp('Entered at order time', `<span class="neg">${pct(T.re)}</span>`, `of value · deal ≤ 7 days before OA or no deal`),
+    kp('Created on the OA day', `<span class="neg">${pct(T.tv ? T.v[1] / T.tv : 0)}</span>`, `${T.n[1].toLocaleString('en-IN')} OAs · deal made the same day or after`),
+    kp('No deal at all', pct(T.tv ? T.v[0] / T.tv : 0), `${T.n[0].toLocaleString('en-IN')} OAs`),
+    kp('Proactive (> 30 days)', `<span class="${T.pr >= 0.3 ? 'pos' : 'neg'}">${pct(T.pr)}</span>`, `${fCr(T.v[4] + T.v[5])} Cr was in the funnel a month+ ahead`),
+    kp('Worst region', rows[0] ? esc(rows[0].rg) : '—', rows[0] ? `${pct(reOf(rows[0]))} entered at order time` : ''),
+  ].join('');
+  const best = rows.slice().filter(o => o.tv > 50).sort((a, b) => b.pr - a.pr)[0];
+  $('proVerdict').innerHTML = `<b>${pct(T.re)}</b> of this period's order value (${fCr(T.re * T.tv)} Cr) was put into Zoho only at the moment of ordering — the deal was created within a week of the OA, mostly on the same day, or never. Only <b>${pct(T.pr)}</b> was visible a month or more before it closed. `
+    + `That is why the open pipeline looks small: the funnel is being used as an order log, not as a forward view.${best ? ` <b>${esc(best.rg)}</b> is the most proactive region (${pct(best.pr)} entered 30+ days ahead) — use it as the example.` : ''} Click a region for its OAs.`;
+  $('proLegend').innerHTML = PB.map(b => `<span><i class="sw" style="background:${b.c}"></i>${b.h}</span>`).join('');
+  // 100% stacked bars, one per region
+  const W = 1300, rowH = 26, top = 6, labW = 150, rW = 130, H = top + rows.length * rowH + 22, bw = W - labW - rW;
+  let g = '';
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => { const x = labW + bw * t; g += `<line x1="${x}" x2="${x}" y1="${top}" y2="${H - 18}" stroke="#e6ebf2"/><text x="${x}" y="${H - 4}" text-anchor="middle" font-size="11" fill="#6f84ad">${t * 100}%</text>`; });
+  rows.forEach((o, i) => { const y = top + i * rowH; let x = labW;
+    g += `<text x="${labW - 8}" y="${y + 16}" text-anchor="end" font-size="12" fill="#16264d">${esc(o.rg)}</text>`;
+    PB.forEach(b => { const w = bw * share(o, b.k); if (w > 0.2) g += `<rect class="pseg" data-rg="${esc(o.rg)}" data-b="${b.k}" x="${x + 1}" y="${y + 4}" width="${Math.max(0, w - 2)}" height="${rowH - 8}" rx="3" fill="${b.c}"/>`; x += w; });
+    g += `<text x="${W - rW + 8}" y="${y + 16}" font-size="12" fill="#16264d"><tspan font-weight="700" fill="#b42323">${pct(reOf(o))}</tspan> at order time</text>`; });
+  $('proChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Share of orders by days in Zoho before the OA, per region">${g}</svg>`;
+  $('proChart').querySelectorAll('.pseg').forEach(el => {
+    const o = rows.find(r => r.rg === el.dataset.rg), b = +el.dataset.b;
+    el.style.cursor = 'pointer';
+    el.onmousemove = e => showTip(e, `<b>${esc(o.rg)} · ${PB[b].h}</b><br>${o.n[b].toLocaleString('en-IN')} OAs · ${fL1(o.v[b])} L<br>${pct(o.tv ? o.v[b] / o.tv : 0)} of value · ${pct(o.tn ? o.n[b] / o.tn : 0)} of OAs<br><i>Click for the OAs</i>`);
+    el.onmouseleave = hideTip; el.onclick = () => openPro(o.rg, null, b); });
+  // table
+  const cell = (o, b) => { const v = K === 'v' ? o.v[b] : o.n[b], s2 = share(o, b);
+    return v ? `<td class="pcell" data-rg="${esc(o.rg)}" data-b="${b}" style="cursor:pointer">${K === 'v' ? fL(v) : v.toLocaleString('en-IN')} <span class="muted" style="font-size:11px">${pct(s2)}</span></td>` : '<td class="muted">—</td>'; };
+  let h = `<table><tr><th class="l">Region</th><th>OAs</th><th>OB value ₹L</th>${PB.map(b => `<th style="border-bottom:3px solid ${b.c}">${b.s}</th>`).join('')}<th>At order time</th><th>Proactive &gt; 30 d</th></tr>`;
+  h += rows.map(o => `<tr class="click" data-rg="${esc(o.rg)}"><td class="l">${esc(o.rg)}</td><td>${o.tn.toLocaleString('en-IN')}</td><td><b>${fL(o.tv)}</b></td>${PB.map(b => cell(o, b.k)).join('')}
+      <td><span class="chip ${reOf(o) > 0.8 ? 'c-bad' : reOf(o) > 0.6 ? 'c-warn' : 'c-good'}">${pct(reOf(o))}</span></td><td class="${o.pr >= 0.3 ? 'pos' : 'neg'}">${pct(o.pr)}</td></tr>`).join('');
+  h += `<tr class="tot"><td class="l">All regions</td><td>${T.tn.toLocaleString('en-IN')}</td><td>${fL(T.tv)}</td>${PB.map(b => `<td>${K === 'v' ? fL(T.v[b.k]) : T.n[b.k].toLocaleString('en-IN')}</td>`).join('')}<td>${pct(reOf(T))}</td><td>${pct(T.pr)}</td></tr></table>`;
+  $('proTbl').innerHTML = h + `<div class="sub" style="margin-top:6px">Order booking value from the portal (same as above); OA date decides the month. "At order time" = no deal, or the deal was created 7 days or less before the OA. Data: Zoho Sales Orders (approved) and the deal linked to each, synced daily. Click a region or a number for the OAs.</div>`;
+  $('proTbl').querySelectorAll('tr.click').forEach(tr => tr.onclick = e => { const c = e.target.closest('.pcell'); openPro(tr.dataset.rg, null, c ? +c.dataset.b : null); });
+  PRO.view = { rows, T };
+  renderProMon(rows.map(o => o.rg));
+}
+/* ---- region x month matrix of 'closed within a week' ---- */
+function proMonthIdx(){ const k = Math.max(clock().K, typeof leadK === 'function' ? leadK() : 0); return [...Array(Math.min(11, k) + 1).keys()]; }
+function renderProMon(regOrder){
+  const MI = proMonthIdx(), sel = new Set(PRO.mb.split('').map(Number)), K = PRO.mk;
+  const all = (PRO.d?.rows || []).filter(r => !S.reg.length || S.reg.includes(r[0]));
+  const cell = new Map();   // rg|mon -> {sel v, sel n, tot v, tot n}
+  all.forEach(([rg, o, b, mon, n, v]) => { const k = rg + '|' + mon, x = cell.get(k) || { sv:0, sn:0, tv:0, tn:0 };
+    x.tv += +v; x.tn += +n; if (sel.has(+b)) { x.sv += +v; x.sn += +n; } cell.set(k, x); });
+  const regs = regOrder.length ? regOrder : [...new Set(all.map(r => r[0]))];
+  const cal = i => (i + 3) % 12 + 1, get = (rg, i) => cell.get(rg + '|' + cal(i)) || { sv:0, sn:0, tv:0, tn:0 };
+  const val = x => K === 'p' ? (x.tv ? x.sv / x.tv : null) : K === 'v' ? x.sv : x.sn;
+  const fmt = x => { const v = val(x); return v == null || (!v && K !== 'p') ? '' : K === 'p' ? pct(v) : K === 'v' ? fL(v) : v.toLocaleString('en-IN'); };
+  let maxV = 0; regs.forEach(rg => MI.forEach(i => { const v = val(get(rg, i)); if (v) maxV = Math.max(maxV, v); }));
+  const bg = x => { const v = val(x); if (!v) return '#fff'; const t = K === 'p' ? v : v / maxV; return `hsl(4 70% ${97 - t * 50}%)`; };
+  const ink = x => { const v = val(x); const t = !v ? 0 : K === 'p' ? v : v / maxV; return t > 0.62 ? '#fff' : '#16264d'; };
+  const tot = rg => MI.reduce((a, i) => { const x = get(rg, i); return { sv:a.sv + x.sv, sn:a.sn + x.sn, tv:a.tv + x.tv, tn:a.tn + x.tn }; }, { sv:0, sn:0, tv:0, tn:0 });
+  const colTot = i => regs.reduce((a, rg) => { const x = get(rg, i); return { sv:a.sv + x.sv, sn:a.sn + x.sn, tv:a.tv + x.tv, tn:a.tn + x.tn }; }, { sv:0, sn:0, tv:0, tn:0 });
+  let h = `<table><tr><th class="l">Region</th>${MI.map(i => `<th>${MN[i]}</th>`).join('')}<th>FY so far</th></tr>`;
+  h += regs.map(rg => `<tr><td class="l">${esc(rg)}</td>${MI.map(i => { const x = get(rg, i);
+      return `<td class="cell pm" data-rg="${esc(rg)}" data-m="${cal(i)}" style="background:${bg(x)};color:${ink(x)}">${fmt(x)}</td>`; }).join('')}<td><b>${fmt(tot(rg))}</b></td></tr>`).join('');
+  h += `<tr class="tot"><td class="l">All regions</td>${MI.map(i => `<td>${fmt(colTot(i))}</td>`).join('')}<td>${fmt(regs.reduce((a, rg) => { const x = tot(rg); return { sv:a.sv + x.sv, sn:a.sn + x.sn, tv:a.tv + x.tv, tn:a.tn + x.tn }; }, { sv:0, sn:0, tv:0, tn:0 }))}</td></tr></table>`;
+  $('proMon').innerHTML = h;
+  $('proMon').querySelectorAll('td.pm').forEach(td => { const x = cell.get(td.dataset.rg + '|' + td.dataset.m) || { sv:0, sn:0, tv:0, tn:0 };
+    td.onmousemove = e => showTip(e, `<b>${esc(td.dataset.rg)} · ${MN[(+td.dataset.m + 8) % 12]}</b><br>Within the chosen window: ${x.sn} OAs · ${fL1(x.sv)} L<br>All OAs that month: ${x.tn} · ${fL1(x.tv)} L<br>Share of value: ${x.tv ? pct(x.sv / x.tv) : '—'}<br><i>Click for the OAs</i>`);
+    td.onmouseleave = hideTip; td.onclick = () => openPro(td.dataset.rg, null, PRO.mb.length === 1 ? +PRO.mb : null, +td.dataset.m); });
+  PRO.monView = { regs, MI, get, cal };
+}
+
+/* ---- drill: OAs of one region (optionally one bucket / engineer) ---- */
+async function openPro(rg, owner, bucket, mon){
+  const months = mon ? [mon] : calMonths();
+  $('dTitle').textContent = `${rg} — how early were these orders in Zoho?`;
+  $('dSub').textContent = `Approved OAs · ${mon ? MN[(mon + 8) % 12] : periodLabel()} · ${fyLabel(S.cy)}${bucket != null ? ' · ' + PB[bucket].h : ''}${owner ? ' · ' + owner : ''}`;
+  $('dBody').innerHTML = '<div class="note">Loading OAs…</div>';
+  $('drawer').classList.add('on'); $('dbg').classList.add('on');
+  // engineer split for this region from the summary already loaded
+  const eng = new Map();
+  proRows(months).filter(r => r[0] === rg).forEach(([, o, b, m2, n, v]) => { const x = eng.get(o) || { o, n:Array(6).fill(0), v:Array(6).fill(0) }; x.n[b] += +n; x.v[b] += +v; eng.set(o, x); });
+  const engRows = [...eng.values()].map(x => ({ ...x, tv: sum(x.v), tn: sum(x.n), re: sum(x.v) ? (x.v[0] + x.v[1] + x.v[2]) / sum(x.v) : 0 })).sort((a, b) => b.tv - a.tv);
+  let list = [];
+  try { list = await rpc('ptt_proactive_list', { p_cy:S.cy, p_months: months, p_rg:rg, p_owner:owner, p_bucket:bucket }); }
+  catch (e) { $('dBody').innerHTML = `<div class="note">Could not load — ${esc(e.message || e)}</div>`; return; }
+  const monMap = new Map();
+  proRows().filter(r => r[0] === rg && (!owner || r[1] === owner)).forEach(([, o, b, m2, n, v]) => { const x = monMap.get(+m2) || { n:Array(6).fill(0), v:Array(6).fill(0) }; x.n[b] += +n; x.v[b] += +v; monMap.set(+m2, x); });
+  const monKeys = calMonths().filter(m2 => monMap.has(m2));
+  const monT = `<div class="cbox" style="margin-bottom:12px"><h3>Month by month — click a month for its OAs</h3><div class="tbl"><table class="mini"><tr><th class="l">Month</th><th>OAs</th><th>₹ L</th>${PB.map(b => `<th style="border-bottom:3px solid ${b.c}">${b.s}</th>`).join('')}<th>Within a week</th><th>Within a week ₹ L</th></tr>`
+    + monKeys.map(m2 => { const x = monMap.get(m2), tv = sum(x.v), wk = x.v[1] + x.v[2];
+        return `<tr class="click${mon === m2 ? ' tot' : ''}" data-mon="${m2}"><td class="l">${MN[(m2 + 8) % 12]}</td><td>${sum(x.n)}</td><td><b>${fL1(tv)}</b></td>${PB.map(b => `<td>${x.v[b.k] ? fL1(x.v[b.k]) : '—'}</td>`).join('')}
+          <td><span class="chip ${tv && wk / tv > 0.7 ? 'c-bad' : tv && wk / tv > 0.5 ? 'c-warn' : 'c-good'}">${tv ? pct(wk / tv) : '—'}</span></td><td>${fL1(wk)}</td></tr>`; }).join('') + '</table></div></div>';
+  const chips = `<div class="tabs" id="proB" style="margin-bottom:10px">${mon ? `<button data-allm="1">← All months</button>` : ''}<button data-b="" class="${bucket == null ? 'on' : ''}">All</button>${PB.map(b => `<button data-b="${b.k}" class="${bucket === b.k ? 'on' : ''}"><i class="sw" style="background:${b.c}"></i>${b.h}</button>`).join('')}</div>`;
+  const engT = `<div class="cbox" style="margin-bottom:12px"><h3>By engineer — share of value entered at order time</h3><div class="tbl"><table class="mini"><tr><th class="l">Engineer</th><th>OAs</th><th>₹ L</th>${PB.map(b => `<th style="border-bottom:3px solid ${b.c}">${b.s}</th>`).join('')}<th>At order time</th></tr>`
+    + engRows.map(x => `<tr class="click" data-o="${esc(x.o || '')}"><td class="l">${esc(x.o || '(blank)')}</td><td>${x.tn}</td><td><b>${fL1(x.tv)}</b></td>${PB.map(b => `<td>${x.v[b.k] ? fL1(x.v[b.k]) : '—'}</td>`).join('')}<td><span class="chip ${x.re > 0.8 ? 'c-bad' : x.re > 0.6 ? 'c-warn' : 'c-good'}">${pct(x.re)}</span></td></tr>`).join('') + '</table></div></div>';
+  const dayChip = (d, b) => `<span class="chip" style="background:${PB[b].c};color:#fff">${b === 0 ? 'no deal' : d <= 0 ? (d === 0 ? 'same day' : `${-d} d after`) : d + ' d'}</span>`;
+  const rowsH = list.map((r, i) => { const [oa, od, acc, deal, own, dc, days, b, v, so, did, src] = r;
+    return `<tr><td class="l muted">${i + 1}</td><td class="l"><a href="${ZOHO_ORG}/tab/SalesOrders/${esc(so)}" target="_blank" rel="noopener">${esc(oa || 'OA')}</a></td><td>${fD(od)}</td><td class="l">${esc(acc || '')}</td>
+      <td class="l">${did ? `<a href="${ZOHO_ORG}/tab/Potentials/${esc(did)}" target="_blank" rel="noopener">${esc(deal || 'deal')}</a>` : '<span class="muted">— no deal —</span>'}</td><td class="l">${esc(own || '')}</td><td>${fD(dc)}</td><td>${dayChip(days, b)}</td><td><b>${fL1(v)}</b></td><td class="l muted">${esc(src || '')}</td></tr>`; }).join('');
+  $('dBody').innerHTML = chips + monT + (owner ? '' : engT) + `<div class="cbox"><div class="card-h" style="margin-bottom:6px"><h3>OAs — biggest first${list.length >= 400 ? ' (top 400)' : ''}</h3><button class="btn ghost" id="proCsv">Download CSV</button></div>
+    <div class="tbl" style="max-height:560px"><table class="mini"><tr><th class="l">#</th><th class="l">OA no (opens Zoho)</th><th>OA date</th><th class="l">Account</th><th class="l">Project / deal (opens Zoho)</th><th class="l">Engineer</th><th>Deal created</th><th>Days before OA</th><th>₹ L</th><th class="l">Lead source</th></tr>${rowsH || '<tr><td colspan="10" class="l muted">No OAs</td></tr>'}</table></div></div>`;
+  $('proB').onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.allm) return openPro(rg, owner, bucket, null); openPro(rg, owner, b.dataset.b === '' ? null : +b.dataset.b, mon); };
+  $('dBody').querySelectorAll('tr.click[data-o]').forEach(tr => tr.onclick = () => openPro(rg, tr.dataset.o || null, bucket, mon));
+  $('dBody').querySelectorAll('tr.click[data-mon]').forEach(tr => tr.onclick = () => openPro(rg, owner, bucket, +tr.dataset.mon));
+  $('proCsv').onclick = () => csv(`oa_proactiveness_${rg}.csv`, ['OA no', 'OA date', 'Account', 'Project / deal', 'Engineer', 'Deal created', 'Days before OA', 'Bucket', 'Value L', 'Lead source', 'Zoho OA link', 'Zoho deal link'],
+    list.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], PB[r[7]].h, r[8], r[11], `${ZOHO_ORG}/tab/SalesOrders/${r[9]}`, r[10] ? `${ZOHO_ORG}/tab/Potentials/${r[10]}` : '']));
+}
+$('proMonSel').onchange = () => { PRO.mb = $('proMonSel').value; renderPro(); };
+$('proMonTg').onclick = e => { const b = e.target.closest('button'); if (!b) return; PRO.mk = b.dataset.k; $('proMonTg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderPro(); };
+$('dlProMon').onclick = () => { const V = PRO.monView; if (!V) return; csv(`within_a_week_by_month.csv`, ['Region', ...V.MI.flatMap(i => [MN[i] + ' within window L', MN[i] + ' all L', MN[i] + ' within window OAs', MN[i] + ' all OAs'])],
+  V.regs.map(rg => [rg, ...V.MI.flatMap(i => { const x = V.get(rg, i); return [x.sv.toFixed(1), x.tv.toFixed(1), x.sn, x.tn]; })])); };
+$('proTg').onclick = e => { const b = e.target.closest('button'); if (!b) return; PRO.k = b.dataset.k; $('proTg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderPro(); };
+$('dlPro').onclick = () => { const V = PRO.view; if (!V) return; csv(`proactiveness_by_region_${periodLabel()}.csv`, ['Region', 'OAs', 'Value L', ...PB.map(b => b.h + ' L'), ...PB.map(b => b.h + ' OAs'), 'At order time %', 'Proactive >30d %'],
+  [...V.rows, V.T].map(o => [o.rg, o.tn, o.tv.toFixed(1), ...o.v.map(x => x.toFixed(1)), ...o.n, Math.round(o.re * 100), Math.round(o.pr * 100)])); };
+</script>
+<script>
 /* ======================= drill-down drawer ======================= */
 // sel: any of {p, r, c}; the global filters still apply for the other dims
 async function openDrawer(sel){
@@ -1146,7 +1317,7 @@ function buildPeriod(){
   for (let i = 0; i <= C.K; i++) o += `<option value="m${i}">${MN[i]}${i === C.K ? ' (to date)' : ''}</option>`;
   $('perSel').innerHTML = o; $('perSel').value = [...$('perSel').options].some(x => x.value === cur) ? cur : 'ytd'; S.per = $('perSel').value;
 }
-$('perSel').onchange = () => { S.per = $('perSel').value; renderMx(); renderCh(); loadAcc(); };
+$('perSel').onchange = () => { S.per = $('perSel').value; renderMx(); renderCh(); loadAcc(); renderPro(); };
 $('docTg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.doc = b.dataset.d; $('docTg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); buildPeriod(); renderAll(); };
 $('fySel').onchange = () => { S.cy = +$('fySel').value; load(false).then(buildPeriod); };
 $('clearBtn').onclick = () => { S.prod = []; S.reg = []; S.ch = []; Object.values(MS).forEach(m => m.setBtn()); renderAll(); };

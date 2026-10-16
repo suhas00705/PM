@@ -11,6 +11,9 @@
     {"path": "/api/sync-potentials?mode=full&since_created=2015-01-01T00:00:00%2B05:30", "schedule": "40 21 * * 6"},
     {"path": "/api/sync-leads?mode=full", "schedule": "55 21 * * 6"},
     {"path": "/api/sync-ob?mode=full", "schedule": "10 22 * * 6"},
-    {"path": "/api/sync-invoice?mode=full", "schedule": "25 22 * * 6"}
+    {"path": "/api/sync-invoice?mode=full", "schedule": "25 22 * * 6"},
+    {"path": "/api/sync-oa-deals?window=72", "schedule": "5 2 * * *"},
+    {"path": "/api/sync-oa-deals?window=72&run=evening", "schedule": "5 14 * * *"},
+    {"path": "/api/sync-oa-deals?mode=full", "schedule": "40 22 * * 6"}
   ]
 }
