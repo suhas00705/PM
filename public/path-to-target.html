@@ -517,13 +517,11 @@ function renderPath(sc){
     rows.push({ i, plan: plan[i], ct: ct ? ct[i] : null, act: i <= C.K ? s.a[i] : null, ly: lyM, lyF: s.ly[i], cp, ca: i <= C.K ? ca : null, cl });
   }
   S.monthRows = rows;
-  const head = `<tr><th class="l">Month</th><th>Plan</th>${ct ? '<th>Short carried in</th><th>Month target</th>' : ''}<th>Actual</th>${ct ? '<th>Short → next</th><th>Extra kept</th>' : ''}<th>LY same month</th><th>Growth</th><th>Cum. plan</th><th>Cum. actual</th><th>Cum. ±</th><th>Cum. LY</th></tr>`;
+  const head = `<tr><th class="l">Month</th><th>Plan</th>${ct ? '<th>Short carried in</th><th>Month target</th>' : ''}<th>Actual</th>${ct ? '<th>Short → next</th><th>Extra kept</th>' : ''}<th>LY same month</th><th>Growth</th></tr>`;
   const body = rows.map(r => `<tr${r.i === C.K ? ' style="background:#fffbe9"' : ''}><td class="l">${MN[r.i]}${r.i === C.K && C.frac < 1 ? ' <span class="muted">(to date)</span>' : ''}</td>
     <td>${fL(r.plan)}</td>${ct ? `<td class="muted">${r.ct.cin ? fL(r.ct.cin) : '—'}</td><td>${fL(r.ct.tgt)}</td>` : ''}
     <td><b>${r.act == null ? '' : fL(r.act)}</b></td>${ct ? `<td class="neg">${r.ct.short ? fL(r.ct.short) : r.act == null ? '' : '—'}</td><td class="pos">${r.ct.kept ? fL(r.ct.kept) : r.act == null ? '' : '—'}</td>` : ''}
-    <td class="muted">${fL(r.i <= C.K ? r.ly : r.lyF)}</td><td class="${r.act == null ? '' : gcls(r.act, r.ly)}">${r.act == null ? '' : gtxt(r.act, r.ly)}</td>
-    <td>${fL(r.plan == null ? null : r.cp)}</td><td><b>${r.ca == null ? '' : fL(r.ca)}</b></td>
-    <td class="${r.ca == null || r.plan == null ? '' : r.ca >= r.cp ? 'pos' : 'neg'}">${r.ca == null || r.plan == null ? '' : (r.ca >= r.cp ? '+' : '') + fL(r.ca - r.cp)}</td><td class="muted">${fL(r.cl)}</td></tr>`).join('');
+    <td class="muted">${fL(r.i <= C.K ? r.ly : r.lyF)}</td><td class="${r.act == null ? '' : gcls(r.act, r.ly)}">${r.act == null ? '' : gtxt(r.act, r.ly)}</td></tr>`).join('');
   $('monthTbl').innerHTML = `<table>${head}${body}</table><div class="sub" style="margin-top:6px">₹ lakhs. Last year for the current month is counted only up to the same date (like-for-like).</div>`;
 }
 function svgFrame(W, H){ return { W, H, l:46, r:10, t:10, b:26 }; }
