@@ -73,10 +73,58 @@ async function upsert(rows) {
   return written;
 }
 
+// ---- part=leads: converted leads (lead -> deal), so the timeline can start at lead creation ----
+// Converted leads are hidden from COQL, so this uses /Leads?converted=true (200 per page, page_token).
+async function syncLeadConv(req, res, token) {
+  const api = process.env.ZOHO_API_DOMAIN || 'https://www.zohoapis.com';
+  const mode = req.query?.mode || 'incremental';
+  const deadline = Date.now() + 50000;
+  const sortBy = mode === 'full' ? 'Created_Time' : 'Modified_Time';
+  const stopAt = mode === 'full' ? new Date(FY_START).getTime()
+    : Date.now() - parseInt(req.query?.window || '72', 10) * 3600 * 1000;
+  let pageToken = req.query?.page_token || null, more = true, rows = [], stopped = false;
+  while (more && Date.now() < deadline) {
+    let url = `${api}/crm/v8/Leads?converted=true&fields=Created_Time,Modified_Time,Converted_Date_Time,Converted_Deal,Lead_Source,Owner`
+      + `&per_page=200&sort_by=${sortBy}&sort_order=desc`;
+    if (pageToken) url += `&page_token=${encodeURIComponent(pageToken)}`;
+    const r = await fetch(url, { headers: { Authorization: `Zoho-oauthtoken ${token}` } });
+    if (r.status === 204) break;
+    if (!r.ok) throw new Error(`Zoho converted leads ${r.status}: ${(await r.text()).slice(0, 300)}`);
+    const body = await r.json();
+    const data = body.data || [];
+    for (const l of data) {
+      const t = new Date(l[sortBy]).getTime();
+      if (t < stopAt) { stopped = true; continue; }
+      rows.push({ lead_id: String(l.id), deal_id: l.Converted_Deal?.id ? String(l.Converted_Deal.id) : null,
+        lead_created: l.Created_Time || null, converted_at: l.Converted_Date_Time || null,
+        lead_source: l.Lead_Source || null, owner: l.Owner?.name || null,
+        modified_time: l.Modified_Time || null, synced_at: new Date().toISOString() });
+    }
+    if (stopped) { more = false; break; }
+    more = !!body.info?.more_records;
+    pageToken = body.info?.next_page_token || null;
+    if (!pageToken) more = false;
+  }
+  const byId = new Map(rows.map(r => [r.lead_id, r])); const all = [...byId.values()];
+  for (let i = 0; i < all.length; i += 500) {
+    const res2 = await fetch(`${SUPABASE_URL}/rest/v1/lead_conv?on_conflict=lead_id`, {
+      method: 'POST',
+      headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json',
+                 Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(all.slice(i, i + 500))
+    });
+    if (!res2.ok) throw new Error(`Supabase lead_conv upsert failed: ${res2.status} ${(await res2.text()).slice(0, 300)}`);
+  }
+  const out = { part: 'leads', mode, synced: all.length, syncedAt: new Date().toISOString(), hasMore: more && !!pageToken };
+  if (out.hasMore) out.resumeWith = `?part=leads&mode=${mode}&page_token=${encodeURIComponent(pageToken)}`;
+  return res.status(200).json(out);
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   try {
     const token = await zohoAuth.getZohoAccessToken();
+    if (req.query?.part === 'leads') return await syncLeadConv(req, res, token);
     const mode = req.query?.mode || 'incremental';
     const deadline = Date.now() + 50000;
     let rows = [], more = false, lastCreatedAt = null;

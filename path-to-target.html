@@ -189,7 +189,7 @@
 
   <div class="card" id="secPro">
     <div class="card-h"><div><h2>Lead proactiveness — were orders in Zoho before they were won?</h2>
-      <div class="sub" id="proSub">Every approved OA, by how many days its Zoho deal existed before the OA date. A deal created on the order day (or no deal at all) means the business was never in the funnel — nobody could see it, follow it up or forecast it.</div></div>
+      <div class="sub" id="proSub">Every approved OA, by how many days passed from <b>lead created</b> → converted to potential → <b>OA</b>. Where the deal was not made from a lead, the clock starts when the potential was created. A lead created on the order day (or no deal at all) means the business was never in the funnel — nobody could see it, follow it up or forecast it.</div></div>
       <div class="ctrls"><div class="toggle" id="proTg"><button data-k="v" class="on">Value</button><button data-k="n">No. of OAs</button></div>
       <button class="btn ghost" id="dlPro">Download CSV</button></div></div>
     <div class="kpis" id="proKpis"></div>
@@ -199,7 +199,7 @@
     <div class="tbl" id="proTbl" style="margin-top:12px"></div>
     <div class="cbox" style="margin-top:14px">
       <div class="card-h" style="margin-bottom:6px"><div><h3>Month by month — orders closed within a week of entering Zoho</h3>
-        <div class="sub">Share of each month's order value whose deal was created 0–7 days before the OA. Darker = more last-minute entry. Click a cell for those OAs.</div></div>
+        <div class="sub">Share of each month's order value whose lead was created 0–7 days before the OA. Darker = more last-minute entry. Click a cell for those OAs.</div></div>
         <div class="ctrls"><select id="proMonSel"><option value="12">Same day + 1–7 days</option><option value="1">Same day only</option><option value="2">1–7 days only</option><option value="012">Within a week + no deal</option></select>
         <div class="toggle" id="proMonTg"><button data-k="p" class="on">% of value</button><button data-k="v">₹ L</button><button data-k="n">No. of OAs</button></div>
         <button class="btn ghost" id="dlProMon">Download CSV</button></div></div>
@@ -1094,7 +1094,7 @@ $('dlDem').onclick = () => { const c = DEM.csv; if (!c) return;
 // Buckets = days the Zoho deal existed before the OA date
 const PB = [
   { k:0, h:'No deal in Zoho',   s:'No deal',   c:'#7a1f1f' },
-  { k:1, h:'Deal on OA day / after', s:'Same day', c:'#c8423a' },
+  { k:1, h:'Lead created on OA day', s:'Same day', c:'#c8423a' },
   { k:2, h:'1–7 days before',   s:'1–7 d',     c:'#e8833a' },
   { k:3, h:'8–30 days before',  s:'8–30 d',    c:'#d9b23b' },
   { k:4, h:'31–90 days before', s:'31–90 d',   c:'#7cb87a' },
@@ -1132,14 +1132,14 @@ function renderPro(){
   const kp = (t, v, s2) => `<div class="kpi"><div class="k">${t}</div><div class="v">${v}</div><div class="s">${s2}</div></div>`;
   $('proKpis').innerHTML = [
     kp('Approved OAs', T.tn.toLocaleString('en-IN'), `${fCr(T.tv)} Cr · ${esc(periodLabel())}`),
-    kp('Entered at order time', `<span class="neg">${pct(T.re)}</span>`, `of value · deal ≤ 7 days before OA or no deal`),
-    kp('Created on the OA day', `<span class="neg">${pct(T.tv ? T.v[1] / T.tv : 0)}</span>`, `${T.n[1].toLocaleString('en-IN')} OAs · deal made the same day or after`),
+    kp('Entered at order time', `<span class="neg">${pct(T.re)}</span>`, `of value · lead ≤ 7 days before OA, or no deal`),
+    kp('Lead created on the OA day', `<span class="neg">${pct(T.tv ? T.v[1] / T.tv : 0)}</span>`, `${T.n[1].toLocaleString('en-IN')} OAs · lead, potential and OA the same day`),
     kp('No deal at all', pct(T.tv ? T.v[0] / T.tv : 0), `${T.n[0].toLocaleString('en-IN')} OAs`),
     kp('Proactive (> 30 days)', `<span class="${T.pr >= 0.3 ? 'pos' : 'neg'}">${pct(T.pr)}</span>`, `${fCr(T.v[4] + T.v[5])} Cr was in the funnel a month+ ahead`),
     kp('Worst region', rows[0] ? esc(rows[0].rg) : '—', rows[0] ? `${pct(reOf(rows[0]))} entered at order time` : ''),
   ].join('');
   const best = rows.slice().filter(o => o.tv > 50).sort((a, b) => b.pr - a.pr)[0];
-  $('proVerdict').innerHTML = `<b>${pct(T.re)}</b> of this period's order value (${fCr(T.re * T.tv)} Cr) was put into Zoho only at the moment of ordering — the deal was created within a week of the OA, mostly on the same day, or never. Only <b>${pct(T.pr)}</b> was visible a month or more before it closed. `
+  $('proVerdict').innerHTML = `<b>${pct(T.re)}</b> of this period's order value (${fCr(T.re * T.tv)} Cr) was put into Zoho only at the moment of ordering — the lead was created within a week of the OA (mostly on the same day, converted to a potential and closed at once), or there was no deal at all. Only <b>${pct(T.pr)}</b> was visible a month or more before it closed. `
     + `That is why the open pipeline looks small: the funnel is being used as an order log, not as a forward view.${best ? ` <b>${esc(best.rg)}</b> is the most proactive region (${pct(best.pr)} entered 30+ days ahead) — use it as the example.` : ''} Click a region for its OAs.`;
   $('proLegend').innerHTML = PB.map(b => `<span><i class="sw" style="background:${b.c}"></i>${b.h}</span>`).join('');
   // 100% stacked bars, one per region
@@ -1163,7 +1163,7 @@ function renderPro(){
   h += rows.map(o => `<tr class="click" data-rg="${esc(o.rg)}"><td class="l">${esc(o.rg)}</td><td>${o.tn.toLocaleString('en-IN')}</td><td><b>${fL(o.tv)}</b></td>${PB.map(b => cell(o, b.k)).join('')}
       <td><span class="chip ${reOf(o) > 0.8 ? 'c-bad' : reOf(o) > 0.6 ? 'c-warn' : 'c-good'}">${pct(reOf(o))}</span></td><td class="${o.pr >= 0.3 ? 'pos' : 'neg'}">${pct(o.pr)}</td></tr>`).join('');
   h += `<tr class="tot"><td class="l">All regions</td><td>${T.tn.toLocaleString('en-IN')}</td><td>${fL(T.tv)}</td>${PB.map(b => `<td>${K === 'v' ? fL(T.v[b.k]) : T.n[b.k].toLocaleString('en-IN')}</td>`).join('')}<td>${pct(reOf(T))}</td><td>${pct(T.pr)}</td></tr></table>`;
-  $('proTbl').innerHTML = h + `<div class="sub" style="margin-top:6px">Order booking value from the portal (same as above); OA date decides the month. "At order time" = no deal, or the deal was created 7 days or less before the OA. Data: Zoho Sales Orders (approved) and the deal linked to each, synced daily. Click a region or a number for the OAs.</div>`;
+  $('proTbl').innerHTML = h + `<div class="sub" style="margin-top:6px">Order booking value from the portal (same as above); OA date decides the month. "At order time" = no deal, or the lead (or the potential, if there was no lead) was created 7 days or less before the OA. Data: Zoho Sales Orders (approved) and the deal linked to each, synced daily. Click a region or a number for the OAs.</div>`;
   $('proTbl').querySelectorAll('tr.click').forEach(tr => tr.onclick = e => { const c = e.target.closest('.pcell'); openPro(tr.dataset.rg, null, c ? +c.dataset.b : null); });
   PRO.view = { rows, T };
   renderProMon(rows.map(o => o.rg));
@@ -1221,16 +1221,17 @@ async function openPro(rg, owner, bucket, mon){
   const engT = `<div class="cbox" style="margin-bottom:12px"><h3>By engineer — share of value entered at order time</h3><div class="tbl"><table class="mini"><tr><th class="l">Engineer</th><th>OAs</th><th>₹ L</th>${PB.map(b => `<th style="border-bottom:3px solid ${b.c}">${b.s}</th>`).join('')}<th>At order time</th></tr>`
     + engRows.map(x => `<tr class="click" data-o="${esc(x.o || '')}"><td class="l">${esc(x.o || '(blank)')}</td><td>${x.tn}</td><td><b>${fL1(x.tv)}</b></td>${PB.map(b => `<td>${x.v[b.k] ? fL1(x.v[b.k]) : '—'}</td>`).join('')}<td><span class="chip ${x.re > 0.8 ? 'c-bad' : x.re > 0.6 ? 'c-warn' : 'c-good'}">${pct(x.re)}</span></td></tr>`).join('') + '</table></div></div>';
   const dayChip = (d, b) => `<span class="chip" style="background:${PB[b].c};color:#fff">${b === 0 ? 'no deal' : d <= 0 ? (d === 0 ? 'same day' : `${-d} d after`) : d + ' d'}</span>`;
-  const rowsH = list.map((r, i) => { const [oa, od, acc, deal, own, dc, days, b, v, so, did, src] = r;
+  const rowsH = list.map((r, i) => { const [oa, od, acc, deal, own, dc, days, b, v, so, did, src, lcr, cd] = r;
     return `<tr><td class="l muted">${i + 1}</td><td class="l"><a href="${ZOHO_ORG}/tab/SalesOrders/${esc(so)}" target="_blank" rel="noopener">${esc(oa || 'OA')}</a></td><td>${fD(od)}</td><td class="l">${esc(acc || '')}</td>
-      <td class="l">${did ? `<a href="${ZOHO_ORG}/tab/Potentials/${esc(did)}" target="_blank" rel="noopener">${esc(deal || 'deal')}</a>` : '<span class="muted">— no deal —</span>'}</td><td class="l">${esc(own || '')}</td><td>${fD(dc)}</td><td>${dayChip(days, b)}</td><td><b>${fL1(v)}</b></td><td class="l muted">${esc(src || '')}</td></tr>`; }).join('');
+      <td class="l">${did ? `<a href="${ZOHO_ORG}/tab/Potentials/${esc(did)}" target="_blank" rel="noopener">${esc(deal || 'deal')}</a>` : '<span class="muted">— no deal —</span>'}</td><td class="l">${esc(own || '')}</td>
+      <td>${lcr ? fD(lcr) : '<span class="muted">no lead</span>'}</td><td>${cd == null ? '—' : cd <= 0 ? '<span class="neg">same day</span>' : cd + ' d'}</td><td>${fD(dc)}</td><td>${dayChip(days, b)}</td><td><b>${fL1(v)}</b></td><td class="l muted">${esc(src || '')}</td></tr>`; }).join('');
   $('dBody').innerHTML = chips + monT + (owner ? '' : engT) + `<div class="cbox"><div class="card-h" style="margin-bottom:6px"><h3>OAs — biggest first${list.length >= 400 ? ' (top 400)' : ''}</h3><button class="btn ghost" id="proCsv">Download CSV</button></div>
-    <div class="tbl" style="max-height:560px"><table class="mini"><tr><th class="l">#</th><th class="l">OA no (opens Zoho)</th><th>OA date</th><th class="l">Account</th><th class="l">Project / deal (opens Zoho)</th><th class="l">Engineer</th><th>Deal created</th><th>Days before OA</th><th>₹ L</th><th class="l">Lead source</th></tr>${rowsH || '<tr><td colspan="10" class="l muted">No OAs</td></tr>'}</table></div></div>`;
+    <div class="tbl" style="max-height:560px"><table class="mini"><tr><th class="l">#</th><th class="l">OA no (opens Zoho)</th><th>OA date</th><th class="l">Account</th><th class="l">Project / deal (opens Zoho)</th><th class="l">Engineer</th><th>Lead created</th><th>Lead → potential</th><th>Potential created</th><th>Lead → OA</th><th>₹ L</th><th class="l">Lead source</th></tr>${rowsH || '<tr><td colspan="12" class="l muted">No OAs</td></tr>'}</table></div></div>`;
   $('proB').onclick = e => { const b = e.target.closest('button'); if (!b) return; if (b.dataset.allm) return openPro(rg, owner, bucket, null); openPro(rg, owner, b.dataset.b === '' ? null : +b.dataset.b, mon); };
   $('dBody').querySelectorAll('tr.click[data-o]').forEach(tr => tr.onclick = () => openPro(rg, tr.dataset.o || null, bucket, mon));
   $('dBody').querySelectorAll('tr.click[data-mon]').forEach(tr => tr.onclick = () => openPro(rg, owner, bucket, +tr.dataset.mon));
-  $('proCsv').onclick = () => csv(`oa_proactiveness_${rg}.csv`, ['OA no', 'OA date', 'Account', 'Project / deal', 'Engineer', 'Deal created', 'Days before OA', 'Bucket', 'Value L', 'Lead source', 'Zoho OA link', 'Zoho deal link'],
-    list.map(r => [r[0], r[1], r[2], r[3], r[4], r[5], r[6], PB[r[7]].h, r[8], r[11], `${ZOHO_ORG}/tab/SalesOrders/${r[9]}`, r[10] ? `${ZOHO_ORG}/tab/Potentials/${r[10]}` : '']));
+  $('proCsv').onclick = () => csv(`oa_proactiveness_${rg}.csv`, ['OA no', 'OA date', 'Account', 'Project / deal', 'Engineer', 'Lead created', 'Lead to potential days', 'Potential created', 'Lead to OA days', 'Bucket', 'Value L', 'Lead source', 'Zoho OA link', 'Zoho deal link'],
+    list.map(r => [r[0], r[1], r[2], r[3], r[4], r[12] || '', r[13] ?? '', r[5], r[6], PB[r[7]].h, r[8], r[11], `${ZOHO_ORG}/tab/SalesOrders/${r[9]}`, r[10] ? `${ZOHO_ORG}/tab/Potentials/${r[10]}` : '']));
 }
 $('proMonSel').onchange = () => { PRO.mb = $('proMonSel').value; renderPro(); };
 $('proMonTg').onclick = e => { const b = e.target.closest('button'); if (!b) return; PRO.mk = b.dataset.k; $('proMonTg').querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); renderPro(); };
