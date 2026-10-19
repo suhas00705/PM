@@ -17,6 +17,18 @@
     {"path": "/api/sync-oa-deals?mode=full", "schedule": "40 22 * * 6"},
     {"path": "/api/sync-oa-deals?part=leads&window=72", "schedule": "15 2 * * *"},
     {"path": "/api/sync-oa-deals?part=leads&window=72&run=evening", "schedule": "15 14 * * *"},
-    {"path": "/api/sync-oa-deals?part=leads&mode=full", "schedule": "55 22 * * 6"}
+    {"path": "/api/sync-oa-deals?part=leads&mode=full", "schedule": "55 22 * * 6"},
+    {"path": "/api/lvs-stock?save=1&h=00", "schedule": "30 0 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=02", "schedule": "30 2 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=04", "schedule": "30 4 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=06", "schedule": "30 6 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=08", "schedule": "30 8 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=10", "schedule": "30 10 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=12", "schedule": "30 12 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=14", "schedule": "30 14 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=16", "schedule": "30 16 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=18", "schedule": "30 18 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=20", "schedule": "30 20 * * *"},
+    {"path": "/api/lvs-stock?save=1&h=22", "schedule": "30 22 * * *"}
   ]
 }

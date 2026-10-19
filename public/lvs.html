@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LVS – L&amp;K Planning</title>
+<style>
+  :root{
+    --navy:#0B2942; --volt:#0073C8; --bg:#eef2f8; --panel:#fff; --line:#e3e7ef;
+    --t1:#16264d; --t2:#3b5384; --t3:#6f84ad;
+    --ob:#0073C8; --inv:#2e9e6b; --ly:#7b5ea7; --proj:#c2731a;
+    --good:#0f7a36; --good-bg:#e3f4e8; --warn:#9a5b00; --warn-bg:#fff1d9; --bad:#b42323; --bad-bg:#fde8e8; --grey-bg:#eef1f6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:'Calibri','Carlito','Segoe UI',sans-serif;font-size:14px}
+  .wrap{max-width:1440px;margin:0 auto;padding:16px 16px 60px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:12px;position:sticky;top:0;z-index:40;background:var(--bg);padding:8px 0}
+  .ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .f{display:flex;flex-direction:column;gap:3px}
+  .f label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  select,input[type=search]{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 10px;font:inherit;color:var(--t1)}
+  input[type=search]{min-width:220px}
+  .toggle{display:inline-flex;background:#dfe6f1;border-radius:10px;padding:3px}
+  .toggle button{border:0;background:transparent;padding:6px 12px;border-radius:8px;font:inherit;font-weight:700;color:var(--t2);cursor:pointer;font-size:13px}
+  .toggle button.on{background:#fff;color:var(--volt);box-shadow:0 1px 4px rgba(11,41,66,.15)}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--volt);color:var(--volt);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700}
+  .btn.ghost{border-color:#cfd6e3;color:var(--t2);font-weight:400}
+  .sync{font-size:12px;color:var(--t3);text-align:right;line-height:1.5}
+  .sync b{color:var(--t2)}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px;margin-bottom:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  h1{font-size:18px;margin:0} h2{font-size:15px;margin:0}
+  .sub{font-size:12px;color:var(--t3);margin-top:3px;line-height:1.5}
+  .note{font-size:12.5px;color:var(--t2);line-height:1.6;background:#f4f8fd;border-left:4px solid var(--volt);padding:9px 12px;border-radius:0 8px 8px 0;margin-bottom:10px}
+  .note b{color:var(--t1)}
+  .err{display:none;background:var(--bad-bg);color:var(--bad);border:1px solid #f3c4c4;border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:13px}
+  .warnbox{display:none;background:var(--warn-bg);color:var(--warn);border:1px solid #f1d9a6;border-radius:10px;padding:9px 12px;margin-bottom:12px;font-size:13px}
+  .kpis{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+  @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:600px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfcfe}
+  .kpi .k{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  .kpi .v{font-size:22px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
+  .kpi .s{font-size:12px;color:var(--t2);margin-top:2px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--t2);margin-bottom:6px}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+  .chart svg{width:100%;height:auto;display:block}
+  .tbl{overflow:auto;max-height:640px;border:1px solid var(--line);border-radius:10px}
+  table{border-collapse:collapse;width:100%;font-size:12.5px}
+  th,td{padding:6px 8px;border-bottom:1px solid #eef1f6;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  th{position:sticky;top:0;background:#1a5f9e;color:#fff;font-weight:700;font-size:11.5px;z-index:2;cursor:pointer}
+  th.l,td.l{text-align:left}
+  td.item{white-space:normal;min-width:240px;max-width:360px}
+  td.item small{display:block;color:var(--t3)}
+  tr.tot td{font-weight:700;background:#f4f6fa}
+  tbody tr:hover td{background:#f7faff}
+  .grp{border-left:2px solid #d5deeb}
+  .proj{background:#fff7ed}
+  th.proj{background:#b8681a}
+  .po{background:#eef6ff;font-weight:700}
+  th.po{background:#0b4f8a}
+  .chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .c-order{background:var(--bad-bg);color:var(--bad)} .c-ok{background:var(--good-bg);color:var(--good)}
+  .c-excess{background:var(--warn-bg);color:var(--warn)} .c-dead{background:var(--grey-bg);color:var(--t2)}
+  .c-nos{background:#f3e8ff;color:#6b21a8}
+  .muted{color:var(--t3)}
+  .tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .tabs button{font:inherit;font-size:12.5px;border:1px solid #cfd6e3;background:#fff;border-radius:999px;padding:4px 12px;cursor:pointer;color:var(--t2)}
+  .tabs button.on{background:var(--volt);border-color:var(--volt);color:#fff;font-weight:700}
+  .sumtbl{margin-bottom:12px}
+  .sumtbl table{font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div>
+      <h1>🔌 LVS – L&amp;K material planning</h1>
+      <div class="sub">Switchgear (white-labelled from L&amp;K) · order booking &amp; invoicing by item code · live stock from the Switchgear stock sheet (read every 2 hours)</div>
+    </div>
+    <div class="ctrls">
+      <div class="f"><label>Financial year</label><select id="fy"></select></div>
+      <div class="f"><label>Projection based on</label>
+        <div class="toggle" id="basisTg"><button data-k="max" class="on">Higher of OB &amp; INV</button><button data-k="ob">Order booking</button><button data-k="inv">Invoicing</button></div></div>
+      <div class="f"><label>Series</label><select id="series"><option value="">All series</option></select></div>
+      <div class="f"><label>Search item</label><input type="search" id="q" placeholder="Code, cat code or name"></div>
+      <button class="btn" id="refresh">⟳ Refresh</button>
+      <div class="sync" id="sync"></div>
+    </div>
+  </div>
+
+  <div class="err" id="errBox"></div>
+  <div class="warnbox" id="stockWarn"></div>
+
+  <div class="card">
+    <div class="kpis" id="kpis"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Material movement – month by month</h2>
+      <div class="sub" id="chartSub"></div></div>
+      <div class="toggle" id="unitTg"><button data-k="q" class="on">Qty (pcs)</button><button data-k="v">Value (₹ L)</button></div></div>
+    <div class="legend"><span><i style="background:var(--ob)"></i>Order booking</span><span><i style="background:var(--inv)"></i>Invoicing</span>
+      <span><i style="background:var(--ly)"></i>Last FY invoicing</span><span><i style="background:repeating-linear-gradient(45deg,var(--proj),var(--proj) 3px,#f6d9b8 3px,#f6d9b8 6px)"></i>Projection</span></div>
+    <div class="chart" id="chart"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2 id="projTitle">3-month projection for L&amp;K</h2>
+      <div class="sub">Share with L&amp;K for their production planning. Projection per month = this FY's average per completed month (<span id="basisTxt"></span>). Updates every day as orders and invoices sync.</div></div>
+      <button class="btn" id="dlProj">Download for L&amp;K (CSV)</button></div>
+    <div class="sumtbl" id="projSum"></div>
+    <div class="tbl" id="projTbl"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2 id="poTitle">PO to release at month beginning</h2>
+      <div class="sub">L&amp;K lead time 6–8 weeks + 1 month safety stock ⇒ stock position must cover <b>3 months</b> of demand.
+        Suggested PO = 3 × monthly projection + customer open orders − (total stock + L&amp;K deliveries due in 4 and 8 weeks). Stock columns come live from the stock sheet.</div></div>
+      <button class="btn" id="dlPo">Download PO list (CSV)</button></div>
+    <div class="tabs" id="poTabs">
+      <button data-k="order" class="on">Order now</button><button data-k="all">All items</button>
+      <button data-k="excess">Excess stock</button><button data-k="dead">Stock, no movement</button><button data-k="nos">Not in stock sheet</button></div>
+    <div class="tbl" id="poTbl"></div>
+  </div>
+</div>
+
+<script>
+/* ======================= plumbing ======================= */
+const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+const $ = id => document.getElementById(id);
+const MN = ['Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar'];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
+const sum = a => a.reduce((s, x) => s + (+x || 0), 0);
+const fQ = v => v == null || !isFinite(v) ? '—' : Math.round(v).toLocaleString('en-IN');
+const fL = v => v == null || !isFinite(v) ? '—' : (v / 1e5).toLocaleString('en-IN', {maximumFractionDigits:1, minimumFractionDigits:1});
+const fM = v => v == null || !isFinite(v) ? '—' : v.toLocaleString('en-IN', {maximumFractionDigits:1, minimumFractionDigits:1});
+
+async function rpc(fn, body){
+  const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer '+KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json();
+}
+function csv(name, head, rows){
+  const q = x => { const s = String(x ?? ''); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const blob = new Blob(['﻿' + [head, ...rows].map(r => r.map(q).join(',')).join('\n')], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ======================= state ======================= */
+const S = { cy:null, plan:null, stock:null, stockErr:null, basis:'max', unit:'q', series:'', q:'', poTab:'order', sortP:'pv', sortO:'pov' };
+const today = new Date();
+const curFY = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
+const curMi = (today.getMonth() + 9) % 12;                     // Apr = 0
+const COVER = 3;                                               // 2 months lead (6–8 weeks) + 1 month safety
+
+function monthLabel(fy, idx){ const m = 3 + idx, y = fy + Math.floor(m / 12); return `${MN[((idx % 12) + 12) % 12]}-${String(y).slice(2)}`; }
+
+/* ======================= load ======================= */
+async function loadPlan(){ S.plan = await rpc('lvs_plan', { p_cy: S.cy }); }
+async function loadStock(fresh){
+  try {
+    const r = await fetch('/api/lvs-stock' + (fresh ? '?fresh=1' : ''));
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || ('status ' + r.status));
+    S.stock = j; S.stockErr = j.stale ? j.error : null;
+  } catch (e) { S.stock = null; S.stockErr = e.message; }
+}
+async function loadAll(fresh){
+  $('errBox').style.display = 'none';
+  $('sync').innerHTML = 'Loading…';
+  try {
+    await Promise.all([loadPlan(), loadStock(fresh)]);
+    build(); render();
+  } catch (e) { $('errBox').style.display = 'block'; $('errBox').textContent = 'Could not load data — ' + e.message; $('sync').innerHTML = ''; }
+}
+
+/* ======================= model ======================= */
+let ITEMS = [];
+function build(){
+  const P = S.plan, cy = P.cy;
+  const done = cy < curFY ? 12 : cy > curFY ? 0 : curMi;            // completed months this FY
+  S.done = done;
+  const stockBy = new Map((S.stock?.items || []).map(x => [String(x.code), x]));
+  const seen = new Set();
+  ITEMS = (P.items || []).map(a => {
+    const [code, cat, desc, series, ob, inv, obLy, invLy, obv, obq, invv, invq, lyv, lyq] = a;
+    const n = Math.max(1, done);
+    // April (no completed month yet): fall back to last FY's monthly average
+    const avgOb = done ? sum(ob.slice(0, done)) / n : sum(obLy) / 12;
+    const avgInv = done ? sum(inv.slice(0, done)) / n : sum(invLy) / 12;
+    const l3 = Math.min(3, done), l3Ob = l3 ? sum(ob.slice(done - l3, done)) / l3 : 0, l3Inv = l3 ? sum(inv.slice(done - l3, done)) / l3 : 0;
+    const rate = obq > 0 ? obv / obq : invq > 0 ? invv / invq : lyq > 0 ? lyv / lyq : 0;
+    const st = stockBy.get(String(code)); seen.add(String(code));
+    return { code:String(code), cat, desc, series: series || 'Other', ob, inv, obLy, invLy, obq, invq, obv, invv, lyq,
+             avgOb, avgInv, l3Ob, l3Inv, rate, st,
+             mtdOb: done < 12 ? ob[done] : 0, mtdInv: done < 12 ? inv[done] : 0 };
+  });
+  // items only in the stock sheet (stock but no sales this FY or last)
+  (S.stock?.items || []).forEach(x => { if (!seen.has(String(x.code)) && x.code) ITEMS.push({ code:String(x.code), cat:x.cat, desc:x.name, series:'Not sold', ob:Array(12).fill(0), inv:Array(12).fill(0), obLy:Array(12).fill(0), invLy:Array(12).fill(0), obq:0, invq:0, obv:0, invv:0, lyq:0, avgOb:0, avgInv:0, l3Ob:0, l3Inv:0, rate:0, st:x, mtdOb:0, mtdInv:0 }); });
+  calc();
+  const ser = [...new Set(ITEMS.map(x => x.series))].sort();
+  const sel = $('series'), keep = S.series;
+  sel.innerHTML = '<option value="">All series</option>' + ser.map(s => `<option ${s === keep ? 'selected' : ''}>${esc(s)}</option>`).join('');
+}
+function calc(){
+  ITEMS.forEach(x => {
+    x.avg = S.basis === 'ob' ? x.avgOb : S.basis === 'inv' ? x.avgInv : Math.max(x.avgOb, x.avgInv);
+    x.p3 = [x.avg, x.avg, x.avg];
+    x.pv = 3 * x.avg * x.rate;
+    const s = x.st;
+    x.stockQ = s ? s.total : null;
+    x.openQ = s ? s.open : 0;
+    x.inQ = s ? (s.d4 + s.d8) : 0;                                  // 1-week deliveries are already in "Stock at SWG"
+    x.avail = s ? s.total + x.inQ - x.openQ : null;
+    x.need = COVER * x.avg + x.openQ;
+    x.po = s ? Math.max(0, Math.ceil(x.need - s.total - x.inQ)) : Math.ceil(x.need);
+    x.pov = x.po * x.rate;
+    x.cover = x.avg > 0 && x.avail != null ? x.avail / x.avg : null;
+    x.status = !s ? 'nos' : x.avg <= 0 ? (s.total > 0 ? 'dead' : (x.openQ > 0 ? (x.po > 0 ? 'order' : 'ok') : 'none')) : x.po > 0 ? 'order' : (x.cover > 6 ? 'excess' : 'ok');
+  });
+}
+function filtered(){
+  const q = S.q.trim().toLowerCase();
+  return ITEMS.filter(x => (!S.series || x.series === S.series) &&
+    (!q || x.code.includes(q) || String(x.cat || '').toLowerCase().includes(q) || String(x.desc || '').toLowerCase().includes(q)));
+}
+
+/* ======================= render ======================= */
+function render(){
+  const P = S.plan, cy = P.cy, done = S.done;
+  $('sync').innerHTML = `Orders &amp; invoices up to <b>${esc(P.asof || '—')}</b><br>` +
+    (S.stock ? `Stock sheet read <b>${new Date(S.stock.fetchedAt).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</b> · ${S.stock.count} items` : '<span style="color:var(--bad)">Stock sheet not read</span>');
+  const sw = $('stockWarn');
+  const ageH = S.stock ? (Date.now() - new Date(S.stock.fetchedAt).getTime()) / 36e5 : 0;
+  if (!S.stockErr && S.stock && ageH > 3) { sw.style.display = 'block'; sw.innerHTML = `<b>Stock sheet:</b> last read ${Math.floor(ageH)} hours ago (it is read every 2 hours). Press ⟳ Refresh to read it now.`; }
+  else if (S.stockErr) { sw.style.display = 'block'; sw.innerHTML = `<b>Stock sheet:</b> ${esc(S.stockErr)}` + (S.stock ? ' (showing the last copy read)' : ' — PO quantities below assume zero stock until the sheet can be read.'); }
+  else sw.style.display = 'none';
+  $('basisTxt').textContent = S.basis === 'ob' ? 'order booking' : S.basis === 'inv' ? 'invoicing' : 'higher of order booking and invoicing, per item';
+  const list = filtered();
+  renderKpis(list); renderChart(list); renderProj(list); renderPo(list);
+}
+
+function renderKpis(list){
+  const done = S.done, cy = S.plan.cy;
+  const obq = sum(list.map(x => sum(x.ob))), invq = sum(list.map(x => sum(x.inv)));
+  const obv = sum(list.map(x => x.obv)), invv = sum(list.map(x => x.invv));
+  const avgQ = sum(list.map(x => x.avg)), avgV = sum(list.map(x => x.avg * x.rate));
+  const withSt = list.filter(x => x.st);
+  const stV = sum(withSt.map(x => x.st.total * x.rate)), stQ = sum(withSt.map(x => x.st.total));
+  const ord = list.filter(x => x.status === 'order');
+  const exc = list.filter(x => x.status === 'excess' || x.status === 'dead');
+  const k = (lbl, v, s) => `<div class="kpi"><div class="k">${lbl}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  $('kpis').innerHTML =
+    k(`Order booking ${fyLabel(cy)}`, `₹${fL(obv)} L`, `${fQ(obq)} pcs`) +
+    k(`Invoicing ${fyLabel(cy)}`, `₹${fL(invv)} L`, `${fQ(invq)} pcs`) +
+    k('Projection / month', `${fQ(avgQ)} pcs`, `≈ ₹${fL(avgV)} L · avg of ${done} completed month${done === 1 ? '' : 's'}`) +
+    k('Stock now (sheet)', `${fQ(stQ)} pcs`, `≈ ₹${fL(stV)} L at this FY's rates`) +
+    k('Items to order now', `${ord.length}`, `PO ≈ ₹${fL(sum(ord.map(x => x.pov)))} L · ${fQ(sum(ord.map(x => x.po)))} pcs`) +
+    k('Excess / non-moving', `${exc.length}`, `stock ≈ ₹${fL(sum(exc.map(x => (x.st ? x.st.total : 0) * x.rate)))} L`);
+}
+
+function renderChart(list){
+  const cy = S.plan.cy, done = S.done, u = S.unit;
+  const val = (x, arr, i) => u === 'q' ? (arr[i] || 0) : (arr[i] || 0) * x.rate / 1e5;
+  const ob = MN.map((_, i) => sum(list.map(x => val(x, x.ob, i))));
+  const inv = MN.map((_, i) => sum(list.map(x => val(x, x.inv, i))));
+  const ly = MN.map((_, i) => sum(list.map(x => val(x, x.invLy, i))));
+  const projV = sum(list.map(x => u === 'q' ? x.avg : x.avg * x.rate / 1e5));
+  const proj = MN.map((_, i) => (i > done && i <= done + 3 && cy === curFY) ? projV : 0);
+  $('chartSub').textContent = `${fyLabel(cy)} · ${done} completed month${done === 1 ? '' : 's'}` + (cy === curFY && done < 12 ? ` · ${MN[done]} is month-to-date` : '') + ' · projection = next 3 months';
+  const W = 1100, H = 300, L = 60, R = 16, T = 16, B = 34, cw = (W - L - R) / 12;
+  const max = Math.max(1, ...ob, ...inv, ...ly, ...proj) * 1.1;
+  const y = v => T + (H - T - B) * (1 - v / max);
+  let g = '';
+  for (let i = 0; i <= 4; i++) { const v = max / 1.1 * i / 4, yy = y(v); g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#e7ecf4"/><text x="${L - 6}" y="${yy + 4}" font-size="11" text-anchor="end" fill="#6f84ad">${u === 'q' ? fQ(v) : fM(v)}</text>`; }
+  const bw = cw * 0.32;
+  MN.forEach((m, i) => {
+    const x0 = L + i * cw + cw * 0.16;
+    const tip = (lbl, v) => `<title>${m}: ${lbl} ${u === 'q' ? fQ(v) + ' pcs' : '₹' + fM(v) + ' L'}</title>`;
+    if (proj[i]) g += `<rect x="${x0}" y="${y(proj[i])}" width="${bw * 2}" height="${H - B - y(proj[i])}" fill="url(#hatch)" stroke="#c2731a">${tip('projection', proj[i])}</rect>`;
+    else {
+      g += `<rect x="${x0}" y="${y(ob[i])}" width="${bw}" height="${H - B - y(ob[i])}" fill="${i === done && cy === curFY ? '#7fb3e3' : '#0073C8'}" rx="2">${tip('order booking', ob[i])}</rect>`;
+      g += `<rect x="${x0 + bw}" y="${y(inv[i])}" width="${bw}" height="${H - B - y(inv[i])}" fill="${i === done && cy === curFY ? '#97d1b5' : '#2e9e6b'}" rx="2">${tip('invoicing', inv[i])}</rect>`;
+    }
+    g += `<text x="${L + i * cw + cw / 2}" y="${H - 12}" font-size="12" text-anchor="middle" fill="#3b5384">${m}</text>`;
+  });
+  const pts = ly.map((v, i) => `${L + i * cw + cw / 2},${y(v)}`).join(' ');
+  g += `<polyline points="${pts}" fill="none" stroke="#7b5ea7" stroke-width="2"/>` + ly.map((v, i) => `<circle cx="${L + i * cw + cw / 2}" cy="${y(v)}" r="3" fill="#7b5ea7"><title>${MN[i]}: last FY invoicing ${u === 'q' ? fQ(v) + ' pcs' : '₹' + fM(v) + ' L'}</title></circle>`).join('');
+  $('chart').innerHTML = `<svg viewBox="0 0 ${W} ${H}"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#f6d9b8"/><rect width="3" height="6" fill="#c2731a"/></pattern></defs>${g}</svg>`;
+}
+
+function projMonths(){ const d = S.done; return [d + 1, d + 2, d + 3]; }   // month after the current one
+function renderProj(list){
+  const cy = S.plan.cy, pm = projMonths();
+  const labs = pm.map(i => monthLabel(cy, i));
+  $('projTitle').textContent = cy === curFY ? `3-month projection for L&K — ${labs.join(', ')}` : `3-month projection (${fyLabel(cy)} average per month)`;
+  const rows = list.filter(x => x.avg > 0 || x.mtdOb > 0);
+  // series summary
+  const bySer = {};
+  rows.forEach(x => { const s = bySer[x.series] = bySer[x.series] || { n:0, q:0, v:0 }; s.n++; s.q += x.avg; s.v += x.avg * x.rate; });
+  const ser = Object.entries(bySer).sort((a, b) => b[1].v - a[1].v);
+  const tq = sum(ser.map(s => s[1].q)), tv = sum(ser.map(s => s[1].v));
+  $('projSum').innerHTML = `<table><thead><tr><th class="l">Series</th><th>Items</th>${labs.map(l => `<th class="proj">${l} pcs</th>`).join('')}<th class="proj">3 months ₹ L</th></tr></thead><tbody>` +
+    ser.map(([s, a]) => `<tr><td class="l">${esc(s)}</td><td>${a.n}</td>${labs.map(() => `<td class="proj">${fQ(a.q)}</td>`).join('')}<td class="proj">${fL(3 * a.v)}</td></tr>`).join('') +
+    `<tr class="tot"><td class="l">Total</td><td>${rows.length}</td>${labs.map(() => `<td>${fQ(tq)}</td>`).join('')}<td>${fL(3 * tv)}</td></tr></tbody></table>`;
+  const sorters = { pv: (a, b) => b.pv - a.pv, code: (a, b) => a.code.localeCompare(b.code, undefined, {numeric:true}), avg: (a, b) => b.avg - a.avg };
+  rows.sort(sorters[S.sortP] || sorters.pv);
+  const trend = x => { const base = S.basis === 'inv' ? x.avgInv : S.basis === 'ob' ? x.avgOb : Math.max(x.avgOb, x.avgInv); const l3 = S.basis === 'inv' ? x.l3Inv : S.basis === 'ob' ? x.l3Ob : Math.max(x.l3Ob, x.l3Inv);
+    if (!(base > 0)) return ''; const r = l3 / base - 1; return Math.abs(r) < 0.15 ? '<span class="muted">steady</span>' : r > 0 ? `<span style="color:var(--good)">▲ ${Math.round(r * 100)}%</span>` : `<span style="color:var(--bad)">▼ ${Math.round(-r * 100)}%</span>`; };
+  $('projTbl').innerHTML = `<table><thead><tr><th class="l" data-s="code">Item code ⇅</th><th class="l">Cat code</th><th class="l">Item</th><th class="l">Series</th>
+    <th class="grp">OB avg/m</th><th>INV avg/m</th><th>Last 3 m vs avg</th><th>${MN[Math.min(S.done, 11)]} MTD OB</th>
+    ${labs.map(l => `<th class="proj grp" data-s="avg">${l}</th>`).join('')}<th class="proj" data-s="pv">3 m value ₹ L ⇅</th></tr></thead><tbody>` +
+    (rows.length ? rows.map(x => `<tr><td class="l">${esc(x.code)}</td><td class="l">${esc(x.cat || '')}</td><td class="l item">${esc(x.desc || '')}</td><td class="l">${esc(x.series)}</td>
+      <td class="grp">${fM(x.avgOb)}</td><td>${fM(x.avgInv)}</td><td>${trend(x)}</td><td>${fQ(x.mtdOb)}</td>
+      ${x.p3.map(v => `<td class="proj grp">${fQ(Math.ceil(v))}</td>`).join('')}<td class="proj">${fL(x.pv)}</td></tr>`).join('')
+     : `<tr><td class="l" colspan="11">No items with movement for this selection.</td></tr>`) + '</tbody></table>';
+  $('projTbl').querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { S.sortP = th.dataset.s; renderProj(filtered()); });
+}
+
+const STATUS = { order:['Order now','c-order'], ok:['Covered','c-ok'], excess:['Excess (> 6 m)','c-excess'], dead:['Stock, no movement','c-dead'], nos:['Not in stock sheet','c-nos'], none:['—','c-dead'] };
+function renderPo(list){
+  const cy = S.plan.cy;
+  $('poTitle').textContent = cy === curFY ? `PO for ${monthLabel(cy, S.done)} — release at the start of the month (recalculated daily)` : 'PO suggestion (based on the selected FY)';
+  let rows = list.filter(x => x.status !== 'none');
+  const t = S.poTab;
+  rows = rows.filter(x => t === 'all' ? true : t === 'order' ? x.status === 'order' : t === 'excess' ? x.status === 'excess' : t === 'dead' ? x.status === 'dead' : x.status === 'nos');
+  const cnt = k => list.filter(x => x.status === k).length;
+  $('poTabs').querySelectorAll('button').forEach(b => { const k = b.dataset.k, base = {order:'Order now', all:'All items', excess:'Excess stock', dead:'Stock, no movement', nos:'Not in stock sheet'}[k];
+    b.textContent = k === 'all' ? `${base} (${list.filter(x => x.status !== 'none').length})` : `${base} (${cnt(k)})`; b.classList.toggle('on', k === t); });
+  const sorters = { pov: (a, b) => b.pov - a.pov || b.po - a.po, code: (a, b) => a.code.localeCompare(b.code, undefined, {numeric:true}), cover: (a, b) => (a.cover ?? 1e9) - (b.cover ?? 1e9), stock: (a, b) => ((b.st?.total || 0) * b.rate) - ((a.st?.total || 0) * a.rate) };
+  rows.sort(sorters[t === 'excess' || t === 'dead' ? (S.sortO === 'pov' ? 'stock' : S.sortO) : S.sortO] || sorters.pov);
+  const tot = { po: sum(rows.map(x => x.po)), pov: sum(rows.map(x => x.pov)) };
+  $('poTbl').innerHTML = `<table><thead><tr><th class="l" data-s="code">Item code ⇅</th><th class="l">Cat code</th><th class="l">Item</th><th class="l">Series</th>
+    <th class="grp">Projection /m</th><th>Need 3 m</th><th>Customer open orders</th>
+    <th class="grp">FG stock</th><th>At SWG</th><th>IQC</th><th>Total stock</th><th>L&amp;K due 4 wk</th><th>L&amp;K due 8 wk</th>
+    <th class="grp" data-s="cover">Cover (months) ⇅</th><th class="po" data-s="pov">Suggested PO qty ⇅</th><th class="po">PO ₹ L</th><th>Status</th></tr></thead><tbody>` +
+    (rows.length ? rows.map(x => { const s = x.st; const [lbl, cls] = STATUS[x.status];
+      return `<tr><td class="l">${esc(x.code)}</td><td class="l">${esc(x.cat || '')}</td><td class="l item">${esc(x.desc || '')}</td><td class="l">${esc(x.series)}</td>
+      <td class="grp">${fM(x.avg)}</td><td>${fQ(Math.ceil(COVER * x.avg))}</td><td>${fQ(x.openQ)}</td>
+      <td class="grp">${s ? fQ(s.fg) : '—'}</td><td>${s ? fQ(s.swg) : '—'}</td><td>${s ? fQ(s.iqc) : '—'}</td><td>${s ? fQ(s.total) : '—'}</td><td>${s ? fQ(s.d4) : '—'}</td><td>${s ? fQ(s.d8) : '—'}</td>
+      <td class="grp">${x.cover == null ? '—' : fM(x.cover)}</td><td class="po">${fQ(x.po)}</td><td class="po">${fL(x.pov)}</td><td><span class="chip ${cls}">${lbl}</span></td></tr>`; }).join('') +
+      `<tr class="tot"><td class="l" colspan="14">Total (${rows.length} items)</td><td>${fQ(tot.po)}</td><td>${fL(tot.pov)}</td><td></td></tr>`
+     : `<tr><td class="l" colspan="17">Nothing in this list for the current selection.</td></tr>`) + '</tbody></table>';
+  $('poTbl').querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { S.sortO = th.dataset.s; renderPo(filtered()); });
+}
+
+/* ======================= downloads ======================= */
+$('dlProj').onclick = () => {
+  const cy = S.plan.cy, labs = projMonths().map(i => monthLabel(cy, i));
+  const rows = filtered().filter(x => x.avg > 0).sort((a, b) => b.pv - a.pv);
+  csv(`LVS_projection_${labs[0]}_to_${labs[2]}.csv`, ['Cat code', 'Item code', 'Item', 'Series', ...labs.map(l => `${l} qty`), '3 months total qty'],
+    rows.map(x => [x.cat, x.code, x.desc, x.series, ...x.p3.map(v => Math.ceil(v)), Math.ceil(x.p3[0]) * 3]));
+};
+$('dlPo').onclick = () => {
+  const rows = filtered().filter(x => S.poTab === 'all' ? x.status !== 'none' : x.status === S.poTab);
+  csv(`LVS_PO_${monthLabel(S.plan.cy, S.done)}_${S.poTab}.csv`,
+    ['Cat code', 'Item code', 'Item', 'Series', 'Projection per month', 'Need 3 months', 'Customer open orders', 'FG stock', 'At SWG', 'IQC', 'Total stock', 'L&K due 4 wk', 'L&K due 8 wk', 'Cover months', 'Suggested PO qty', 'PO value (Rs L)', 'Status'],
+    rows.map(x => [x.cat, x.code, x.desc, x.series, x.avg.toFixed(1), Math.ceil(COVER * x.avg), x.openQ, x.st?.fg ?? '', x.st?.swg ?? '', x.st?.iqc ?? '', x.st?.total ?? '', x.st?.d4 ?? '', x.st?.d8 ?? '',
+      x.cover == null ? '' : x.cover.toFixed(1), x.po, (x.pov / 1e5).toFixed(2), STATUS[x.status][0]]));
+};
+
+/* ======================= controls ======================= */
+function tg(id, key, cb){ $(id).querySelectorAll('button').forEach(b => b.onclick = () => { S[key] = b.dataset.k; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(); }); }
+tg('basisTg', 'basis', () => { calc(); render(); });
+tg('unitTg', 'unit', () => renderChart(filtered()));
+$('poTabs').querySelectorAll('button').forEach(b => b.onclick = () => { S.poTab = b.dataset.k; renderPo(filtered()); });
+$('series').onchange = e => { S.series = e.target.value; render(); };
+let qt; $('q').oninput = e => { clearTimeout(qt); qt = setTimeout(() => { S.q = e.target.value; render(); }, 200); };
+$('fy').innerHTML = [curFY, curFY - 1].map(f => `<option value="${f}">${fyLabel(f)}</option>`).join('');
+$('fy').onchange = e => { S.cy = +e.target.value; loadAll(); };
+$('refresh').onclick = () => loadAll(true);
+S.cy = curFY;
+loadAll();
+// auto-refresh: every 30 min, and when the tab comes back after 10+ min
+let lastLoad = Date.now();
+setInterval(() => { lastLoad = Date.now(); loadAll(); }, 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden && Date.now() - lastLoad > 10 * 60 * 1000) { lastLoad = Date.now(); loadAll(); } });
+</script>
+<script src="/gesture-control.js" defer></script>
+</body>
+</html>
