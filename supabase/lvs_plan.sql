@@ -1,6 +1,6 @@
 -- LVS (Switchgear, white-labelled from L&K) planning data for the LVS tab.  19-Oct-2026
 -- One row per item code: qty per month (Apr..Mar) for OB and Invoicing, this FY and last FY,
--- plus value this FY. B&E / TEST DUMMY accounts excluded. Read-only. Safe to re-run.
+-- plus value this FY. B&E / TEST DUMMY accounts and WBT / TM (busbar temperature) items excluded. Read-only. Safe to re-run.
 create or replace function public.lvs_plan(p_cy int default null)
 returns jsonb language sql stable security definer
 set search_path = public as $$
@@ -16,7 +16,9 @@ set search_path = public as $$
     where s.product_basket = 'SWITCHGEAR'
       and s.fy_start in (p.cy, p.cy - 1)
       and s.item_code is not null
-      and coalesce(s.card_name, '') !~* 'B\s*&\s*E\s+ELECTRIC|TEST\s+DUMMY'),
+      and coalesce(s.card_name, '') !~* 'B\s*&\s*E\s+ELECTRIC|TEST\s+DUMMY'
+      -- wireless busbar temperature sensors / controllers are not L&K items (19-Oct-2026)
+      and coalesce(s.cat_code, '') !~* '^(WBT|TM)'),
   m as (
     select code, doc_type, fy_start, mi,
            sum(quantity) q, sum(doc_total_fc) v
