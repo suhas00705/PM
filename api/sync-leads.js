@@ -133,6 +133,56 @@ module.exports = async (req, res) => {
     leads = [...new Map(leads.filter(l => l && l.id).map(l => [String(l.id), l])).values()];
     const leadsWritten = await supabaseLeads.upsertLeads(leads);
 
+    // 19-Oct-2026: remove leads that were CONVERTED to a potential or DELETED in Zoho from the cache,
+    // otherwise the Leads dashboard keeps counting them (e.g. Hyderabad Oct showed 65 vs 63 open in Zoho).
+    // Looks back ?gone_days (default 7) so a missed run is caught by the next one. Never fails the sync.
+    let convertedRemoved = 0, deletedRemoved = 0, removeError;
+    try {
+      const days = parseInt(req.query?.gone_days || '7', 10);
+      const since = Date.now() - days * 86400000;
+      const goneIds = [];
+      // a) converted leads (hidden from COQL; REST converted=true, newest first)
+      let tok = null;
+      for (let p = 1; p <= 15 && Date.now() < deadline + 2000; p++) {
+        let u = `${ZOHO_API_DOMAIN}/crm/v8/Leads?converted=true&fields=Modified_Time,Converted_Date_Time&per_page=200&sort_by=Modified_Time&sort_order=desc`;
+        u += tok ? `&page_token=${encodeURIComponent(tok)}` : `&page=${p}`;
+        const r = await fetch(u, { headers: authHeader });
+        if (r.status === 204) break;
+        if (!r.ok) throw new Error(`Zoho converted leads ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        const data = await r.json();
+        const list = data.data || [];
+        let older = false;
+        list.forEach(x => {
+          const t = new Date(x.Converted_Date_Time || x.Modified_Time).getTime();
+          if (t >= since) goneIds.push(String(x.id));
+          if (new Date(x.Modified_Time).getTime() < since) older = true;
+        });
+        if (older || !data.info?.more_records) break;
+        tok = data.info?.next_page_token || null;
+      }
+      const nConverted = goneIds.length;
+      // b) deleted leads
+      for (let p = 1; p <= 10 && Date.now() < deadline + 2000; p++) {
+        const r = await fetch(`${ZOHO_API_DOMAIN}/crm/v8/Leads/deleted?type=all&per_page=200&page=${p}`, { headers: authHeader });
+        if (r.status === 204) break;
+        if (!r.ok) throw new Error(`Zoho deleted leads ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        const data = await r.json();
+        const list = data.data || [];
+        let older = false;
+        list.forEach(x => {
+          if (x.deleted_time && new Date(x.deleted_time).getTime() < since) older = true;
+          else if (x.id) goneIds.push(String(x.id));
+        });
+        if (older || !data.info?.more_records) break;
+      }
+      if (goneIds.length) {
+        const conv = new Set(goneIds.slice(0, nConverted));
+        const convIds = [...conv], delIds = goneIds.slice(nConverted).filter(x => !conv.has(x));
+        if (convIds.length) convertedRemoved = await supabaseLeads.deleteLeads(convIds);
+        if (delIds.length) deletedRemoved = await supabaseLeads.deleteLeads(delIds);
+      }
+    } catch (e) { removeError = String(e.message || e).slice(0, 200); }
+
     // Always refresh engineers list
     const engineers = await zohoAuth.fetchSalesEngineers();
     const engineersWritten = await supabaseLeads.upsertEngineers(engineers);
@@ -144,7 +194,10 @@ module.exports = async (req, res) => {
       totalFetched: leads.length,
       syncedAt: new Date().toISOString(),
       mode,
+      convertedRemoved,
+      deletedRemoved,
     };
+    if (removeError) response.removeError = removeError;
 
     if (mode === 'incremental') {
       response.windowHours = parseInt(req.query?.window || '48', 10);
