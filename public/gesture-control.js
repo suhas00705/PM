@@ -1,8 +1,9 @@
-/* Elmeasure PM Portal - camera gesture control  (v1, 19-Oct-2026)
+/* Elmeasure PM Portal - camera gesture control  (v2, 19-Oct-2026: smoother scrolling, two-finger sideways scroll)
  * Adds a "Gesture" button (top right). When switched on, the webcam + Google MediaPipe hand
  * tracking (runs inside the browser - no video is recorded or sent anywhere) lets you:
  *   Index finger up ............ move the on-screen pointer
- *   Open palm, move hand ........ scroll up / down / left / right (further from start = faster)
+ *   Open palm, move up/down ..... scroll up / down (further from start = faster)
+ *   Two fingers (V), move L/R ... scroll left / right
  *   Quick pinch (thumb+index) ... click / Enter on whatever the pointer is on
  *   Pinch & hold, move up/down .. zoom in / zoom out
  *   Fist for 1 second ........... pause  (open palm for 1 second resumes)
@@ -23,19 +24,22 @@
   var SS_KEY = 'gc_on';
 
   // tuning
-  var EXT_RATIO = 1.5;       // finger tip / knuckle distance from wrist above which the finger is "up"
-  var PINCH_ON = 0.33, PINCH_OFF = 0.48;   // thumb-index gap / hand size
-  var CLICK_MAX_MS = 450, CLICK_MAX_MOVE = 0.06;
-  var DEAD = 0.035, SCROLL_K = 420, SCROLL_MAX = 60;
+  var EXT_RATIO = 1.4;       // finger tip / knuckle distance from wrist above which the finger is "up"
+  var PINCH_ON = 0.33, PINCH_OFF = 0.5;    // thumb-index gap / hand size
+  var CLICK_MAX_MS = 450;
+  var DEAD = 0.03;           // hand movement (share of camera width) before scrolling starts
+  var SPAN = 0.22;           // movement that gives full speed
+  var VMAX_Y = 2400, VMAX_X = 2000;        // px per second at full speed
   var ZOOM_K = 2.2, ZOOM_MIN = 0.5, ZOOM_MAX = 2.5;
-  var HOLD_MS = 1000;
+  var HOLD_MS = 1000, GRACE_MS = 250;
 
   var S = {
     on: false, busy: false, stream: null, video: null, lmk: null, raf: 0, lastVT: -1,
     px: innerWidth / 2, py: innerHeight / 2, sx: null, sy: null,
     raw: 'none', rawN: 0, mode: 'none', paused: false,
     pinch: false, pinchT: 0, pinchP: null, pinchZoomed: false, zoomBase: 1, zoomDoc: null, zoomY0: 0,
-    anchor: null, hist: [], fistT: 0, palmT: 0, holdDone: false, lostT: 0, status: ''
+    anchor: null, hist: [], fistT: 0, vt: { x: 0, y: 0 }, v: { x: 0, y: 0 }, rem: { x: 0, y: 0 }, lastTick: 0,
+    scY: null, scX: null, scT: 0, fx: null, fy: null, leftT: 0, zoomShown: 0, palmT: 0, holdDone: false, lostT: 0, status: ''
   };
 
   // ---------------------------------------------------------------- UI
@@ -62,7 +66,7 @@
       '#gc-panel .gc-help div{padding:1px 0}',
       '#gc-panel.help .gc-help{display:block}',
       '#gc-ptr{position:fixed;left:0;top:0;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;z-index:2147483602;pointer-events:none;',
-      ' border:3px solid #2f80ed;background:rgba(47,128,237,.18);box-shadow:0 0 0 2px #fff;display:none;transition:width .12s,height .12s,margin .12s,border-color .12s}',
+      ' border:3px solid #2f80ed;background:rgba(47,128,237,.18);box-shadow:0 0 0 2px #fff;display:none;transition:width .12s,height .12s,margin .12s,border-color .12s;will-change:transform}',
       '#gc-ptr.scroll{border-color:#f59e0b;background:rgba(245,158,11,.2)}',
       '#gc-ptr.pinch{width:16px;height:16px;margin:-8px 0 0 -8px;border-color:#16a34a;background:rgba(22,163,74,.35)}',
       '#gc-ptr.zoom{border-color:#a855f7;background:rgba(168,85,247,.25)}',
@@ -101,7 +105,8 @@
       '<button type="button" data-a="x" title="Turn off">&#10005;</button></span></div>' +
       '<div class="gc-help">' +
       '<div>&#9757;&#65039; Index finger up – move pointer</div>' +
-      '<div>&#9995; Open palm, move – scroll &#8593;&#8595;&#8592;&#8594;</div>' +
+      '<div>&#9995; Open palm, move up/down – scroll &#8593;&#8595;</div>' +
+      '<div>&#9996;&#65039; Two fingers, move left/right – scroll &#8592;&#8594;</div>' +
       '<div>&#129295; Quick pinch – click / Enter</div>' +
       '<div>&#129295; Pinch &amp; hold, move up/down – zoom in/out</div>' +
       '<div>&#9994; Fist 1 s – pause · &#9995; palm 1 s – resume</div></div>';
@@ -148,7 +153,7 @@
     panel.classList.add('help');
     setTimeout(function () { if (panel) panel.classList.remove('help'); }, 9000);
     status('Starting camera…');
-    navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: 'user' }, audio: false })
+    navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 480 }, height: { ideal: 360 }, frameRate: { ideal: 30 }, facingMode: 'user' }, audio: false })
       .then(function (stream) {
         S.stream = stream;
         S.video.srcObject = stream;
@@ -205,14 +210,32 @@
   function loop() {
     if (!S.on) return;
     S.raf = requestAnimationFrame(loop);
+    var now = performance.now();
     var v = S.video;
-    if (!v || v.readyState < 2 || v.currentTime === S.lastVT) return;
-    S.lastVT = v.currentTime;
-    var now = performance.now(), res;
-    try { res = S.lmk.detectForVideo(v, now); } catch (e) { return; }
-    var lm = res && res.landmarks && res.landmarks[0];
-    draw(lm);
-    handle(lm || null, now);
+    if (v && v.readyState >= 2 && v.currentTime !== S.lastVT) {
+      S.lastVT = v.currentTime;
+      var res = null;
+      try { res = S.lmk.detectForVideo(v, now); } catch (e) { res = null; }
+      var lm = res && res.landmarks && res.landmarks[0];
+      draw(lm);
+      handle(lm || null, now);
+    }
+    tick(now);
+  }
+
+  // runs every screen frame (60 fps) so scrolling glides instead of jumping at camera rate
+  function tick(now) {
+    var dt = S.lastTick ? Math.min(0.05, (now - S.lastTick) / 1000) : 0.016;
+    S.lastTick = now;
+    var a = Math.min(1, dt * 9);                       // ease towards the wanted speed
+    S.v.x += (S.vt.x - S.v.x) * a; S.v.y += (S.vt.y - S.v.y) * a;
+    if (Math.abs(S.v.x) < 4 && !S.vt.x) S.v.x = 0;
+    if (Math.abs(S.v.y) < 4 && !S.vt.y) S.v.y = 0;
+    if (!S.v.x && !S.v.y) return;
+    S.rem.x += S.v.x * dt; S.rem.y += S.v.y * dt;
+    var mx = S.rem.x | 0, my = S.rem.y | 0;            // whole pixels only, keep the fraction
+    S.rem.x -= mx; S.rem.y -= my;
+    if (mx || my) scrollAt(S.px, S.py, mx, my);
   }
 
   function draw(lm) {
@@ -239,14 +262,39 @@
     var fi = up(lm, 8, 5), fm = up(lm, 12, 9), fr = up(lm, 16, 13), fp = up(lm, 20, 17);
     var n = (fi ? 1 : 0) + (fm ? 1 : 0) + (fr ? 1 : 0) + (fp ? 1 : 0);
     if (S.pinch && !(fm && fr && fp && gap > PINCH_ON)) return 'pinch';
-    if (n === 4) return 'palm';
+    if (n === 4 || (S.mode === 'palm' && n === 3)) return 'palm';            // sticky: one finger flicker keeps palm
+    if (fi && fm && !fr && !fp) return 'two';
+    if (S.mode === 'two' && fi && fm && (fr !== fp)) return 'two';
     if (n === 0) return 'fist';
-    if (fi && !fr && !fp) return 'point';
+    if (fi && !fm && !fr && !fp) return 'point';
+    if (S.mode === 'point' && fi && n <= 2) return 'point';
     return 'idle';
+  }
+
+  // One-Euro filter: steady when the hand is still, responsive when it moves fast
+  function oneEuro(state, key, x, t) {
+    var f = state[key];
+    if (!f || t - f.t > 300) { state[key] = { x: x, dx: 0, t: t }; return x; }
+    var dt = Math.max(1e-3, (t - f.t) / 1000);
+    var alpha = function (c) { var r = 2 * Math.PI * c * dt; return r / (r + 1); };
+    var dx = (x - f.x) / dt;
+    f.dx += (dx - f.dx) * alpha(1.0);
+    var cut = 1.0 + 0.012 * Math.abs(f.dx);
+    f.x += (x - f.x) * alpha(cut);
+    f.t = t;
+    return f.x;
+  }
+
+  function speed(d, vmax) {                    // smooth curve: gentle near the start point, fast further out
+    var a = Math.abs(d) - DEAD;
+    if (a <= 0) return 0;
+    var k = Math.min(1, a / SPAN);
+    return Math.sign(d) * vmax * (0.08 + 0.92 * k * k);
   }
 
   function handle(lm, t) {
     if (!lm) {
+      S.vt.x = 0; S.vt.y = 0;
       if (!S.lostT) S.lostT = t;
       if (t - S.lostT > 400) {
         endPinch(false);
@@ -268,12 +316,13 @@
       if (!S.holdDone && t - S.fistT >= HOLD_MS) { S.paused = true; S.holdDone = true; toast('Gestures paused – hold an open palm for 1 second to resume', 3000); }
     }
     if (S.paused) {
+      S.vt.x = 0; S.vt.y = 0;
       if (mode === 'palm') {
         if (S.mode !== 'palm') S.palmT = t;
         if (t - S.palmT >= HOLD_MS) { S.paused = false; S.anchor = null; toast('Gestures resumed', 1500); }
       }
       S.mode = mode;
-      ptr.className = 'paused'; ptr.style.display = 'block'; ptrLbl.textContent = 'Paused';
+      ptr.className = 'paused'; ptr.style.display = 'block'; ptrLbl.textContent = 'Paused'; ptrLbl.style.display = 'block';
       status('Paused – open palm 1 s to resume');
       return;
     }
@@ -282,45 +331,57 @@
     var cx = 1 - lm[9].x, cy = lm[9].y;          // mirrored palm centre
 
     if (mode !== 'pinch' && S.mode === 'pinch') endPinch(true);
-    if (mode !== 'palm') S.anchor = null;
+    var scrolling = mode === 'palm' || mode === 'two';
+    if (!scrolling) {
+      S.vt.x = 0; S.vt.y = 0;
+      if (!S.leftT) S.leftT = t;
+      if (t - S.leftT > GRACE_MS) S.anchor = null;   // short wobble keeps the same start point
+    } else S.leftT = 0;
 
     if (mode === 'point' && g === 'point') {
-      var tx = clamp((hx - 0.2) / 0.6, 0, 1) * innerWidth;
-      var ty = clamp((hy - 0.15) / 0.6, 0, 1) * innerHeight;
-      if (S.sx == null) { S.sx = tx; S.sy = ty; }
-      S.sx += (tx - S.sx) * 0.35; S.sy += (ty - S.sy) * 0.35;
-      S.px = S.sx; S.py = S.sy;
+      var tx = clamp((hx - 0.15) / 0.7, 0, 1) * innerWidth;
+      var ty = clamp((hy - 0.12) / 0.62, 0, 1) * innerHeight;
+      S.px = oneEuro(S, 'fx', tx, t); S.py = oneEuro(S, 'fy', ty, t);
       S.hist.push({ t: t, x: S.px, y: S.py }); if (S.hist.length > 20) S.hist.shift();
       showPtr('', '');
       status('Pointer');
     } else if (mode === 'point') {
       showPtr('', '');
-    } else if (mode === 'palm') {
-      if (!S.anchor) S.anchor = { x: cx, y: cy };
+    } else if (scrolling) {
+      if (!S.anchor || S.anchor.m !== mode) S.anchor = { x: cx, y: cy, m: mode };
       var dx = cx - S.anchor.x, dy = cy - S.anchor.y;
-      var vx = Math.abs(dx) > DEAD ? clamp((dx - Math.sign(dx) * DEAD) * SCROLL_K, -SCROLL_MAX, SCROLL_MAX) : 0;
-      var vy = Math.abs(dy) > DEAD ? clamp((dy - Math.sign(dy) * DEAD) * SCROLL_K, -SCROLL_MAX, SCROLL_MAX) : 0;
-      var arrow = (vy < 0 ? '↑' : vy > 0 ? '↓' : '') + (vx < 0 ? '←' : vx > 0 ? '→' : '');
-      if (vx || vy) scrollAt(S.px, S.py, vx, vy);
-      showPtr('scroll', arrow ? 'Scroll ' + arrow : 'Scroll – move hand');
-      status(arrow ? 'Scrolling ' + arrow : 'Scroll: move palm');
+      var arrow;
+      if (mode === 'palm') {                       // open palm = up / down only
+        S.vt.y = speed(dy, VMAX_Y); S.vt.x = 0;
+        arrow = S.vt.y < 0 ? '↑' : S.vt.y > 0 ? '↓' : '';
+        showPtr('scroll', arrow ? 'Scroll ' + arrow : '✋ move up / down');
+        status(arrow ? 'Scrolling ' + arrow : 'Palm: move up / down');
+      } else {                                     // two fingers = left / right only
+        S.vt.x = speed(dx * 1.2, VMAX_X); S.vt.y = 0;
+        arrow = S.vt.x < 0 ? '←' : S.vt.x > 0 ? '→' : '';
+        showPtr('scroll', arrow ? 'Scroll ' + arrow : '✌ move left / right');
+        status(arrow ? 'Scrolling ' + arrow : 'Two fingers: move left / right');
+      }
     } else if (mode === 'pinch') {
       if (S.mode !== 'pinch') {
         S.pinchT = t; S.pinchP = { x: hx, y: hy }; S.pinchZoomed = false;
         // closing the fingers drags the index tip - go back to where the pointer was just before
-        for (var k = S.hist.length - 1; k >= 0; k--) { if (t - S.hist[k].t >= 200 || k === 0) { S.px = S.hist[k].x; S.py = S.hist[k].y; S.sx = S.px; S.sy = S.py; break; } }
-        S.hist = [];
+        for (var k = S.hist.length - 1; k >= 0; k--) { if (t - S.hist[k].t >= 200 || k === 0) { S.px = S.hist[k].x; S.py = S.hist[k].y; break; } }
+        S.hist = []; S.fx = null; S.fy = null;
       }
       if (!S.pinchZoomed && t - S.pinchT > CLICK_MAX_MS) {
         S.pinchZoomed = true;
         var hit = deepHit(S.px, S.py);
         S.zoomDoc = hit ? hit.doc : document;
         S.zoomBase = getZoom(S.zoomDoc);
-        S.zoomY0 = hy;
+        S.zoomY0 = oneEuro(S, 'fz', hy, t);
+        S.zoomShown = S.zoomBase;
       }
       if (S.pinchZoomed) {
-        var z = clamp(S.zoomBase * (1 + (S.zoomY0 - hy) * ZOOM_K), ZOOM_MIN, ZOOM_MAX);
-        setZoom(S.zoomDoc, z);
+        var zy = oneEuro(S, 'fz', hy, t);
+        var z = clamp(S.zoomBase * (1 + (S.zoomY0 - zy) * ZOOM_K), ZOOM_MIN, ZOOM_MAX);
+        z = Math.round(z * 20) / 20;                 // 5 % steps: no re-layout on every tiny wobble
+        if (z !== S.zoomShown) { S.zoomShown = z; setZoom(S.zoomDoc, z); }
         showPtr('zoom', 'Zoom ' + Math.round(z * 100) + '%');
         status('Zoom ' + Math.round(z * 100) + '% (move up/down)');
       } else {
@@ -403,9 +464,19 @@
   }
 
   function scrollAt(x, y, vx, vy) {
-    var hit = deepHit(x, y);
-    if (vy) { var sy = findScroller(hit, 'y', vy); if (sy) sy.scrollTop += vy; }
-    if (vx) { var sx = findScroller(hit, 'x', vx); if (sx) sx.scrollLeft += vx; }
+    var now = performance.now(), hit = null;
+    if (vy) {
+      if (!S.scY || S.scY.dir !== Math.sign(vy) || now - S.scT > 400 || !canScroll(S.scY.el, 'y', vy)) {
+        hit = hit || deepHit(x, y); var ey = findScroller(hit, 'y', vy); S.scY = ey ? { el: ey, dir: Math.sign(vy) } : null; S.scT = now;
+      }
+      if (S.scY) S.scY.el.scrollTop += vy;
+    }
+    if (vx) {
+      if (!S.scX || S.scX.dir !== Math.sign(vx) || now - S.scT > 400 || !canScroll(S.scX.el, 'x', vx)) {
+        hit = hit || deepHit(x, y); var ex = findScroller(hit, 'x', vx); S.scX = ex ? { el: ex, dir: Math.sign(vx) } : null; S.scT = now;
+      }
+      if (S.scX) S.scX.el.scrollLeft += vx;
+    }
   }
 
   function clickAt(x, y) {
@@ -457,6 +528,6 @@
       }
     } catch (e) { if (window.console) console.warn('[gesture] init failed', e); }
   }
-  window.GestureControl = { start: start, stop: function () { stop(true); }, _feed: handle, _state: S };
+  window.GestureControl = { start: start, stop: function () { stop(true); }, _feed: handle, _tick: tick, _state: S };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();
