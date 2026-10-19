@@ -1507,5 +1507,6 @@ $('resetBtn').onclick = () => { S.fy = (S.opts.fys||[]).slice(0,2); S.months = [
 (async () => { try { if (/[?&]view=perf/.test(location.search)) { VIEW_BASKET.cp = { basket:[...S.basket], series:[] }; S.view = 'perf'; S.basket = []; document.querySelectorAll('#viewToggle button').forEach(b => b.classList.toggle('on', b.dataset.v === 'perf')); $('cpView').style.display = 'none'; $('perfView').style.display = ''; $('basketLbl').textContent = 'Product basket (filter)'; $('pageTitle').textContent = 'Partners Performance'; }
   await loadOptions(); await load(); } catch (e) { showErr(e.message); $('loading').classList.remove('on'); } })();
 </script>
+<script src="/gesture-control.js" defer></script>
 </body>
 </html>

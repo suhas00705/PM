@@ -406,5 +406,6 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'pm-tab-
 dataVersion().then(v => { if (AUTO.ver === null) AUTO.ver = v; });
 (async () => { const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1; await load(true); })();
 </script>
+<script src="/gesture-control.js" defer></script>
 </body>
 </html>
