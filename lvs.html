@@ -78,13 +78,22 @@
   tr.det table{font-size:12px;border:1px solid var(--line);border-radius:8px}
   tr.det th{background:#3a6ea5;position:static}
   .sergrp td{background:#f1f5fb;font-weight:700;text-align:left}
-  .pow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
+  .pow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
   @media(max-width:1100px){.pow{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .pow .kpi .v{font-size:20px}
   .pow .kpi.hl{border-color:#9fd3b4;background:#f3fbf6}
   .bar2{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#e7ecf4;margin:6px 0 10px}
   .bar2 i{display:block;height:100%}
   .filt{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px}
+  .pop{display:none;position:fixed;inset:0;background:rgba(11,41,66,.45);z-index:100;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+  .pop.open{display:flex}
+  .pop-box{background:#fff;border-radius:14px;max-width:1280px;width:100%;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .pop-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
+  .pop-x{border:0;background:#eef2f8;border-radius:8px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer;color:var(--t2)}
+  .stbl{margin-bottom:10px}
+  .stbl td.l b{display:inline-block;min-width:110px}
+  svg rect.clk{cursor:pointer}
+  svg rect.clk:hover{opacity:.8}
   a.z{color:var(--volt);text-decoration:none;font-weight:700} a.z:hover{text-decoration:underline}
 </style>
 </head>
@@ -144,6 +153,7 @@
   </div>
 </div>
 
+<div class="pop" id="pop"><div class="pop-box"><div class="pop-h"><div><h2 id="popTitle"></h2><div class="sub" id="popSub"></div></div><button class="pop-x" id="popX">✕ Close</button></div><div id="popBody"></div></div></div>
 <div id="vOb" style="display:none">
   <div class="err" id="obErr"></div>
   <div class="card">
@@ -160,7 +170,7 @@
   <div class="card">
     <div class="card-h"><div><h2>Order booking vs invoicing – month by month</h2><div class="sub" id="obChartSub"></div></div>
       <div class="toggle" id="obUnitTg"><button data-k="q" class="on">Qty (pcs)</button><button data-k="v">Value (₹ L)</button></div></div>
-    <div class="legend"><span><i style="background:var(--ob)"></i>Order booking</span><span><i style="background:var(--inv)"></i>Invoicing</span><span><i style="background:#c2731a"></i>Pending (not yet billed) from that month's OAs</span></div>
+    <div class="legend"><span><i style="background:var(--ob)"></i>Order booking</span><span><i style="background:var(--inv)"></i>Invoicing</span><span><i style="background:#7b5ea7"></i>Invoice pending carried in from previous months (at month start)</span><span><i style="background:#c2731a"></i>Still pending today from that month's OAs</span><span class="muted">· click a purple or orange bar for the series / stock / OA breakup</span></div>
     <div class="chart" id="obChart"></div>
   </div>
 
@@ -174,6 +184,7 @@
       <div class="f"><label>Region</label><select id="oaRegion"><option value="">All regions</option></select></div>
       <div class="f"><label>Search OA / customer / engineer</label><input type="search" id="oaQ" placeholder="OA no, customer, engineer"></div>
     </div>
+    <div class="stbl" id="oaSum"></div>
     <div class="tbl" id="oaTbl"></div>
   </div>
 
@@ -502,8 +513,11 @@ function renderPower(){
   const invM = S.series || S.q ? null : (isCur ? mon[4] : null), obM = S.series || S.q ? null : (isCur ? mon[2] : null);
   $('powTitle').textContent = isCur ? `Invoicing power — ${monthLabel(cy, curMi)}${filt}` : `Pending orders vs stock${filt}`;
   const k = (lbl, v, sub, hl) => `<div class="kpi${hl ? ' hl' : ''}"><div class="k">${lbl}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  const obPcs = S.series || S.q ? null : (isCur ? mon[1] : null);
+  const newOas = new Set(OAL.filter(l => l.isNew).map(l => l.oa)).size;
   $('powKpis').innerHTML =
-    k('Invoiced this month', invM == null ? '—' : `₹${fL(invM)} L`, obM == null ? 'select all series to see' : `OB this month ₹${fL(obM)} L`) +
+    k(isCur ? `Order booking ${monthLabel(cy, curMi)}` : 'Order booking this month', obM == null ? '—' : `₹${fL(obM)} L`, obM == null ? 'select all series to see' : `${fQ(obPcs)} pcs · ${newOas} new OA${newOas === 1 ? '' : 's'} still open`) +
+    k('Invoiced this month', invM == null ? '—' : `₹${fL(invM)} L`, invM == null ? 'select all series to see' : `${fQ(mon[3])} pcs billed so far`) +
     k('Pending to invoice', `₹${fL(T.pv)} L`, `${T.oas} OAs · ${fQ(T.pq)} pcs`) +
     k('Can bill now (stock)', `₹${fL(T.now)} L`, `${T.pv ? Math.round(T.now / T.pv * 100) : 0}% of pending`, true) +
     k('Due from L&K ≤ 4 wk', `₹${fL(T.v4)} L`, `+ ₹${fL(T.v8)} L due ≤ 8 wk`) +
@@ -520,10 +534,11 @@ function renderPower(){
     (S.pend.asof ? ` <span class="muted">Orders &amp; invoices up to ${esc(S.pend.asof)}.</span>` : '');
 }
 
+function monthStartOf(cy, i){ return new Date(cy + (i >= 9 ? 1 : 0), (i + 3) % 12, 1); }
 function renderObChart(){
-  const u = S.obUnit, cy = S.plan.cy;
+  const u = S.obUnit, cy = S.plan.cy, filt = !!(S.series || S.q);
   let ob, inv;
-  if (!S.series && !S.q) {
+  if (!filt) {
     const M = new Map((S.pend.months || []).map(x => [x[0], x]));
     ob = MN.map((_, i) => { const x = M.get(i); return x ? (u === 'q' ? x[1] : x[2] / 1e5) : 0; });
     inv = MN.map((_, i) => { const x = M.get(i); return x ? (u === 'q' ? x[3] : x[4] / 1e5) : 0; });
@@ -532,24 +547,85 @@ function renderObChart(){
     ob = MN.map((_, i) => sum(list.map(x => u === 'q' ? x.ob[i] : x.ob[i] * x.rate / 1e5)));
     inv = MN.map((_, i) => sum(list.map(x => u === 'q' ? x.inv[i] : x.inv[i] * x.rate / 1e5)));
   }
+  const C = new Map((S.pend.carry || []).map(x => [x[0], x]));
+  const carry = MN.map((_, i) => { const x = C.get(i); return !filt && x ? (u === 'q' ? x[1] : x[2] / 1e5) : 0; });
   const pend = MN.map(() => 0);
   OAL.filter(lineFilter).forEach(l => { const dt = new Date(l.d); const fy = dt.getMonth() >= 3 ? dt.getFullYear() : dt.getFullYear() - 1; if (fy === cy) pend[(dt.getMonth() + 9) % 12] += u === 'q' ? l.pq : l.pv / 1e5; });
-  $('obChartSub').textContent = `${fyLabel(cy)}` + (S.series || S.q ? ' · filtered (values at average rates)' : '') + ' · hover a bar for the figure';
-  const W = 1100, H = 300, L = 60, R = 16, T = 16, B = 34, cw = (W - L - R) / 12;
-  const max = Math.max(1, ...ob, ...inv, ...pend) * 1.1, y = v => T + (H - T - B) * (1 - v / max);
+  $('obChartSub').textContent = `${fyLabel(cy)}` + (filt ? ' · filtered (values at average rates; carried-in bars need all series)' : '') + ' · hover a bar for the figure';
+  const W = 1100, H = 310, L = 60, R = 16, T = 16, B = 34, cw = (W - L - R) / 12;
+  const max = Math.max(1, ...ob, ...inv, ...pend, ...carry) * 1.1, y = v => T + (H - T - B) * (1 - v / max);
   const f = v => u === 'q' ? fQ(v) + ' pcs' : '₹' + fM(v) + ' L';
   let g = '';
   for (let i = 0; i <= 4; i++) { const v = max / 1.1 * i / 4, yy = y(v); g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#e7ecf4"/><text x="${L - 6}" y="${yy + 4}" font-size="11" text-anchor="end" fill="#6f84ad">${u === 'q' ? fQ(v) : fM(v)}</text>`; }
-  const bw = cw * 0.26;
+  const bw = cw * 0.2;
   MN.forEach((m, i) => {
-    const x0 = L + i * cw + cw * 0.11;
-    g += `<rect x="${x0}" y="${y(ob[i])}" width="${bw}" height="${H - B - y(ob[i])}" fill="#0073C8" rx="2"><title>${m}: order booking ${f(ob[i])}</title></rect>`;
-    g += `<rect x="${x0 + bw}" y="${y(inv[i])}" width="${bw}" height="${H - B - y(inv[i])}" fill="#2e9e6b" rx="2"><title>${m}: invoicing ${f(inv[i])}</title></rect>`;
-    g += `<rect x="${x0 + 2 * bw}" y="${y(pend[i])}" width="${bw}" height="${H - B - y(pend[i])}" fill="#c2731a" rx="2"><title>${m}: still pending from this month's OAs ${f(pend[i])}</title></rect>`;
+    const x0 = L + i * cw + cw * 0.1;
+    const bar = (k, v, col, tip, cls, dk) => `<rect ${cls ? `class="clk" data-k="${dk}" data-i="${i}"` : ''} x="${x0 + k * bw}" y="${y(v)}" width="${bw}" height="${Math.max(0, H - B - y(v))}" fill="${col}" rx="2"><title>${m}: ${tip} ${f(v)}${cls ? ' – click for breakup' : ''}</title></rect>`;
+    g += bar(0, carry[i], '#7b5ea7', 'invoice pending carried in at month start', carry[i] > 0, 'carry');
+    g += bar(1, ob[i], '#0073C8', 'order booking');
+    g += bar(2, inv[i], '#2e9e6b', 'invoicing');
+    g += bar(3, pend[i], '#c2731a', "still pending today from this month's OAs", pend[i] > 0, 'month');
     g += `<text x="${L + i * cw + cw / 2}" y="${H - 12}" font-size="12" text-anchor="middle" fill="#3b5384">${m}</text>`;
   });
   $('obChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
+  $('obChart').querySelectorAll('rect.clk').forEach(r => r.onclick = () => {
+    const i = +r.dataset.i, ms = monthStartOf(cy, i), me = monthStartOf(cy, i + 1), lab = monthLabel(cy, i);
+    if (r.dataset.k === 'carry') {
+      const c = C.get(i);
+      const ls = OAL.filter(l => lineFilter(l) && new Date(l.d) < ms);
+      openPop(`Invoice pending carried into ${lab}`, `At 1-${lab}: ${fQ(c ? c[1] : 0)} pcs · ₹${fL(c ? c[2] : 0)} L was booked earlier and not yet invoiced. Below: the part of it that is <b>still pending today</b>, with today's stock.`, ls);
+    } else {
+      const ls = OAL.filter(l => lineFilter(l) && new Date(l.d) >= ms && new Date(l.d) < me);
+      openPop(`OAs booked in ${lab} – still pending today`, `Order booking ${lab}: ${f(ob[i])} · invoiced in ${lab}: ${f(inv[i])}. Lines from ${lab}'s OAs that are not yet invoiced, with today's stock.`, ls);
+    }
+  });
 }
+
+/* ---- popup: status + product series → OA breakup ---- */
+const POP = { lines:[], open:new Set() };
+function statusSummary(lines){
+  const by = k => lines.filter(l => l.status === k);
+  const row = (k, lbl) => { const ls = by(k), oas = new Set(ls.map(l => l.oa)).size;
+    return `<tr><td class="l"><span class="chip ${LST[k][1]}">${lbl}</span></td><td>${oas}</td><td>${ls.length}</td><td>${fQ(sum(ls.map(l => l.pq)))}</td><td>${fL(sum(ls.map(l => l.pv)))}</td><td style="color:var(--good);font-weight:700">${fQ(sum(ls.map(l => l.alloc)))}</td><td style="color:var(--good);font-weight:700">${fL(sum(ls.map(l => l.vNow)))}</td><td style="color:var(--bad)">${fQ(sum(ls.map(l => l.pq - l.alloc)))}</td><td style="color:var(--bad)">${fL(Math.max(0, sum(ls.map(l => l.pv - l.vNow))))}</td></tr>`; };
+  return `<table><thead><tr><th class="l">Item lines</th><th>OAs</th><th>Lines</th><th>Pending pcs</th><th>Pending ₹ L</th><th>Ready to bill pcs</th><th>Ready to bill ₹ L</th><th>Short pcs</th><th>Short ₹ L</th></tr></thead><tbody>` +
+    row('ready', 'Ready to bill') + row('part', 'Part stock') + row('nostock', 'No stock') +
+    `<tr class="tot"><td class="l">Total</td><td>${new Set(lines.map(l => l.oa)).size}</td><td>${lines.length}</td><td>${fQ(sum(lines.map(l => l.pq)))}</td><td>${fL(sum(lines.map(l => l.pv)))}</td><td>${fQ(sum(lines.map(l => l.alloc)))}</td><td>${fL(sum(lines.map(l => l.vNow)))}</td><td>${fQ(sum(lines.map(l => l.pq - l.alloc)))}</td><td>${fL(Math.max(0, sum(lines.map(l => l.pv - l.vNow))))}</td></tr></tbody></table>`;
+}
+function openPop(title, sub, lines){
+  POP.lines = lines; POP.open = new Set();
+  $('popTitle').textContent = title; $('popSub').innerHTML = sub;
+  renderPop(); $('pop').classList.add('open');
+}
+function renderPop(){
+  const lines = POP.lines;
+  if (!lines.length) { $('popBody').innerHTML = '<div class="note">Nothing from these OAs is pending any more – all invoiced.</div>'; return; }
+  const ser = {};
+  lines.forEach(l => { const s = ser[l.series] = ser[l.series] || { series:l.series, ls:[], codes:new Set() }; s.ls.push(l); s.codes.add(l.code); });
+  const serStock = {}; ITEMS.forEach(x => { if (x.st) serStock[x.series] = (serStock[x.series] || 0) + x.st.total; });
+  const list = Object.values(ser).sort((a, b) => sum(b.ls.map(l => l.pv)) - sum(a.ls.map(l => l.pv)));
+  const cnt = (ls, k) => ls.filter(l => l.status === k);
+  $('popBody').innerHTML = `<div class="stbl">${statusSummary(lines)}</div>
+    <div class="tbl" style="max-height:none"><table><thead><tr><th></th><th class="l">Product series</th><th>OAs</th><th>Items</th><th>Pending pcs</th><th>Pending ₹ L</th><th>Stock of these items</th><th>Ready to bill pcs / ₹ L</th><th>Part stock pcs / ₹ L</th><th>No stock pcs / ₹ L</th><th class="l">Remarks</th></tr></thead><tbody>` +
+    list.map(s => { const o = POP.open.has(s.series), ls = s.ls;
+      const stockItems = sum([...s.codes].map(c => { const l = ls.find(x => x.code === c); return l.st ? l.st.total : 0; }));
+      const r = cnt(ls, 'ready'), p = cnt(ls, 'part'), z = cnt(ls, 'nostock');
+      const cell = g => g.length ? `${fQ(sum(g.map(l => l.pq)))} / ${fL(sum(g.map(l => l.pv)))}` : '—';
+      const rem = z.length === 0 && p.length === 0 ? 'All in stock – need to bill' : `Bill ${fQ(sum(ls.map(l => l.alloc)))} pcs (₹${fL(sum(ls.map(l => l.vNow)))} L) now · short ${fQ(sum(ls.map(l => l.pq - l.alloc)))} pcs` + (sum(ls.map(l => l.gap)) > 0 ? ` · ${fQ(sum(ls.map(l => l.gap)))} pcs not on order with L&K` : '');
+      return `<tr class="oa${o ? ' open' : ''}" data-ps="${esc(s.series)}"><td>${o ? '▾' : '▸'}</td><td class="l"><b>${esc(s.series)}</b></td><td>${new Set(ls.map(l => l.oa)).size}</td><td>${s.codes.size}</td><td>${fQ(sum(ls.map(l => l.pq)))}</td><td>${fL(sum(ls.map(l => l.pv)))}</td><td>${fQ(stockItems)}</td>
+        <td style="color:var(--good)">${cell(r)}</td><td style="color:var(--warn)">${cell(p)}</td><td style="color:var(--bad)">${cell(z)}</td><td class="l" style="white-space:normal">${esc(rem)}</td></tr>` +
+        (o ? `<tr class="det"><td colspan="11">${popLines(ls)}</td></tr>` : ''); }).join('') + '</tbody></table></div>';
+  $('popBody').querySelectorAll('tr[data-ps]').forEach(tr => tr.onclick = () => { const k = tr.dataset.ps; POP.open.has(k) ? POP.open.delete(k) : POP.open.add(k); renderPop(); });
+}
+function popLines(ls){
+  const sorted = [...ls].sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  return `<table><thead><tr><th class="l">OA</th><th class="l">OA date</th><th class="l">Customer</th><th class="l">Region</th><th class="l">Item</th><th>Pending</th><th>Stock (item)</th><th>Ready to bill</th><th>Short</th><th>L&amp;K ≤4 wk</th><th>Pending ₹ L</th><th class="l">Remarks</th></tr></thead><tbody>` +
+    sorted.map(l => `<tr><td class="l">${zLink(l.zid, l.oa)}</td><td class="l">${esc(l.d)}</td><td class="l item">${esc(l.cust)}</td><td class="l">${esc(l.rg)}</td><td class="l item">${esc(l.code)} · ${esc(l.desc)}</td>
+      <td><b>${fQ(l.pq)}</b></td><td>${l.st ? fQ(l.st.total) : '—'}</td><td style="color:var(--good)">${fQ(l.alloc)}</td><td style="color:var(--bad)">${fQ(l.pq - l.alloc)}</td><td>${fQ(l.a4)}</td><td>${fL(l.pv)}</td>
+      <td class="l"><span class="chip ${LST[l.status][1]}">${LST[l.status][0]}</span> ${esc(l.remark)}</td></tr>`).join('') + '</tbody></table>';
+}
+$('popX').onclick = () => $('pop').classList.remove('open');
+$('pop').onclick = e => { if (e.target.id === 'pop') $('pop').classList.remove('open'); };
+document.addEventListener('keydown', e => { if (e.key === 'Escape') $('pop').classList.remove('open'); });
 
 function oaRows(){
   const q = S.oaQ.trim().toLowerCase();
@@ -575,8 +651,18 @@ function lineTable(lines, withOa){
 }
 function renderOas(){
   const rows = oaRows();
-  const cnt = k => OAS.filter(o => o.lines.some(lineFilter) && (k === 'all' || o.status === k)).length;
-  $('oaTabs').querySelectorAll('button').forEach(b => { const k = b.dataset.k; b.textContent = `${{all:'All', ready:'Ready to bill', part:'Part stock', nostock:'No stock'}[k]} (${cnt(k)})`; b.classList.toggle('on', k === S.oaTab); });
+  // status breakup (OA level) for the current filters, ignoring the status tab
+  const keepTab = S.oaTab; S.oaTab = 'all'; const allRows = oaRows(); S.oaTab = keepTab;
+  const grp = k => allRows.filter(o => k === 'all' || o.status === k);
+  const sv = (os, f) => sum(os.map(f));
+  const lab = {all:'All', ready:'Ready to bill', part:'Part stock', nostock:'No stock'};
+  $('oaTabs').querySelectorAll('button').forEach(b => { const k = b.dataset.k, os = grp(k); b.innerHTML = `${lab[k]} (${os.length}) · ₹${fL(sv(os, o => o.fpv))} L`; b.classList.toggle('on', k === S.oaTab); });
+  const srow = (k, cls) => { const os = grp(k), ls = os.flatMap(o => o.flines);
+    return `<tr${k === 'all' ? ' class="tot"' : ''}><td class="l">${k === 'all' ? 'Total' : `<span class="chip ${cls}">${lab[k]}</span>`}</td><td>${os.length}</td><td>${fQ(sum(ls.map(l => l.pq)))}</td><td>${fL(sum(ls.map(l => l.pv)))}</td>
+      <td style="color:var(--good);font-weight:700">${fQ(sum(ls.map(l => l.alloc)))}</td><td style="color:var(--good);font-weight:700">${fL(sum(ls.map(l => l.vNow)))}</td>
+      <td style="color:var(--bad)">${fQ(sum(ls.map(l => l.pq - l.alloc)))}</td><td style="color:var(--bad)">${fL(Math.max(0, sum(ls.map(l => l.pv - l.vNow))))}</td><td>${fQ(sum(ls.map(l => l.a4)))}</td></tr>`; };
+  $('oaSum').innerHTML = `<table><thead><tr><th class="l">OA status</th><th>OAs</th><th>Pending pcs</th><th>Pending ₹ L</th><th>Ready to bill pcs</th><th>Ready to bill ₹ L</th><th>Short pcs</th><th>Short ₹ L</th><th>L&amp;K due ≤4 wk pcs</th></tr></thead><tbody>` +
+    srow('ready', 'c-ready') + srow('part', 'c-part') + srow('nostock', 'c-nostock') + srow('all') + '</tbody></table>';
   const sorters = { d: (a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0), v: (a, b) => b.fpv - a.fpv, now: (a, b) => b.fnow - a.fnow, cust: (a, b) => String(a.cust).localeCompare(String(b.cust)) };
   rows.sort(sorters[S.oaSort] || sorters.d);
   const show = rows.slice(0, 400);

@@ -36,6 +36,26 @@ pend as (
   from ob left join inv using (oa, code)
     left join so on so.oa = ob.oa
   where ob.q - coalesce(inv.q, 0) > 0),
+ms as (
+  select g mi, make_date(p.cy + (g >= 9)::int, (g + 3) % 12 + 1, 1) d
+  from p, generate_series(0, 11) g
+  where make_date(p.cy + (g >= 9)::int, (g + 3) % 12 + 1, 1)
+    <= current_date),
+invd as (
+  select oa_no oa, item_code code, posting_date d, quantity q
+  from b where doc_type = 'INV' and oa_no is not null),
+ib as (
+  select ms.mi, i.oa, i.code, sum(i.q) q
+  from ms join invd i on i.d < ms.d group by 1, 2, 3),
+carry as (
+  select ms.mi,
+    sum(greatest(o.q - coalesce(ib.q, 0), 0)) cq,
+    sum(o.v * greatest(o.q - coalesce(ib.q, 0), 0)
+      / nullif(o.q, 0)) cv
+  from ms join ob o on o.d < ms.d
+  left join ib on ib.mi = ms.mi and ib.oa = o.oa
+    and ib.code = o.code
+  group by ms.mi),
 mon as (
   select (fy_month + 8) % 12 mi,
     sum(quantity) filter (where doc_type = 'OB') obq,
@@ -50,6 +70,9 @@ select jsonb_build_object(
       coalesce(obq, 0), round(coalesce(obv, 0)),
       coalesce(invq, 0), round(coalesce(invv, 0)))
       order by mi), '[]') from mon),
+  'carry', (select coalesce(jsonb_agg(jsonb_build_array(mi,
+      round(coalesce(cq, 0)), round(coalesce(cv, 0)))
+      order by mi), '[]') from carry),
   'lines', (select coalesce(jsonb_agg(jsonb_build_array(
       oa, d, cust, atype, rg, eng, zid, code, q, iq, pq,
       round(v * pq / nullif(q, 0)))
