@@ -69,6 +69,23 @@
   .tabs button.on{background:var(--volt);border-color:var(--volt);color:#fff;font-weight:700}
   .sumtbl{margin-bottom:12px}
   .sumtbl table{font-size:13px}
+  .viewtg{margin-top:8px}
+  .viewtg button{font-size:13.5px;padding:7px 16px}
+  .c-ready{background:var(--good-bg);color:var(--good)} .c-part{background:var(--warn-bg);color:var(--warn)} .c-nostock{background:var(--bad-bg);color:var(--bad)}
+  tr.oa{cursor:pointer} tr.oa td:first-child{color:var(--t3);width:18px}
+  tr.oa.open td{background:#eef5ff}
+  tr.det>td{background:#fafcff;padding:8px 10px 12px 28px;text-align:left;white-space:normal}
+  tr.det table{font-size:12px;border:1px solid var(--line);border-radius:8px}
+  tr.det th{background:#3a6ea5;position:static}
+  .sergrp td{background:#f1f5fb;font-weight:700;text-align:left}
+  .pow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-bottom:12px}
+  @media(max-width:1100px){.pow{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .pow .kpi .v{font-size:20px}
+  .pow .kpi.hl{border-color:#9fd3b4;background:#f3fbf6}
+  .bar2{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#e7ecf4;margin:6px 0 10px}
+  .bar2 i{display:block;height:100%}
+  .filt{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px}
+  a.z{color:var(--volt);text-decoration:none;font-weight:700} a.z:hover{text-decoration:underline}
 </style>
 </head>
 <body>
@@ -76,11 +93,12 @@
   <div class="bar">
     <div>
       <h1>🔌 LVS – L&amp;K material planning</h1>
+      <div class="toggle viewtg" id="viewTg"><button data-k="plan" class="on">📦 Material planning</button><button data-k="ob">📋 OB / Stock</button></div>
       <div class="sub">Switchgear (white-labelled from L&amp;K) · order booking &amp; invoicing by item code · live stock from the Switchgear stock sheet (read every 2 hours)</div>
     </div>
     <div class="ctrls">
       <div class="f"><label>Financial year</label><select id="fy"></select></div>
-      <div class="f"><label>Projection based on</label>
+      <div class="f" id="basisF"><label>Projection based on</label>
         <div class="toggle" id="basisTg"><button data-k="max" class="on">Higher of OB &amp; INV</button><button data-k="ob">Order booking</button><button data-k="inv">Invoicing</button></div></div>
       <div class="f"><label>Series</label><select id="series"><option value="">All series</option></select></div>
       <div class="f"><label>Search item</label><input type="search" id="q" placeholder="Code, cat code or name"></div>
@@ -92,6 +110,7 @@
   <div class="err" id="errBox"></div>
   <div class="warnbox" id="stockWarn"></div>
 
+<div id="vPlan">
   <div class="card">
     <div class="kpis" id="kpis"></div>
   </div>
@@ -125,6 +144,48 @@
   </div>
 </div>
 
+<div id="vOb" style="display:none">
+  <div class="err" id="obErr"></div>
+  <div class="card">
+    <div class="card-h"><div><h2 id="powTitle">Invoicing power this month</h2>
+      <div class="sub">What can still be billed this month from pending OAs (booked earlier, not yet invoiced) and new OAs (booked this month), using today's stock.
+        Stock is given to the oldest OA first. "Due from L&amp;K" = deliveries in the stock sheet due within 4 weeks.</div></div></div>
+    <div class="pow" id="powKpis"></div>
+    <div class="bar2" id="powBar"></div>
+    <div class="legend" id="powLegend"></div>
+    <div class="tbl" id="powTbl" style="max-height:none"></div>
+    <div class="note" id="powNote" style="margin-top:10px"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Order booking vs invoicing – month by month</h2><div class="sub" id="obChartSub"></div></div>
+      <div class="toggle" id="obUnitTg"><button data-k="q" class="on">Qty (pcs)</button><button data-k="v">Value (₹ L)</button></div></div>
+    <div class="legend"><span><i style="background:var(--ob)"></i>Order booking</span><span><i style="background:var(--inv)"></i>Invoicing</span><span><i style="background:#c2731a"></i>Pending (not yet billed) from that month's OAs</span></div>
+    <div class="chart" id="obChart"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Pending OAs – stock check</h2>
+      <div class="sub">Every OA with switchgear still to be invoiced. Click an OA to see its items by product series with stock and remarks. Updates daily from Zoho (orders &amp; invoices) and every 2 hours from the stock sheet.</div></div>
+      <button class="btn" id="dlOa">Download OA lines (CSV)</button></div>
+    <div class="filt">
+      <div class="tabs" id="oaTabs" style="margin:0"><button data-k="all" class="on">All</button><button data-k="ready">Ready to bill</button><button data-k="part">Part stock</button><button data-k="nostock">No stock</button></div>
+      <div class="f"><label>OA age</label><select id="oaAge"><option value="">All</option><option value="new">New (this month)</option><option value="old">Pending (earlier)</option><option value="60">Older than 60 days</option></select></div>
+      <div class="f"><label>Region</label><select id="oaRegion"><option value="">All regions</option></select></div>
+      <div class="f"><label>Search OA / customer / engineer</label><input type="search" id="oaQ" placeholder="OA no, customer, engineer"></div>
+    </div>
+    <div class="tbl" id="oaTbl"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Product series breakup – pending orders vs stock</h2>
+      <div class="sub">Click a series to see its items; click an item to see the OAs waiting for it.</div></div>
+      <button class="btn" id="dlSer">Download items (CSV)</button></div>
+    <div class="tbl" id="serTbl" style="max-height:none"></div>
+  </div>
+</div>
+</div>
+
 <script>
 /* ======================= plumbing ======================= */
 const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
@@ -150,7 +211,8 @@ function csv(name, head, rows){
 }
 
 /* ======================= state ======================= */
-const S = { cy:null, plan:null, stock:null, stockErr:null, basis:'max', unit:'q', series:'', q:'', poTab:'order', sortP:'pv', sortO:'pov' };
+const S = { cy:null, plan:null, stock:null, stockErr:null, basis:'max', unit:'q', series:'', q:'', poTab:'order', sortP:'pv', sortO:'pov',
+  view:'plan', pend:null, pendErr:null, obUnit:'q', oaTab:'all', oaAge:'', oaRegion:'', oaQ:'', oaSort:'d', openOa:new Set(), openSer:new Set(), openItem:new Set() };
 const today = new Date();
 const curFY = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
 const curMi = (today.getMonth() + 9) % 12;                     // Apr = 0
@@ -168,12 +230,16 @@ async function loadStock(fresh){
     S.stock = j; S.stockErr = j.stale ? j.error : null;
   } catch (e) { S.stock = null; S.stockErr = e.message; }
 }
+async function loadPending(){
+  try { S.pend = await rpc('lvs_pending', { p_cy: S.cy }); S.pendErr = null; }
+  catch (e) { S.pend = null; S.pendErr = e.message; }
+}
 async function loadAll(fresh){
   $('errBox').style.display = 'none';
   $('sync').innerHTML = 'Loading…';
   try {
-    await Promise.all([loadPlan(), loadStock(fresh)]);
-    build(); render();
+    await Promise.all([loadPlan(), loadStock(fresh), loadPending()]);
+    build(); buildPending(); render();
   } catch (e) { $('errBox').style.display = 'block'; $('errBox').textContent = 'Could not load data — ' + e.message; $('sync').innerHTML = ''; }
 }
 
@@ -239,6 +305,7 @@ function render(){
   else if (S.stockErr) { sw.style.display = 'block'; sw.innerHTML = `<b>Stock sheet:</b> ${esc(S.stockErr)}` + (S.stock ? ' (showing the last copy read)' : ' — PO quantities below assume zero stock until the sheet can be read.'); }
   else sw.style.display = 'none';
   $('basisTxt').textContent = S.basis === 'ob' ? 'order booking' : S.basis === 'inv' ? 'invoicing' : 'higher of order booking and invoicing, per item';
+  if (S.view === 'ob') { renderOb(); return; }
   const list = filtered();
   renderKpis(list); renderChart(list); renderProj(list); renderPo(list);
 }
@@ -347,6 +414,220 @@ function renderPo(list){
   $('poTbl').querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { S.sortO = th.dataset.s; renderPo(filtered()); });
 }
 
+
+/* ======================= OB / Stock view ======================= */
+let OAL = [], OAS = [];
+const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+const zLink = (zid, oa) => zid ? `<a class="z" target="_blank" rel="noopener" href="https://crm.zoho.com/crm/org286180109/tab/SalesOrders/${encodeURIComponent(zid)}" onclick="event.stopPropagation()">${esc(oa)}</a>` : esc(oa);
+const LST = { ready:['In stock','c-ready'], part:['Part stock','c-part'], nostock:['No stock','c-nostock'] };
+const OST = { ready:['Ready to bill','c-ready'], part:['Part stock','c-part'], nostock:['No stock','c-nostock'] };
+
+function buildPending(){
+  OAL = []; OAS = [];
+  if (!S.pend) return;
+  const itemBy = new Map(ITEMS.map(x => [x.code, x]));
+  const stockBy = new Map((S.stock?.items || []).map(x => [String(x.code), x]));
+  const curFYsel = S.cy === curFY;
+  OAL = (S.pend.lines || []).map(a => {
+    const [oa, d, cust, atype, rg, eng, zid, code, q, iq, pq, pv] = a;
+    const it = itemBy.get(String(code)) || {};
+    return { oa:String(oa), d, cust, atype, rg: (rg || '—').trim(), eng, zid, code:String(code), q:+q, iq:+iq, pq:+pq, pv:+pv || 0,
+             cat: it.cat || '', desc: it.desc || '', series: it.series || 'Other', st: stockBy.get(String(code)) || null,
+             isNew: curFYsel && new Date(d) >= monthStart };
+  });
+  // FIFO: oldest OA gets the stock first, then L&K deliveries due in 4 weeks, then 8 weeks
+  const byCode = {};
+  OAL.forEach(l => (byCode[l.code] = byCode[l.code] || []).push(l));
+  Object.values(byCode).forEach(ls => {
+    ls.sort((x, y) => (x.d < y.d ? -1 : x.d > y.d ? 1 : x.oa.localeCompare(y.oa)));
+    const st = ls[0].st;
+    let have = st ? st.total : 0, in4 = st ? st.d4 : 0, in8 = st ? st.d8 : 0, need = 0;
+    ls.forEach(l => {
+      l.alloc = Math.min(l.pq, Math.max(0, have)); have -= l.alloc;
+      let short = l.pq - l.alloc;
+      l.a4 = Math.min(short, Math.max(0, in4)); in4 -= l.a4; short -= l.a4;
+      l.a8 = Math.min(short, Math.max(0, in8)); in8 -= l.a8; short -= l.a8;
+      l.gap = short;
+      need += l.pq; l.itemNeed = need;
+      const r = l.pq ? l.pv / l.pq : 0;
+      l.vNow = l.alloc * r; l.v4 = l.a4 * r; l.v8 = l.a8 * r; l.vGap = l.gap * r;
+      l.status = l.alloc >= l.pq ? 'ready' : l.alloc > 0 ? 'part' : 'nostock';
+      const due = (l.a4 ? `L&K due ≤4 wk: ${fQ(l.a4)}` : '') + (l.a8 ? `${l.a4 ? ', ' : ''}≤8 wk: ${fQ(l.a8)}` : '');
+      l.remark = !l.st ? 'Item not in stock sheet – check stock'
+        : l.status === 'ready' ? 'Stock available – need to bill'
+        : l.status === 'part' ? `Part stock – bill ${fQ(l.alloc)} now, short ${fQ(l.pq - l.alloc)}` + (due ? ` (${due})` : '') + (l.gap ? ` · ${fQ(l.gap)} not on order with L&K` : '')
+        : 'No stock' + (due ? ` – ${due}` : '') + (l.gap ? `${due ? ' · ' : ' – '}${fQ(l.gap)} not on order with L&K – raise PO` : '');
+    });
+    const tot = ls.reduce((s, l) => s + l.pq, 0);
+    ls.forEach(l => l.itemPend = tot);
+  });
+  const m = new Map();
+  OAL.forEach(l => {
+    let o = m.get(l.oa);
+    if (!o) m.set(l.oa, o = { oa:l.oa, d:l.d, cust:l.cust, atype:l.atype, rg:l.rg, eng:l.eng, zid:l.zid, isNew:l.isNew, lines:[], pq:0, pv:0, vNow:0, v4:0, v8:0, vGap:0 });
+    o.lines.push(l); o.pq += l.pq; o.pv += l.pv; o.vNow += l.vNow; o.v4 += l.v4; o.v8 += l.v8; o.vGap += l.vGap;
+  });
+  OAS = [...m.values()];
+  OAS.forEach(o => {
+    const n = o.lines.length, r = o.lines.filter(l => l.status === 'ready').length, z = o.lines.filter(l => l.status === 'nostock').length;
+    o.status = r === n ? 'ready' : z === n ? 'nostock' : 'part';
+    o.age = Math.max(0, Math.round((today - new Date(o.d)) / 864e5));
+    o.remark = o.status === 'ready' ? `All ${n} item${n > 1 ? 's' : ''} in stock – need to bill`
+      : o.status === 'nostock' ? `No stock for ${n} item${n > 1 ? 's' : ''}` + (o.v4 > 0 ? ' – part due from L&K ≤4 wk' : '')
+      : `${r} of ${n} items fully in stock · bill ₹${fL(o.vNow)} L now`;
+  });
+  const regs = [...new Set(OAS.map(o => o.rg))].sort();
+  $('oaRegion').innerHTML = '<option value="">All regions</option>' + regs.map(r => `<option ${r === S.oaRegion ? 'selected' : ''}>${esc(r)}</option>`).join('');
+}
+
+function lineFilter(l){
+  const q = S.q.trim().toLowerCase();
+  return (!S.series || l.series === S.series) && (!q || l.code.includes(q) || l.cat.toLowerCase().includes(q) || l.desc.toLowerCase().includes(q));
+}
+
+function renderOb(){
+  $('obErr').style.display = S.pendErr ? 'block' : 'none';
+  if (S.pendErr) { $('obErr').innerHTML = 'Could not load pending orders — ' + esc(S.pendErr) + (/PGRST202|404/.test(S.pendErr) ? '<br>Run <b>supabase\\lvs_pending.sql</b> in Supabase once.' : ''); return; }
+  renderPower(); renderObChart(); renderOas(); renderSeries();
+}
+
+function renderPower(){
+  const cy = S.plan.cy, isCur = cy === curFY;
+  const mon = (S.pend.months || []).find(x => x[0] === curMi) || [curMi, 0, 0, 0, 0];
+  const ls = OAL.filter(lineFilter);
+  const grp = k => { const g = ls.filter(l => k === 'new' ? l.isNew : !l.isNew);
+    return { oas: new Set(g.map(l => l.oa)).size, pq: sum(g.map(l => l.pq)), pv: sum(g.map(l => l.pv)), now: sum(g.map(l => l.vNow)), v4: sum(g.map(l => l.v4)), v8: sum(g.map(l => l.v8)), gap: sum(g.map(l => l.vGap)) }; };
+  const P = grp('old'), N = grp('new'), T = { oas:P.oas + N.oas, pq:P.pq + N.pq, pv:P.pv + N.pv, now:P.now + N.now, v4:P.v4 + N.v4, v8:P.v8 + N.v8, gap:P.gap + N.gap };
+  const filt = S.series || S.q ? ' (filtered)' : '';
+  const invM = S.series || S.q ? null : (isCur ? mon[4] : null), obM = S.series || S.q ? null : (isCur ? mon[2] : null);
+  $('powTitle').textContent = isCur ? `Invoicing power — ${monthLabel(cy, curMi)}${filt}` : `Pending orders vs stock${filt}`;
+  const k = (lbl, v, sub, hl) => `<div class="kpi${hl ? ' hl' : ''}"><div class="k">${lbl}</div><div class="v">${v}</div><div class="s">${sub}</div></div>`;
+  $('powKpis').innerHTML =
+    k('Invoiced this month', invM == null ? '—' : `₹${fL(invM)} L`, obM == null ? 'select all series to see' : `OB this month ₹${fL(obM)} L`) +
+    k('Pending to invoice', `₹${fL(T.pv)} L`, `${T.oas} OAs · ${fQ(T.pq)} pcs`) +
+    k('Can bill now (stock)', `₹${fL(T.now)} L`, `${T.pv ? Math.round(T.now / T.pv * 100) : 0}% of pending`, true) +
+    k('Due from L&K ≤ 4 wk', `₹${fL(T.v4)} L`, `+ ₹${fL(T.v8)} L due ≤ 8 wk`) +
+    k('Invoicing power this month', invM == null ? `₹${fL(T.now)} L` : `₹${fL(invM + T.now)} L`, invM == null ? 'billable from stock' : `invoiced + billable now · up to ₹${fL(invM + T.now + T.v4)} L if L&K delivers in 4 wk`, true);
+  const tot = T.pv || 1, seg = (v, c) => `<i style="width:${(v / tot * 100).toFixed(2)}%;background:${c}"></i>`;
+  $('powBar').innerHTML = seg(T.now, '#2e9e6b') + seg(T.v4, '#f0b25a') + seg(T.v8, '#f6d9b8') + seg(T.gap, '#e06666');
+  $('powLegend').innerHTML = `<span><i style="background:#2e9e6b"></i>Bill now ₹${fL(T.now)} L</span><span><i style="background:#f0b25a"></i>L&amp;K ≤4 wk ₹${fL(T.v4)} L</span><span><i style="background:#f6d9b8"></i>L&amp;K ≤8 wk ₹${fL(T.v8)} L</span><span><i style="background:#e06666"></i>No stock, not on order ₹${fL(T.gap)} L</span>`;
+  const row = (lbl, x, b) => `<tr${b ? ' class="tot"' : ''}><td class="l">${lbl}</td><td>${x.oas}</td><td>${fQ(x.pq)}</td><td>${fL(x.pv)}</td><td style="color:var(--good);font-weight:700">${fL(x.now)}</td><td>${fL(x.v4)}</td><td>${fL(x.v8)}</td><td style="color:var(--bad)">${fL(x.gap)}</td><td>${x.pv ? Math.round(x.now / x.pv * 100) + '%' : '—'}</td></tr>`;
+  $('powTbl').innerHTML = `<table><thead><tr><th class="l">Orders</th><th>OAs</th><th>Pending pcs</th><th>Pending ₹ L</th><th>Bill now ₹ L</th><th>L&amp;K ≤4 wk ₹ L</th><th>L&amp;K ≤8 wk ₹ L</th><th>No stock, not on order ₹ L</th><th>Billable %</th></tr></thead><tbody>` +
+    row(isCur ? `Pending OAs (booked before ${MN[curMi]})` : 'Pending OAs', P) + (isCur ? row(`New OAs (booked in ${MN[curMi]})`, N) : '') + row('Total', T, true) + '</tbody></table>';
+  const top = Object.values(ls.reduce((a, l) => { if (l.vGap + l.v4 + l.v8 > 0) { const x = a[l.code] = a[l.code] || { code:l.code, desc:l.desc, v:0, q:0 }; x.v += l.vGap + l.v4 + l.v8; x.q += l.pq - l.alloc; } return a; }, {})).sort((a, b) => b.v - a.v).slice(0, 5);
+  $('powNote').innerHTML = `<b>To push billing this month:</b> bill the ₹${fL(T.now)} L that is already in stock` + (P.now > 0 ? ` (₹${fL(P.now)} L of it is on older OAs)` : '') + `, and follow up L&amp;K for the items blocking the most value: ` +
+    (top.length ? top.map(t => `${esc(t.code)} ${esc(t.desc.slice(0, 40))} (short ${fQ(t.q)} pcs, ₹${fL(t.v)} L)`).join('; ') : 'none') + '.' +
+    (S.pend.asof ? ` <span class="muted">Orders &amp; invoices up to ${esc(S.pend.asof)}.</span>` : '');
+}
+
+function renderObChart(){
+  const u = S.obUnit, cy = S.plan.cy;
+  let ob, inv;
+  if (!S.series && !S.q) {
+    const M = new Map((S.pend.months || []).map(x => [x[0], x]));
+    ob = MN.map((_, i) => { const x = M.get(i); return x ? (u === 'q' ? x[1] : x[2] / 1e5) : 0; });
+    inv = MN.map((_, i) => { const x = M.get(i); return x ? (u === 'q' ? x[3] : x[4] / 1e5) : 0; });
+  } else {
+    const list = filtered();
+    ob = MN.map((_, i) => sum(list.map(x => u === 'q' ? x.ob[i] : x.ob[i] * x.rate / 1e5)));
+    inv = MN.map((_, i) => sum(list.map(x => u === 'q' ? x.inv[i] : x.inv[i] * x.rate / 1e5)));
+  }
+  const pend = MN.map(() => 0);
+  OAL.filter(lineFilter).forEach(l => { const dt = new Date(l.d); const fy = dt.getMonth() >= 3 ? dt.getFullYear() : dt.getFullYear() - 1; if (fy === cy) pend[(dt.getMonth() + 9) % 12] += u === 'q' ? l.pq : l.pv / 1e5; });
+  $('obChartSub').textContent = `${fyLabel(cy)}` + (S.series || S.q ? ' · filtered (values at average rates)' : '') + ' · hover a bar for the figure';
+  const W = 1100, H = 300, L = 60, R = 16, T = 16, B = 34, cw = (W - L - R) / 12;
+  const max = Math.max(1, ...ob, ...inv, ...pend) * 1.1, y = v => T + (H - T - B) * (1 - v / max);
+  const f = v => u === 'q' ? fQ(v) + ' pcs' : '₹' + fM(v) + ' L';
+  let g = '';
+  for (let i = 0; i <= 4; i++) { const v = max / 1.1 * i / 4, yy = y(v); g += `<line x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}" stroke="#e7ecf4"/><text x="${L - 6}" y="${yy + 4}" font-size="11" text-anchor="end" fill="#6f84ad">${u === 'q' ? fQ(v) : fM(v)}</text>`; }
+  const bw = cw * 0.26;
+  MN.forEach((m, i) => {
+    const x0 = L + i * cw + cw * 0.11;
+    g += `<rect x="${x0}" y="${y(ob[i])}" width="${bw}" height="${H - B - y(ob[i])}" fill="#0073C8" rx="2"><title>${m}: order booking ${f(ob[i])}</title></rect>`;
+    g += `<rect x="${x0 + bw}" y="${y(inv[i])}" width="${bw}" height="${H - B - y(inv[i])}" fill="#2e9e6b" rx="2"><title>${m}: invoicing ${f(inv[i])}</title></rect>`;
+    g += `<rect x="${x0 + 2 * bw}" y="${y(pend[i])}" width="${bw}" height="${H - B - y(pend[i])}" fill="#c2731a" rx="2"><title>${m}: still pending from this month's OAs ${f(pend[i])}</title></rect>`;
+    g += `<text x="${L + i * cw + cw / 2}" y="${H - 12}" font-size="12" text-anchor="middle" fill="#3b5384">${m}</text>`;
+  });
+  $('obChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}">${g}</svg>`;
+}
+
+function oaRows(){
+  const q = S.oaQ.trim().toLowerCase();
+  return OAS.map(o => {
+    const lines = o.lines.filter(lineFilter);
+    if (!lines.length) return null;
+    return { ...o, flines: lines, fpq: sum(lines.map(l => l.pq)), fpv: sum(lines.map(l => l.pv)), fnow: sum(lines.map(l => l.vNow)) };
+  }).filter(o => o &&
+    (S.oaTab === 'all' || o.status === S.oaTab) &&
+    (!S.oaRegion || o.rg === S.oaRegion) &&
+    (!S.oaAge || (S.oaAge === 'new' ? o.isNew : S.oaAge === 'old' ? !o.isNew : o.age > +S.oaAge)) &&
+    (!q || o.oa.includes(q) || String(o.cust || '').toLowerCase().includes(q) || String(o.eng || '').toLowerCase().includes(q)));
+}
+function lineTable(lines, withOa){
+  const bySer = {};
+  lines.forEach(l => (bySer[l.series] = bySer[l.series] || []).push(l));
+  return `<table><thead><tr>${withOa ? '<th class="l">OA</th><th class="l">OA date</th><th class="l">Customer</th><th class="l">Region</th>' : '<th class="l">Item code</th><th class="l">Cat code</th><th class="l">Item</th>'}
+    <th>OA qty</th><th>Invoiced</th><th>Pending</th><th>Stock (item)</th><th>Given to this OA</th><th>L&amp;K ≤4 wk</th><th>L&amp;K ≤8 wk</th><th>Pending ₹ L</th><th class="l">Remarks</th></tr></thead><tbody>` +
+    Object.entries(bySer).map(([ser, ls]) => (withOa ? '' : `<tr class="sergrp"><td colspan="13">${esc(ser)} · ${ls.length} item${ls.length > 1 ? 's' : ''} · ${fQ(sum(ls.map(l => l.pq)))} pcs pending</td></tr>`) +
+      ls.map(l => `<tr><td class="l">${withOa ? zLink(l.zid, l.oa) : esc(l.code)}</td><td class="l">${withOa ? esc(l.d) : esc(l.cat)}</td><td class="l item">${withOa ? esc(l.cust) : esc(l.desc)}</td>${withOa ? `<td class="l">${esc(l.rg)}</td>` : ''}
+        <td>${fQ(l.q)}</td><td>${fQ(l.iq)}</td><td><b>${fQ(l.pq)}</b></td><td>${l.st ? fQ(l.st.total) : '—'}</td><td>${fQ(l.alloc)}</td><td>${fQ(l.a4)}</td><td>${fQ(l.a8)}</td><td>${fL(l.pv)}</td>
+        <td class="l"><span class="chip ${LST[l.status][1]}">${LST[l.status][0]}</span> ${esc(l.remark)}</td></tr>`).join('')).join('') + '</tbody></table>';
+}
+function renderOas(){
+  const rows = oaRows();
+  const cnt = k => OAS.filter(o => o.lines.some(lineFilter) && (k === 'all' || o.status === k)).length;
+  $('oaTabs').querySelectorAll('button').forEach(b => { const k = b.dataset.k; b.textContent = `${{all:'All', ready:'Ready to bill', part:'Part stock', nostock:'No stock'}[k]} (${cnt(k)})`; b.classList.toggle('on', k === S.oaTab); });
+  const sorters = { d: (a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0), v: (a, b) => b.fpv - a.fpv, now: (a, b) => b.fnow - a.fnow, cust: (a, b) => String(a.cust).localeCompare(String(b.cust)) };
+  rows.sort(sorters[S.oaSort] || sorters.d);
+  const show = rows.slice(0, 400);
+  $('oaTbl').innerHTML = `<table><thead><tr><th></th><th class="l">OA no</th><th class="l" data-s="d">OA date ⇅</th><th>Age (days)</th><th class="l" data-s="cust">Customer ⇅</th><th class="l">Type</th><th class="l">Region</th><th class="l">Engineer</th>
+    <th>Items</th><th>Pending pcs</th><th data-s="v">Pending ₹ L ⇅</th><th data-s="now">Bill now ₹ L ⇅</th><th>Status</th><th class="l">Remarks</th></tr></thead><tbody>` +
+    (show.length ? show.map(o => { const open = S.openOa.has(o.oa);
+      return `<tr class="oa${open ? ' open' : ''}" data-oa="${esc(o.oa)}"><td>${open ? '▾' : '▸'}</td><td class="l">${zLink(o.zid, o.oa)}${o.isNew ? ' <span class="chip c-ok" style="font-size:10px">new</span>' : ''}</td><td class="l">${esc(o.d)}</td><td>${o.age}</td>
+        <td class="l item">${esc(o.cust)}</td><td class="l">${esc(o.atype || '')}</td><td class="l">${esc(o.rg)}</td><td class="l">${esc(o.eng || '')}</td>
+        <td>${o.flines.length}</td><td>${fQ(o.fpq)}</td><td>${fL(o.fpv)}</td><td style="color:var(--good);font-weight:700">${fL(o.fnow)}</td>
+        <td><span class="chip ${OST[o.status][1]}">${OST[o.status][0]}</span></td><td class="l" style="white-space:normal;min-width:200px">${esc(o.remark)}</td></tr>` +
+        (open ? `<tr class="det"><td colspan="14">${lineTable(o.flines, false)}</td></tr>` : ''); }).join('') +
+      `<tr class="tot"><td></td><td class="l" colspan="8">${rows.length} OAs${rows.length > show.length ? ` (first ${show.length} shown – use the filters)` : ''}</td><td>${fQ(sum(rows.map(o => o.fpq)))}</td><td>${fL(sum(rows.map(o => o.fpv)))}</td><td>${fL(sum(rows.map(o => o.fnow)))}</td><td colspan="2"></td></tr>`
+     : '<tr><td class="l" colspan="14">No pending OAs for this selection.</td></tr>') + '</tbody></table>';
+  $('oaTbl').querySelectorAll('tr.oa').forEach(tr => tr.onclick = () => { const k = tr.dataset.oa; S.openOa.has(k) ? S.openOa.delete(k) : S.openOa.add(k); renderOas(); });
+  $('oaTbl').querySelectorAll('th[data-s]').forEach(th => th.onclick = () => { S.oaSort = th.dataset.s; renderOas(); });
+}
+function renderSeries(){
+  const ls = OAL.filter(lineFilter);
+  const ser = {};
+  ls.forEach(l => { const s = ser[l.series] = ser[l.series] || { series:l.series, oas:new Set(), items:{}, pq:0, pv:0, now:0, v4:0, v8:0, gap:0 };
+    s.oas.add(l.oa); s.pq += l.pq; s.pv += l.pv; s.now += l.vNow; s.v4 += l.v4; s.v8 += l.v8; s.gap += l.vGap;
+    const it = s.items[l.code] = s.items[l.code] || { code:l.code, cat:l.cat, desc:l.desc, st:l.st, lines:[], pq:0, pv:0, alloc:0, a4:0, a8:0, gap:0, now:0 };
+    it.lines.push(l); it.pq += l.pq; it.pv += l.pv; it.alloc += l.alloc; it.a4 += l.a4; it.a8 += l.a8; it.gap += l.gap; it.now += l.vNow; });
+  // series stock = all items of the series in the stock sheet
+  const serStock = {};
+  ITEMS.forEach(x => { if (x.st) serStock[x.series] = (serStock[x.series] || 0) + x.st.total; });
+  const list = Object.values(ser).sort((a, b) => b.pv - a.pv);
+  $('serTbl').innerHTML = `<table><thead><tr><th></th><th class="l">Product series</th><th>Pending OAs</th><th>Items</th><th>Pending pcs</th><th>Series stock pcs</th><th>Pending ₹ L</th><th>Bill now ₹ L</th><th>L&amp;K ≤4 wk ₹ L</th><th>L&amp;K ≤8 wk ₹ L</th><th>No stock, not on order ₹ L</th><th>Billable %</th></tr></thead><tbody>` +
+    list.map(s => { const open = S.openSer.has(s.series), items = Object.values(s.items).sort((a, b) => b.pv - a.pv);
+      return `<tr class="oa${open ? ' open' : ''}" data-ser="${esc(s.series)}"><td>${open ? '▾' : '▸'}</td><td class="l"><b>${esc(s.series)}</b></td><td>${s.oas.size}</td><td>${items.length}</td><td>${fQ(s.pq)}</td><td>${fQ(serStock[s.series] || 0)}</td><td>${fL(s.pv)}</td>
+        <td style="color:var(--good);font-weight:700">${fL(s.now)}</td><td>${fL(s.v4)}</td><td>${fL(s.v8)}</td><td style="color:var(--bad)">${fL(s.gap)}</td><td>${s.pv ? Math.round(s.now / s.pv * 100) + '%' : '—'}</td></tr>` +
+        (open ? `<tr class="det"><td colspan="12"><table><thead><tr><th></th><th class="l">Item code</th><th class="l">Cat code</th><th class="l">Item</th><th>OAs</th><th>Pending pcs</th><th>Stock</th><th>Short</th><th>L&amp;K ≤4 wk</th><th>L&amp;K ≤8 wk</th><th>Not on order</th><th>Pending ₹ L</th><th>Bill now ₹ L</th><th class="l">Remarks</th></tr></thead><tbody>` +
+          items.map(it => { const io = S.openItem.has(it.code), short = it.pq - it.alloc;
+            const rem = !it.st ? 'Not in stock sheet – check stock' : short <= 0 ? 'Stock covers all pending OAs – need to bill' : it.alloc > 0 ? `Stock covers ${it.lines.filter(l => l.status === 'ready').length} of ${it.lines.length} OAs` + (it.gap > 0 ? ` · raise PO for ${fQ(it.gap)}` : ' · rest due from L&K') : (it.gap > 0 ? `No stock · raise PO for ${fQ(it.gap)}` : 'No stock · due from L&K');
+            return `<tr class="oa${io ? ' open' : ''}" data-item="${esc(it.code)}"><td>${io ? '▾' : '▸'}</td><td class="l">${esc(it.code)}</td><td class="l">${esc(it.cat)}</td><td class="l item">${esc(it.desc)}</td><td>${it.lines.length}</td><td><b>${fQ(it.pq)}</b></td><td>${it.st ? fQ(it.st.total) : '—'}</td>
+              <td style="color:${short > 0 ? 'var(--bad)' : 'var(--good)'}">${fQ(Math.max(0, short))}</td><td>${fQ(it.a4)}</td><td>${fQ(it.a8)}</td><td>${fQ(it.gap)}</td><td>${fL(it.pv)}</td><td>${fL(it.now)}</td><td class="l" style="white-space:normal">${esc(rem)}</td></tr>` +
+              (io ? `<tr class="det"><td colspan="14">${lineTable(it.lines, true)}</td></tr>` : ''); }).join('') + '</tbody></table></td></tr>' : ''); }).join('') +
+    `<tr class="tot"><td></td><td class="l">Total</td><td>${new Set(ls.map(l => l.oa)).size}</td><td>${new Set(ls.map(l => l.code)).size}</td><td>${fQ(sum(list.map(s => s.pq)))}</td><td></td><td>${fL(sum(list.map(s => s.pv)))}</td><td>${fL(sum(list.map(s => s.now)))}</td><td>${fL(sum(list.map(s => s.v4)))}</td><td>${fL(sum(list.map(s => s.v8)))}</td><td>${fL(sum(list.map(s => s.gap)))}</td><td></td></tr></tbody></table>`;
+  $('serTbl').querySelectorAll('tr[data-ser]').forEach(tr => tr.onclick = () => { const k = tr.dataset.ser; S.openSer.has(k) ? S.openSer.delete(k) : S.openSer.add(k); renderSeries(); });
+  $('serTbl').querySelectorAll('tr[data-item]').forEach(tr => tr.onclick = e => { e.stopPropagation(); const k = tr.dataset.item; S.openItem.has(k) ? S.openItem.delete(k) : S.openItem.add(k); renderSeries(); });
+}
+$('dlOa').onclick = () => {
+  const rows = oaRows().flatMap(o => o.flines.map(l => [o.oa, o.d, o.age, o.cust, o.atype, o.rg, o.eng, OST[o.status][0], l.series, l.code, l.cat, l.desc, l.q, l.iq, l.pq, l.st ? l.st.total : '', l.alloc, l.a4, l.a8, (l.pv / 1e5).toFixed(2), (l.vNow / 1e5).toFixed(2), LST[l.status][0], l.remark]));
+  csv(`LVS_pending_OAs_${new Date().toISOString().slice(0, 10)}.csv`, ['OA no', 'OA date', 'Age days', 'Customer', 'Account type', 'Region', 'Engineer', 'OA status', 'Series', 'Item code', 'Cat code', 'Item', 'OA qty', 'Invoiced', 'Pending', 'Item stock', 'Given to this OA', 'L&K due 4 wk', 'L&K due 8 wk', 'Pending Rs L', 'Bill now Rs L', 'Line status', 'Remarks'], rows);
+};
+$('dlSer').onclick = () => {
+  const by = {}; OAL.filter(lineFilter).forEach(l => { const x = by[l.code] = by[l.code] || { l, oas:0, pq:0, alloc:0, a4:0, a8:0, gap:0, pv:0, now:0 }; x.oas++; x.pq += l.pq; x.alloc += l.alloc; x.a4 += l.a4; x.a8 += l.a8; x.gap += l.gap; x.pv += l.pv; x.now += l.vNow; });
+  csv(`LVS_pending_by_item_${new Date().toISOString().slice(0, 10)}.csv`, ['Series', 'Item code', 'Cat code', 'Item', 'Pending OAs', 'Pending qty', 'Stock', 'Short', 'L&K due 4 wk', 'L&K due 8 wk', 'Not on order', 'Pending Rs L', 'Bill now Rs L'],
+    Object.values(by).sort((a, b) => a.l.series.localeCompare(b.l.series) || b.pv - a.pv).map(x => [x.l.series, x.l.code, x.l.cat, x.l.desc, x.oas, x.pq, x.l.st ? x.l.st.total : '', Math.max(0, x.pq - x.alloc), x.a4, x.a8, x.gap, (x.pv / 1e5).toFixed(2), (x.now / 1e5).toFixed(2)]));
+};
+
 /* ======================= downloads ======================= */
 $('dlProj').onclick = () => {
   const cy = S.plan.cy, labs = projMonths().map(i => monthLabel(cy, i));
@@ -365,6 +646,12 @@ $('dlPo').onclick = () => {
 /* ======================= controls ======================= */
 function tg(id, key, cb){ $(id).querySelectorAll('button').forEach(b => b.onclick = () => { S[key] = b.dataset.k; $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); cb(); }); }
 tg('basisTg', 'basis', () => { calc(); render(); });
+tg('viewTg', 'view', () => { $('vPlan').style.display = S.view === 'plan' ? '' : 'none'; $('vOb').style.display = S.view === 'ob' ? '' : 'none'; $('basisF').style.display = S.view === 'plan' ? '' : 'none'; try { localStorage.setItem('lvsView', S.view); } catch (e) {} if (S.plan) render(); });
+tg('obUnitTg', 'obUnit', () => renderObChart());
+$('oaTabs').querySelectorAll('button').forEach(b => b.onclick = () => { S.oaTab = b.dataset.k; renderOas(); });
+$('oaAge').onchange = e => { S.oaAge = e.target.value; renderOas(); };
+$('oaRegion').onchange = e => { S.oaRegion = e.target.value; renderOas(); };
+let oqt; $('oaQ').oninput = e => { clearTimeout(oqt); oqt = setTimeout(() => { S.oaQ = e.target.value; renderOas(); }, 200); };
 tg('unitTg', 'unit', () => renderChart(filtered()));
 $('poTabs').querySelectorAll('button').forEach(b => b.onclick = () => { S.poTab = b.dataset.k; renderPo(filtered()); });
 $('series').onchange = e => { S.series = e.target.value; render(); };
@@ -373,6 +660,7 @@ $('fy').innerHTML = [curFY, curFY - 1].map(f => `<option value="${f}">${fyLabel(
 $('fy').onchange = e => { S.cy = +e.target.value; loadAll(); };
 $('refresh').onclick = () => loadAll(true);
 S.cy = curFY;
+try { if (localStorage.getItem('lvsView') === 'ob') $('viewTg').querySelector('[data-k=ob]').click(); } catch (e) {}
 loadAll();
 // auto-refresh: every 30 min, and when the tab comes back after 10+ min
 let lastLoad = Date.now();
