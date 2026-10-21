@@ -76,7 +76,9 @@
   tr.oa.open td{background:#eef5ff}
   tr.det>td{background:#fafcff;padding:8px 10px 12px 28px;text-align:left;white-space:normal}
   tr.det table{font-size:12px;border:1px solid var(--line);border-radius:8px}
-  tr.det th{background:#3a6ea5;position:static}
+  tr.det th{background:#3a6ea5;position:sticky;top:0;z-index:1}
+  .sbox2{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .sbox2 table{border:0}
   .sergrp td{background:#f1f5fb;font-weight:700;text-align:left}
   .pow{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
   @media(max-width:1100px){.pow{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -85,9 +87,11 @@
   .bar2{display:flex;height:16px;border-radius:8px;overflow:hidden;background:#e7ecf4;margin:6px 0 10px}
   .bar2 i{display:block;height:100%}
   .filt{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px}
-  .pop{display:none;position:fixed;inset:0;background:rgba(11,41,66,.45);z-index:100;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:auto}
+  .pop{display:none;position:fixed;inset:0;background:rgba(11,41,66,.45);z-index:100;align-items:flex-start;justify-content:center;padding:30px 16px;overflow:hidden}
   .pop.open{display:flex}
-  .pop-box{background:#fff;border-radius:14px;max-width:1280px;width:100%;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .pop-box{background:#fff;border-radius:14px;max-width:1400px;width:100%;padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:calc(100vh - 60px);display:flex;flex-direction:column}
+  .pop-box #popBody{overflow:auto;flex:1;min-height:0}
+  .pop-box.full{max-width:none;max-height:none;height:calc(100vh - 40px)}
   .pop-h{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px}
   .pop-x{border:0;background:#eef2f8;border-radius:8px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer;color:var(--t2)}
   .stbl{margin-bottom:10px}
@@ -153,7 +157,7 @@
   </div>
 </div>
 
-<div class="pop" id="pop"><div class="pop-box"><div class="pop-h"><div><h2 id="popTitle"></h2><div class="sub" id="popSub"></div></div><button class="pop-x" id="popX">✕ Close</button></div><div id="popBody"></div></div></div>
+<div class="pop" id="pop"><div class="pop-box"><div class="pop-h"><div><h2 id="popTitle"></h2><div class="sub" id="popSub"></div></div><div style="display:flex;gap:6px"><button class="pop-x" id="popFull">⤢ Full size</button><button class="pop-x" id="popX">✕ Close</button></div></div><div id="popBody"></div></div></div>
 <div id="vOb" style="display:none">
   <div class="err" id="obErr"></div>
   <div class="card">
@@ -191,8 +195,8 @@
   <div class="card">
     <div class="card-h"><div><h2>Product series breakup – pending orders vs stock</h2>
       <div class="sub">Click a series to see its items; click an item to see the OAs waiting for it.</div></div>
-      <button class="btn" id="dlSer">Download items (CSV)</button></div>
-    <div class="tbl" id="serTbl" style="max-height:none"></div>
+      <div style="display:flex;gap:8px"><button class="btn ghost" id="popSer">⤢ Open in pop-up</button><button class="btn" id="dlSer">Download items (CSV)</button></div></div>
+    <div class="tbl" id="serTbl" style="max-height:75vh"></div>
   </div>
 </div>
 </div>
@@ -613,7 +617,7 @@ function renderPop(){
       const rem = z.length === 0 && p.length === 0 ? 'All in stock – need to bill' : `Bill ${fQ(sum(ls.map(l => l.alloc)))} pcs (₹${fL(sum(ls.map(l => l.vNow)))} L) now · short ${fQ(sum(ls.map(l => l.pq - l.alloc)))} pcs` + (sum(ls.map(l => l.gap)) > 0 ? ` · ${fQ(sum(ls.map(l => l.gap)))} pcs not on order with L&K` : '');
       return `<tr class="oa${o ? ' open' : ''}" data-ps="${esc(s.series)}"><td>${o ? '▾' : '▸'}</td><td class="l"><b>${esc(s.series)}</b></td><td>${new Set(ls.map(l => l.oa)).size}</td><td>${s.codes.size}</td><td>${fQ(sum(ls.map(l => l.pq)))}</td><td>${fL(sum(ls.map(l => l.pv)))}</td><td>${fQ(stockItems)}</td>
         <td style="color:var(--good)">${cell(r)}</td><td style="color:var(--warn)">${cell(p)}</td><td style="color:var(--bad)">${cell(z)}</td><td class="l" style="white-space:normal">${esc(rem)}</td></tr>` +
-        (o ? `<tr class="det"><td colspan="11">${popLines(ls)}</td></tr>` : ''); }).join('') + '</tbody></table></div>';
+        (o ? `<tr class="det"><td colspan="11"><div class="sbox2">${popLines(ls)}</div></td></tr>` : ''); }).join('') + '</tbody></table></div>';
   $('popBody').querySelectorAll('tr[data-ps]').forEach(tr => tr.onclick = () => { const k = tr.dataset.ps; POP.open.has(k) ? POP.open.delete(k) : POP.open.add(k); renderPop(); });
 }
 function popLines(ls){
@@ -624,6 +628,8 @@ function popLines(ls){
       <td class="l"><span class="chip ${LST[l.status][1]}">${LST[l.status][0]}</span> ${esc(l.remark)}</td></tr>`).join('') + '</tbody></table>';
 }
 $('popX').onclick = () => $('pop').classList.remove('open');
+$('popFull').onclick = () => { const b = document.querySelector('.pop-box'); b.classList.toggle('full'); $('popFull').textContent = b.classList.contains('full') ? '⤡ Normal size' : '⤢ Full size'; };
+$('popSer').onclick = () => openPop('Product series breakup – pending orders vs stock', 'All pending OA lines' + (S.series || S.q ? ' (filtered)' : '') + ', with today\'s stock. Click a series to see its OA lines. Scroll inside this window.', OAL.filter(lineFilter));
 $('pop').onclick = e => { if (e.target.id === 'pop') $('pop').classList.remove('open'); };
 document.addEventListener('keydown', e => { if (e.key === 'Escape') $('pop').classList.remove('open'); });
 
@@ -673,7 +679,7 @@ function renderOas(){
         <td class="l item">${esc(o.cust)}</td><td class="l">${esc(o.atype || '')}</td><td class="l">${esc(o.rg)}</td><td class="l">${esc(o.eng || '')}</td>
         <td>${o.flines.length}</td><td>${fQ(o.fpq)}</td><td>${fL(o.fpv)}</td><td style="color:var(--good);font-weight:700">${fL(o.fnow)}</td>
         <td><span class="chip ${OST[o.status][1]}">${OST[o.status][0]}</span></td><td class="l" style="white-space:normal;min-width:200px">${esc(o.remark)}</td></tr>` +
-        (open ? `<tr class="det"><td colspan="14">${lineTable(o.flines, false)}</td></tr>` : ''); }).join('') +
+        (open ? `<tr class="det"><td colspan="14"><div class="sbox2">${lineTable(o.flines, false)}</div></td></tr>` : ''); }).join('') +
       `<tr class="tot"><td></td><td class="l" colspan="8">${rows.length} OAs${rows.length > show.length ? ` (first ${show.length} shown – use the filters)` : ''}</td><td>${fQ(sum(rows.map(o => o.fpq)))}</td><td>${fL(sum(rows.map(o => o.fpv)))}</td><td>${fL(sum(rows.map(o => o.fnow)))}</td><td colspan="2"></td></tr>`
      : '<tr><td class="l" colspan="14">No pending OAs for this selection.</td></tr>') + '</tbody></table>';
   $('oaTbl').querySelectorAll('tr.oa').forEach(tr => tr.onclick = () => { const k = tr.dataset.oa; S.openOa.has(k) ? S.openOa.delete(k) : S.openOa.add(k); renderOas(); });
@@ -694,12 +700,12 @@ function renderSeries(){
     list.map(s => { const open = S.openSer.has(s.series), items = Object.values(s.items).sort((a, b) => b.pv - a.pv);
       return `<tr class="oa${open ? ' open' : ''}" data-ser="${esc(s.series)}"><td>${open ? '▾' : '▸'}</td><td class="l"><b>${esc(s.series)}</b></td><td>${s.oas.size}</td><td>${items.length}</td><td>${fQ(s.pq)}</td><td>${fQ(serStock[s.series] || 0)}</td><td>${fL(s.pv)}</td>
         <td style="color:var(--good);font-weight:700">${fL(s.now)}</td><td>${fL(s.v4)}</td><td>${fL(s.v8)}</td><td style="color:var(--bad)">${fL(s.gap)}</td><td>${s.pv ? Math.round(s.now / s.pv * 100) + '%' : '—'}</td></tr>` +
-        (open ? `<tr class="det"><td colspan="12"><table><thead><tr><th></th><th class="l">Item code</th><th class="l">Cat code</th><th class="l">Item</th><th>OAs</th><th>Pending pcs</th><th>Stock</th><th>Short</th><th>L&amp;K ≤4 wk</th><th>L&amp;K ≤8 wk</th><th>Not on order</th><th>Pending ₹ L</th><th>Bill now ₹ L</th><th class="l">Remarks</th></tr></thead><tbody>` +
+        (open ? `<tr class="det"><td colspan="12"><div class="sbox2" style="max-height:520px"><table><thead><tr><th></th><th class="l">Item code</th><th class="l">Cat code</th><th class="l">Item</th><th>OAs</th><th>Pending pcs</th><th>Stock</th><th>Short</th><th>L&amp;K ≤4 wk</th><th>L&amp;K ≤8 wk</th><th>Not on order</th><th>Pending ₹ L</th><th>Bill now ₹ L</th><th class="l">Remarks</th></tr></thead><tbody>` +
           items.map(it => { const io = S.openItem.has(it.code), short = it.pq - it.alloc;
             const rem = !it.st ? 'Not in stock sheet – check stock' : short <= 0 ? 'Stock covers all pending OAs – need to bill' : it.alloc > 0 ? `Stock covers ${it.lines.filter(l => l.status === 'ready').length} of ${it.lines.length} OAs` + (it.gap > 0 ? ` · raise PO for ${fQ(it.gap)}` : ' · rest due from L&K') : (it.gap > 0 ? `No stock · raise PO for ${fQ(it.gap)}` : 'No stock · due from L&K');
             return `<tr class="oa${io ? ' open' : ''}" data-item="${esc(it.code)}"><td>${io ? '▾' : '▸'}</td><td class="l">${esc(it.code)}</td><td class="l">${esc(it.cat)}</td><td class="l item">${esc(it.desc)}</td><td>${it.lines.length}</td><td><b>${fQ(it.pq)}</b></td><td>${it.st ? fQ(it.st.total) : '—'}</td>
               <td style="color:${short > 0 ? 'var(--bad)' : 'var(--good)'}">${fQ(Math.max(0, short))}</td><td>${fQ(it.a4)}</td><td>${fQ(it.a8)}</td><td>${fQ(it.gap)}</td><td>${fL(it.pv)}</td><td>${fL(it.now)}</td><td class="l" style="white-space:normal">${esc(rem)}</td></tr>` +
-              (io ? `<tr class="det"><td colspan="14">${lineTable(it.lines, true)}</td></tr>` : ''); }).join('') + '</tbody></table></td></tr>' : ''); }).join('') +
+              (io ? `<tr class="det"><td colspan="14"><div class="sbox2" style="max-height:300px">${lineTable(it.lines, true)}</div></td></tr>` : ''); }).join('') + '</tbody></table></div></td></tr>' : ''); }).join('') +
     `<tr class="tot"><td></td><td class="l">Total</td><td>${new Set(ls.map(l => l.oa)).size}</td><td>${new Set(ls.map(l => l.code)).size}</td><td>${fQ(sum(list.map(s => s.pq)))}</td><td></td><td>${fL(sum(list.map(s => s.pv)))}</td><td>${fL(sum(list.map(s => s.now)))}</td><td>${fL(sum(list.map(s => s.v4)))}</td><td>${fL(sum(list.map(s => s.v8)))}</td><td>${fL(sum(list.map(s => s.gap)))}</td><td></td></tr></tbody></table>`;
   $('serTbl').querySelectorAll('tr[data-ser]').forEach(tr => tr.onclick = () => { const k = tr.dataset.ser; S.openSer.has(k) ? S.openSer.delete(k) : S.openSer.add(k); renderSeries(); });
   $('serTbl').querySelectorAll('tr[data-item]').forEach(tr => tr.onclick = e => { e.stopPropagation(); const k = tr.dataset.item; S.openItem.has(k) ? S.openItem.delete(k) : S.openItem.add(k); renderSeries(); });
