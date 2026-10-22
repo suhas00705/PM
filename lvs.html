@@ -231,7 +231,7 @@ const S = { cy:null, plan:null, stock:null, stockErr:null, basis:'max', unit:'q'
 const today = new Date();
 const curFY = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
 const curMi = (today.getMonth() + 9) % 12;                     // Apr = 0
-const NOT_LK = /^(WBT|TM|EM[1-4]P)/i;                       // not L&K / not tracked: busbar temp. items, EM1P–EM4P MCBs
+const NOT_LK = /^(WBT|TM|EM[1-4]P|EI[2-4]P|ER[24]P|EASP|EDSP|EDHT|EDPI|EDVT)/i;                       // not tracked here: busbar temp. items; MCB, MCB isolator, RCCB, SPD and DB ranges
 const COVER = 3;                                               // 2 months lead (6–8 weeks) + 1 month safety
 
 function monthLabel(fy, idx){ const m = 3 + idx, y = fy + Math.floor(m / 12); return `${MN[((idx % 12) + 12) % 12]}-${String(y).slice(2)}`; }

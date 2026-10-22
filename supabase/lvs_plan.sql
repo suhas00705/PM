@@ -1,5 +1,5 @@
 -- LVS tab data (Switchgear item code x month, OB & INV, this FY + last FY).
--- Excludes B&E / TEST DUMMY accounts and WBT/TM busbar temperature items and EM1P-EM4P MCBs. Safe to re-run.
+-- Excludes B&E / TEST DUMMY accounts and WBT/TM busbar temperature items and MCB / isolator / RCCB / SPD / DB items (EM1P-EM4P, EI2P-EI4P, ER2P/ER4P, EASP, EDSP, EDHT, EDPI, EDVT). Safe to re-run.
 create or replace function public.lvs_plan(p_cy int default null)
 returns jsonb language sql stable security definer
 set search_path = public as $$
@@ -18,7 +18,10 @@ l as materialized (
     and s.item_code is not null
     and coalesce(s.card_name, '')
       !~* 'B\s*&\s*E\s+ELECTRIC|TEST\s+DUMMY'
-    and coalesce(s.cat_code, '') !~* '^(WBT|TM|EM[1-4]P)'),
+    and coalesce(s.cat_code, '')
+      !~* '^(WBT|TM|EM[1-4]P|EI[2-4]P|ER[24]P)'
+    and coalesce(s.cat_code, '')
+      !~* '^(EASP|EDSP|EDHT|EDPI|EDVT)'),
 m as (
   select code, doc_type dt, fy_start fy, mi,
     sum(quantity) q, sum(doc_total_fc) v
