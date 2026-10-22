@@ -1,5 +1,5 @@
 -- LVS OB / Stock view: pending OA lines (OB qty - invoiced qty per OA + item), monthly OB/INV totals.
--- Zoho Sales Order id from oa_deal_link. Excludes B&E / TEST DUMMY and WBT/TM items. Safe to re-run.
+-- Zoho Sales Order id from oa_deal_link. Excludes B&E / TEST DUMMY and WBT/TM items, EM1P-EM4P MCBs. Safe to re-run.
 create or replace function public.lvs_pending(p_cy int default null)
 returns jsonb language sql stable security definer
 set search_path = public as $$
@@ -13,7 +13,7 @@ b as materialized (
     and s.fy_start >= p.cy - 1
     and coalesce(s.card_name, '')
       !~* 'B\s*&\s*E\s+ELECTRIC|TEST\s+DUMMY'
-    and coalesce(s.cat_code, '') !~* '^(WBT|TM)'),
+    and coalesce(s.cat_code, '') !~* '^(WBT|TM|EM[1-4]P)'),
 ob as (
   select doc_num::text oa, item_code code,
     min(posting_date) d, max(card_name) cust,

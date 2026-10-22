@@ -231,6 +231,7 @@ const S = { cy:null, plan:null, stock:null, stockErr:null, basis:'max', unit:'q'
 const today = new Date();
 const curFY = today.getMonth() >= 3 ? today.getFullYear() : today.getFullYear() - 1;
 const curMi = (today.getMonth() + 9) % 12;                     // Apr = 0
+const NOT_LK = /^(WBT|TM|EM[1-4]P)/i;                       // not L&K / not tracked: busbar temp. items, EM1P–EM4P MCBs
 const COVER = 3;                                               // 2 months lead (6–8 weeks) + 1 month safety
 
 function monthLabel(fy, idx){ const m = 3 + idx, y = fy + Math.floor(m / 12); return `${MN[((idx % 12) + 12) % 12]}-${String(y).slice(2)}`; }
@@ -280,7 +281,7 @@ function build(){
              mtdOb: done < 12 ? ob[done] : 0, mtdInv: done < 12 ? inv[done] : 0 };
   });
   // items only in the stock sheet (stock but no sales this FY or last)
-  (S.stock?.items || []).forEach(x => { if (!seen.has(String(x.code)) && x.code) ITEMS.push({ code:String(x.code), cat:x.cat, desc:x.name, series:'Not sold', ob:Array(12).fill(0), inv:Array(12).fill(0), obLy:Array(12).fill(0), invLy:Array(12).fill(0), obq:0, invq:0, obv:0, invv:0, lyq:0, avgOb:0, avgInv:0, l3Ob:0, l3Inv:0, rate:0, st:x, mtdOb:0, mtdInv:0 }); });
+  (S.stock?.items || []).forEach(x => { if (!seen.has(String(x.code)) && x.code && !NOT_LK.test(String(x.cat || ''))) ITEMS.push({ code:String(x.code), cat:x.cat, desc:x.name, series:'Not sold', ob:Array(12).fill(0), inv:Array(12).fill(0), obLy:Array(12).fill(0), invLy:Array(12).fill(0), obq:0, invq:0, obv:0, invv:0, lyq:0, avgOb:0, avgInv:0, l3Ob:0, l3Inv:0, rate:0, st:x, mtdOb:0, mtdInv:0 }); });
   calc();
   const ser = [...new Set(ITEMS.map(x => x.series))].sort();
   const sel = $('series'), keep = S.series;
