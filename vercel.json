@@ -1,32 +1,121 @@
 {
+  "functions": {
+    "api/cron-2h.js": {
+      "maxDuration": 60
+    }
+  },
   "crons": [
-    {"path": "/api/sync-leads?window=72", "schedule": "40 1 * * *"},
-    {"path": "/api/sync-potentials?window=72", "schedule": "50 1 * * *"},
-    {"path": "/api/sync-leads?window=72&run=midday", "schedule": "40 7 * * *"},
-    {"path": "/api/sync-potentials?window=72&run=midday", "schedule": "50 7 * * *"},
-    {"path": "/api/sync-leads?window=72&run=evening", "schedule": "40 13 * * *"},
-    {"path": "/api/sync-potentials?window=72&run=evening", "schedule": "50 13 * * *"},
-    {"path": "/api/sync-potentials?mode=full&since_created=2015-01-01T00:00:00%2B05:30", "schedule": "40 21 * * 6"},
-    {"path": "/api/sync-leads?mode=full", "schedule": "55 21 * * 6"},
-    {"path": "/api/sync-ob?mode=full", "schedule": "10 22 * * 6"},
-    {"path": "/api/sync-invoice?mode=full", "schedule": "25 22 * * 6"},
-    {"path": "/api/sync-oa-deals?window=72", "schedule": "5 2 * * *"},
-    {"path": "/api/sync-oa-deals?window=72&run=evening", "schedule": "5 14 * * *"},
-    {"path": "/api/sync-oa-deals?mode=full", "schedule": "40 22 * * 6"},
-    {"path": "/api/sync-oa-deals?part=leads&window=72", "schedule": "15 2 * * *"},
-    {"path": "/api/sync-oa-deals?part=leads&window=72&run=evening", "schedule": "15 14 * * *"},
-    {"path": "/api/sync-oa-deals?part=leads&mode=full", "schedule": "55 22 * * 6"},
-    {"path": "/api/cron-2h?h=07", "schedule": "30 1 * * *"},
-    {"path": "/api/cron-2h?h=09", "schedule": "30 3 * * *"},
-    {"path": "/api/cron-2h?h=11", "schedule": "30 5 * * *"},
-    {"path": "/api/cron-2h?h=13", "schedule": "30 7 * * *"},
-    {"path": "/api/cron-2h?h=15", "schedule": "30 9 * * *"},
-    {"path": "/api/cron-2h?h=17", "schedule": "30 11 * * *"},
-    {"path": "/api/cron-2h?h=19", "schedule": "30 13 * * *"},
-    {"path": "/api/cron-2h?h=21", "schedule": "30 15 * * *"},
-    {"path": "/api/cron-2h?h=23", "schedule": "30 17 * * *"},
-    {"path": "/api/cron-2h?h=01", "schedule": "30 19 * * *"},
-    {"path": "/api/cron-2h?h=03", "schedule": "30 21 * * *"},
-    {"path": "/api/cron-2h?h=05", "schedule": "30 23 * * *"}
+    {
+      "path": "/api/sync-leads?window=72",
+      "schedule": "40 1 * * *"
+    },
+    {
+      "path": "/api/sync-potentials?window=72",
+      "schedule": "50 1 * * *"
+    },
+    {
+      "path": "/api/sync-leads?window=72&run=midday",
+      "schedule": "40 7 * * *"
+    },
+    {
+      "path": "/api/sync-potentials?window=72&run=midday",
+      "schedule": "50 7 * * *"
+    },
+    {
+      "path": "/api/sync-leads?window=72&run=evening",
+      "schedule": "40 13 * * *"
+    },
+    {
+      "path": "/api/sync-potentials?window=72&run=evening",
+      "schedule": "50 13 * * *"
+    },
+    {
+      "path": "/api/sync-potentials?mode=full&since_created=2015-01-01T00:00:00%2B05:30",
+      "schedule": "40 21 * * 6"
+    },
+    {
+      "path": "/api/sync-leads?mode=full",
+      "schedule": "55 21 * * 6"
+    },
+    {
+      "path": "/api/sync-ob?mode=full",
+      "schedule": "10 22 * * 6"
+    },
+    {
+      "path": "/api/sync-invoice?mode=full",
+      "schedule": "25 22 * * 6"
+    },
+    {
+      "path": "/api/sync-oa-deals?window=72",
+      "schedule": "5 2 * * *"
+    },
+    {
+      "path": "/api/sync-oa-deals?window=72&run=evening",
+      "schedule": "5 14 * * *"
+    },
+    {
+      "path": "/api/sync-oa-deals?mode=full",
+      "schedule": "40 22 * * 6"
+    },
+    {
+      "path": "/api/sync-oa-deals?part=leads&window=72",
+      "schedule": "15 2 * * *"
+    },
+    {
+      "path": "/api/sync-oa-deals?part=leads&window=72&run=evening",
+      "schedule": "15 14 * * *"
+    },
+    {
+      "path": "/api/sync-oa-deals?part=leads&mode=full",
+      "schedule": "55 22 * * 6"
+    },
+    {
+      "path": "/api/cron-2h?h=07",
+      "schedule": "30 1 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=09",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=11",
+      "schedule": "30 5 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=13",
+      "schedule": "30 7 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=15",
+      "schedule": "30 9 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=17",
+      "schedule": "30 11 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=19",
+      "schedule": "30 13 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=21",
+      "schedule": "30 15 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=23",
+      "schedule": "30 17 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=01",
+      "schedule": "30 19 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=03",
+      "schedule": "30 21 * * *"
+    },
+    {
+      "path": "/api/cron-2h?h=05",
+      "schedule": "30 23 * * *"
+    }
   ]
 }
