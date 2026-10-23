@@ -1,0 +1,36 @@
+/* Elmeasure PM Portal – dashboard look inside the Android app (only when html.app-mode).
+ * Clean and quiet: light grey-green page, white cards, one dark-teal accent. Pinch-zoom and rotation work as usual.
+ * Small screens (portrait phone) get stacked filters, 2-per-row KPI tiles and side-scrolling tables / charts.
+ */
+html.app-mode, html.app-mode body { background: #f3f6f8 !important; }
+html.app-mode body { -webkit-text-size-adjust: 100%; }
+html.app-mode .card { border-radius: 14px !important; border-color: #e3e9ee !important; box-shadow: 0 1px 3px rgba(16,58,82,.06) !important; }
+html.app-mode th { background-color: #103a52 !important; }
+html.app-mode .btn { border-radius: 10px; }
+html.app-mode .bar { background: #f3f6f8 !important; }
+
+/* tables and charts never squeeze: they scroll sideways */
+html.app-mode .tbl, html.app-mode .chart, html.app-mode .sbox, html.app-mode .sbox2 { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+html.app-mode *:has(> table) { overflow-x: auto; max-width: 100%; }
+
+@media (max-width: 760px) {
+  html.app-mode body { font-size: 14px; }
+  html.app-mode .wrap { padding: 10px 10px 40px !important; }
+  html.app-mode .bar { position: static !important; padding: 2px 0 6px !important; flex-direction: column; align-items: stretch !important; }
+  html.app-mode .ctrls { gap: 8px !important; width: 100%; }
+  html.app-mode .ctrls > *, html.app-mode .f { flex: 1 1 140px; min-width: 0; }
+  html.app-mode select, html.app-mode input[type=search], html.app-mode .ms-btn { min-height: 38px; font-size: 14px; max-width: 100%; width: 100%; min-width: 0 !important; }
+  html.app-mode .toggle { flex-wrap: wrap; }
+  html.app-mode .sync { text-align: left !important; }
+  html.app-mode .card { padding: 12px !important; margin-bottom: 10px !important; }
+  html.app-mode .card-h { flex-direction: column; align-items: stretch !important; }
+  html.app-mode .kpis, html.app-mode .pow { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  html.app-mode .kpi { padding: 10px !important; }
+  html.app-mode .kpi .v { font-size: 18px !important; }
+  html.app-mode .chart svg { min-width: 640px; }
+  html.app-mode table { font-size: 12px; }
+  html.app-mode .drawer, html.app-mode .pop-box { width: 100% !important; max-width: 100% !important; }
+  html.app-mode .pop { padding: 8px !important; }
+  html.app-mode h1 { font-size: 16px !important; }
+  html.app-mode h2 { font-size: 14.5px !important; }
+}

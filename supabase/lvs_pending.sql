@@ -1,4 +1,7 @@
 -- LVS OB / Stock view: pending OA lines (OB qty - invoiced qty per OA + item), monthly OB/INV totals.
+-- 23-Oct-2026: monthly OB / INV totals ('months') now use the same basis as PM cumulative tracking
+-- (all Switchgear lines, same OEM card overrides), so the LVS month figures match that page.
+-- Pending / carry / stock logic still uses the L&K item filter below.
 -- Zoho Sales Order id from oa_deal_link. Excludes B&E / TEST DUMMY and WBT/TM items, MCB / isolator / RCCB / SPD / DB items (EM1P-EM4P, EI2P-EI4P, ER2P/ER4P, EASP, EDSP, EDHT, EDPI, EDVT). Safe to re-run.
 create or replace function public.lvs_pending(p_cy int default null)
 returns jsonb language sql stable security definer
@@ -59,13 +62,26 @@ carry as (
   left join ib on ib.mi = ms.mi and ib.oa = o.oa
     and ib.code = o.code
   group by ms.mi),
+ovr as (
+  select array_agg(ov_key) filter
+    (where ov_mode = 'OEM') o1,
+  array_agg(ov_key) filter
+    (where ov_mode = 'OEM_B') o2
+  from pm_card_override),
 mon as (
-  select (fy_month + 8) % 12 mi,
+  select (s.fy_month + 8) % 12 mi,
     sum(quantity) filter (where doc_type = 'OB') obq,
     sum(doc_total_fc) filter (where doc_type = 'OB') obv,
     sum(quantity) filter (where doc_type = 'INV') invq,
     sum(doc_total_fc) filter (where doc_type = 'INV') invv
-  from b, p where fy_start = p.cy group by 1)
+  from sales_lines s, p, ovr
+  where s.fy_start = p.cy
+    and s.product_basket = 'SWITCHGEAR'
+    and not coalesce(s.card_name
+      = any(coalesce(ovr.o1, '{}')), false)
+    and not coalesce(s.card_name || '|SWITCHGEAR'
+      = any(coalesce(ovr.o2, '{}')), false)
+  group by 1)
 select jsonb_build_object(
   'cy', (select cy from p),
   'asof', (select max(posting_date) from b),

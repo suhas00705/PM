@@ -1,0 +1,27 @@
+/* Elmeasure PM Portal – app shell look (only when html.pm-app). Clean and quiet. */
+html.pm-app, html.pm-app body { background: #f3f6f8; }
+html.pm-app .topbar {
+  background: #103a52; padding: 8px 12px; gap: 8px; flex-wrap: nowrap;
+  box-shadow: 0 1px 0 rgba(0,0,0,.06);
+  padding-top: calc(8px + env(safe-area-inset-top));
+}
+html.pm-app .brand { gap: 10px; min-width: 0; }
+html.pm-app .logo-badge { padding: 3px; background: transparent; border: 0; box-shadow: none; }
+html.pm-app .logo-chip { padding: 4px 8px; border-radius: 7px; box-shadow: none; }
+html.pm-app .logo-chip img { height: 20px; }
+html.pm-app .brand-title { font-size: 14px; letter-spacing: .03em; }
+html.pm-app .brand-sub { display: none; }
+html.pm-app #fsBtn, html.pm-app #gc-btn, html.pm-app #gc-panel { display: none !important; }
+html.pm-app #hamburgerBtn { padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
+html.pm-app #userInfoBar span { display: none; }
+html.pm-app .content, html.pm-app iframe { background: #f3f6f8; }
+
+/* menu = a clean sheet from the bottom of the screen */
+html.pm-app .seg {
+  position: fixed; left: 8px; right: 8px; top: auto; bottom: calc(8px + env(safe-area-inset-bottom));
+  max-height: 75vh; overflow: auto; min-width: 0; border-radius: 16px; padding: 8px;
+  border: 0; z-index: 1000; box-shadow: 0 0 0 100vmax rgba(16,58,82,.35), 0 8px 24px rgba(0,0,0,.2);
+}
+html.pm-app .seg::before { display: none; }
+html.pm-app .tab-btn { font-size: 15px; padding: 13px 14px; border-radius: 10px; color: #103a52; }
+html.pm-app .tab-btn.active { background: #e6f0f4; color: #103a52; }
