@@ -117,3 +117,53 @@ html.app-mode .mx-chart.mx-swiped::after { display: none; }
   html.app-mode #note, html.app-mode #compareNote, html.app-mode .wrap > .note, html.app-mode .scope:empty { display: none !important; }
   html.app-mode #refreshBtn { width: auto !important; align-self: flex-start; }
 }
+
+/* ===== 25-Oct-2026 v1.3: vibrant light theme (app only) ===== */
+html.app-mode, html.app-mode body { background: #eef4fb !important; }
+html.app-mode .card, html.app-mode .table-card { background: #fff !important; border: 0 !important;
+  box-shadow: 0 2px 10px rgba(11,42,74,.07), 0 1px 2px rgba(11,42,74,.05) !important; }
+/* section headings: colour bar on the left */
+html.app-mode .mx-sec > .mx-head h2, html.app-mode .mx-sec > h2.mx-head, html.app-mode .mx-sec > .sec-h h2 { padding-left: 12px !important; position: relative; color: #0b2a4a !important; }
+html.app-mode .mx-sec > .mx-head h2::before, html.app-mode .mx-sec > h2.mx-head::before, html.app-mode .mx-sec > .sec-h h2::before {
+  content: ''; position: absolute; left: 0; top: 2px; bottom: 2px; width: 4px; border-radius: 4px; background: linear-gradient(#0073c8, #00b3a4); }
+html.app-mode h1 { color: #0b2a4a !important; }
+/* KPI tiles: white with a coloured top strip and tinted label, colours rotate */
+html.app-mode .kpi, html.app-mode .card.tile { background: #fff !important; border: 0 !important; border-radius: 14px !important; position: relative; overflow: hidden;
+  box-shadow: 0 2px 10px rgba(11,42,74,.07) !important; padding-top: 14px !important; }
+html.app-mode .kpi::before, html.app-mode .card.tile::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: var(--mxc, #0073c8); }
+html.app-mode :is(.kpis, .pow, .kpi-row, .grid) > :nth-child(6n+1) { --mxc: #0073c8; --mxt: #e6f1fb; }
+html.app-mode :is(.kpis, .pow, .kpi-row, .grid) > :nth-child(6n+2) { --mxc: #12a150; --mxt: #e5f6ec; }
+html.app-mode :is(.kpis, .pow, .kpi-row, .grid) > :nth-child(6n+3) { --mxc: #f08c00; --mxt: #fff3e0; }
+html.app-mode :is(.kpis, .pow, .kpi-row, .grid) > :nth-child(6n+4) { --mxc: #7b4fd6; --mxt: #f0eafc; }
+html.app-mode :is(.kpis, .pow, .kpi-row, .grid) > :nth-child(6n+5) { --mxc: #00a3a3; --mxt: #e0f5f5; }
+html.app-mode :is(.kpis, .pow, .kpi-row, .grid) > :nth-child(6n+6) { --mxc: #e0457b; --mxt: #fde8ef; }
+html.app-mode .kpi .k, html.app-mode .kpi-label, html.app-mode .tile .k, html.app-mode .tile .lbl { color: var(--mxc, #0073c8) !important; font-weight: 700 !important; letter-spacing: .04em; }
+html.app-mode .kpi .v, html.app-mode .kpi-value, html.app-mode .tile .v, html.app-mode .tile .big { color: #0b2a4a !important; font-weight: 800 !important; }
+/* tables: gradient header, zebra rows */
+html.app-mode table.mx-t th { background: linear-gradient(90deg, #0b2a4a, #0b4f86) !important; color: #fff !important; border-color: transparent !important; }
+html.app-mode table.mx-t:not(.mx-cards) tbody tr:nth-child(even) td { background-color: #f6f9fd; }
+html.app-mode table.mx-t:not(.mx-cards) tr > td:first-child { font-weight: 600; color: #0b2a4a; }
+/* cards (leads, deals …): coloured edge */
+html.app-mode table.mx-cards tr { border: 0 !important; border-left: 4px solid #0073c8 !important; box-shadow: 0 2px 8px rgba(11,42,74,.07) !important; }
+html.app-mode table.mx-cards tr:nth-child(3n+2) { border-left-color: #12a150 !important; }
+html.app-mode table.mx-cards tr:nth-child(3n) { border-left-color: #f08c00 !important; }
+html.app-mode table.mx-cards td.mx-title { color: #0b2a4a !important; }
+/* buttons, chips, switches */
+html.app-mode .mx-tbar button, html.app-mode .mx-chev { background: #e6f1fb !important; color: #0073c8 !important; }
+html.app-mode .mx-fbtn { border-color: #b9d6f0 !important; color: #0073c8 !important; }
+html.app-mode .mx-fbtn.on { background: #0073c8 !important; color: #fff !important; }
+html.app-mode .toggle { background: #dfeaf6 !important; border-radius: 12px !important; padding: 3px !important; }
+html.app-mode .toggle > button.on, html.app-mode .toggle > button.active { background: #0073c8 !important; color: #fff !important; border-radius: 9px !important; box-shadow: 0 2px 6px rgba(0,115,200,.3) !important; }
+html.app-mode .sec-nav a, html.app-mode .month-tab, html.app-mode .status-chip, html.app-mode .status-bar button { border-radius: 99px !important; }
+html.app-mode .sec-nav a { background: #fff !important; border: 1px solid #cfe1f2 !important; color: #0b4f86 !important; }
+html.app-mode .month-tab.active, html.app-mode .status-bar .active { background: #0073c8 !important; color: #fff !important; border-color: #0073c8 !important; }
+html.app-mode .sync { color: #5b7590 !important; }
+/* v1.3 fixes from the live check */
+@media (max-width: 760px) {
+  html.app-mode .ctrls > .f:has(> .toggle), html.app-mode .ctrls > :has(> .toggle) { flex: 1 1 100% !important; }
+  html.app-mode .toggle { width: 100%; }
+  html.app-mode .toggle > button { flex: 1 1 auto !important; min-width: 0; padding-left: 8px !important; padding-right: 8px !important; font-size: 13px !important; }
+  html.app-mode #refreshBtn { display: none !important; }       /* the profile sheet has "Refresh data" */
+}
+html.app-mode .kpi .label, html.app-mode .kpi-title { color: var(--mxc, #0073c8) !important; font-weight: 700 !important; }
+html.app-mode .kpi .value { color: #0b2a4a !important; font-weight: 800 !important; }

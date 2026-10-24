@@ -37,7 +37,7 @@
         proMon: { rows: 15 }, demBody: { keep: [0, 1, 2, 5, 7], rows: 15 }, pipeTbl: { keep: [0, 2, 4, 5], rows: 15 },
         accTbl: { cards: true, title: 1, keep: [1, 2, 4, 5, 7, 8], rows: 12 } } },
     'frame-lvs': { open: 2, tables: {
-        projTbl: { keep: [0, 2, 8, 9, 10, 11], rows: 15 }, poTbl: { keep: [0, 2, 10, 14, 15, 16], rows: 15 } } },
+        projTbl: { keep: [0, 2, 8, 9, 10, 11], rows: 15 }, powTbl: { keep: [0, 1, 3, 4, 8] }, poTbl: { keep: [0, 2, 10, 14, 15, 16], rows: 15 } } },
     'frame-control': { open: 9, tables: { rows: { cards: true, title: 1, keep: [1, 2, 3, 5, 8] } } }
   };
   var C = CFG[KEY] || { open: 3, tables: {} };
