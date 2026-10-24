@@ -69,6 +69,7 @@ window.eiSplash = function () {
 
 /* Elmeasure Insights – Android app mode (the PM Portal as an app)
  * 22-Oct-2026: app look for the shell and every dashboard tab; pinch-zoom and rotation stay available.
+ * 25-Oct-2026: v1.8 – no flash of the laptop layout while the app opens (early cover in index.html, removed here).
  * 25-Oct-2026: v1.7 – light-orange theme (#FEF2E5) and the warm "Insight Bars" start screen with a colour ring round the logo.
  * 25-Oct-2026: v1.6 – Create Lead tab hidden in the app; space start screen switched off (a warm industry one is being chosen).
  * 25-Oct-2026: v1.5 – start screen v2: photo-real globe (NASA Blue Marble, clouds, city lights), smaller globe, much bigger brand.
@@ -95,7 +96,7 @@ window.eiSplash = function () {
   var twa = /^android-app:\/\//.test(document.referrer || '');
   if (!standalone && !stored && !twa) return;
 
-  var V = '9', APP = 'Elmeasure Insights', VERSION = '1.7';
+  var V = '10', APP = 'Elmeasure Insights', VERSION = '1.8';
   document.documentElement.classList.add('pm-app');
   var css = document.createElement('link');
   css.rel = 'stylesheet'; css.href = '/mobile-app.css?v=' + V;
@@ -305,6 +306,7 @@ window.eiSplash = function () {
     document.title = APP;
     var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', '#f08c5a');
     splash();
+    document.documentElement.classList.remove('ei-boot');   // early cover from index.html: the start screen / app now covers the page
     bottomNav(); setTimeout(bottomNav, 1500); setTimeout(markNav, 1600);
     checkUser();
     hook();

@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>/* Elmeasure Insights app: hide the laptop layout from the very first frame (no flash before the start screen). Laptop portal not affected. */
+(function(){try{var q=location.search,a=/[?&]app=1\b/.test(q)||(!/[?&]app=0\b/.test(q)&&localStorage.getItem('pmApp')==='1')||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches)||/^android-app:/.test(document.referrer||'');
+if(!a)return;var h=document.documentElement;h.classList.add('pm-app','ei-boot');
+document.write('<style id="ei-boot-css">html.ei-boot,html.ei-boot body{background:#fef2e5!important}html.ei-boot body>*:not(#ei-splash):not(#ei-gate){visibility:hidden!important}<\/style><meta name="theme-color" content="#f08c5a">');
+setTimeout(function(){h.classList.remove('ei-boot');},6000);}catch(e){}})();</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="/manifest.webmanifest">
