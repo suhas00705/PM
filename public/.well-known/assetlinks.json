@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "com.elmeasure.insights",
+    "sha256_cert_fingerprints": ["BC:E4:0C:F2:83:B6:47:11:CC:16:64:A6:C7:D9:52:02:A3:DA:04:76:C5:B7:3A:9B:5C:7D:CC:C9:C8:AD:42:E7"]
+  }
+}]
