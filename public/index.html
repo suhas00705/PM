@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#103a52">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<script src="/mobile-app.js" defer></script>
+<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
+<script src="/mobile-app.js?v=2" defer></script>
 <title>Product Management Portal — Elmeasure</title>
 <style>
   :root{
@@ -89,6 +89,7 @@
           <button class="tab-btn" data-target="salestracking">💹 Sales Tracking</button>
           <button class="tab-btn" data-target="pathtarget">🏁 Path to Target</button>
           <button class="tab-btn" data-target="lvs">🔌 LVS</button>
+          <button class="tab-btn" data-target="control">🛡️ Control</button>
           <button class="tab-btn" data-target="createleads">➕ Create Lead</button>
           <button class="tab-btn" data-target="authorization" id="authTabBtn" style="display:none">⚙️ Authorization</button>
         </div>
@@ -110,6 +111,7 @@
     <iframe id="frame-salestracking" title="Sales Tracking" data-src="/sales-tracking.html"></iframe>
     <iframe id="frame-pathtarget" title="Path to Target" data-src="/path-to-target.html"></iframe>
     <iframe id="frame-lvs" title="LVS - L&amp;K planning" data-src="/lvs.html"></iframe>
+    <iframe id="frame-control" title="Control - app users" data-src="/control.html"></iframe>
     <iframe id="frame-cumulative" title="Cumulative Dashboard"></iframe>
     <iframe id="frame-geoleads" title="Geo-Leads Dashboard"></iframe>
     <iframe id="frame-geopotentials" title="Geo-Potentials Dashboard"></iframe>
@@ -325,7 +327,7 @@ async function handleGoogleLogin(credentialResponse) {
     if (email === ADMIN_EMAIL) {
       window.__userPerms = {
         email, name, picture,
-        allowedTabs:    ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','lvs','createleads','authorization'],
+        allowedTabs:    ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','lvs','control','createleads','authorization'],
         allowedRegions: []
       };
     } else {
@@ -475,11 +477,11 @@ async function openEditModal(email) {
 }
 
 function renderEditModal(user) {
-  const tabKeys = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','lvs','createleads'];
+  const tabKeys = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','lvs','control','createleads'];
   const allowedTabs = user ? (user.allowed_tabs || []) : ['leads','potentials'];
   const allowedRegions = user ? (user.allowed_regions || []) : [];
 
-  const TAB_LABELS = {leads:'📊 Leads',potentials:'📈 Potentials',cpanalytics:'🤝 CP Analytics',pmtracking:'🎯 PM Tracking',oemtracking:'🏭 OEM Tracking',salestracking:'💹 Sales Tracking',pathtarget:'🏁 Path to Target',lvs:'🔌 LVS',createleads:'➕ Create Lead'};
+  const TAB_LABELS = {leads:'📊 Leads',potentials:'📈 Potentials',cpanalytics:'🤝 CP Analytics',pmtracking:'🎯 PM Tracking',oemtracking:'🏭 OEM Tracking',salestracking:'💹 Sales Tracking',pathtarget:'🏁 Path to Target',lvs:'🔌 LVS',control:'🛡️ Control',createleads:'➕ Create Lead'};
   let tabHtml = tabKeys.map(k =>
     `<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:#f4f6fa;padding:8px 14px;border-radius:8px;font-size:13px;">
       <input type="checkbox" value="${k}" ${allowedTabs.includes(k)?'checked':''} style="width:15px;height:15px;">
@@ -614,7 +616,7 @@ document.addEventListener('DOMContentLoaded', function() {
     email: 'portal@elmeasure.com',
     name: 'Elmeasure',
     picture: '',
-    allowedTabs:    ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','lvs','createleads'],
+    allowedTabs:    ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','lvs','control','createleads'],
     allowedRegions: []
   };
   // Set cookie for API region filtering (all regions)

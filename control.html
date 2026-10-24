@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control – app users</title>
+<style>
+  :root { --ink:#16264d; --mut:#6b7a90; --line:#e2e8f0; --bg:#eef1f6; --pri:#103a52; --good:#2e7d4f; --bad:#c0392b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; background: var(--bg); color: var(--ink); }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 20px; margin: 0; } .sub { color: var(--mut); font-size: 13px; margin-top: 3px; }
+  .card { background: #fff; border-radius: 14px; box-shadow: 0 1px 3px rgba(16,38,77,.08); padding: 16px; margin-top: 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .kpi { background: #fff; border-radius: 12px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(16,38,77,.08); }
+  .kpi .k { font-size: 11px; color: var(--mut); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+  .kpi .v { font-size: 22px; font-weight: 700; margin-top: 4px; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input, select { font: inherit; font-size: 14px; padding: 9px 11px; border: 1px solid #cfd8e3; border-radius: 9px; min-width: 0; }
+  button { font: inherit; font-size: 14px; padding: 9px 14px; border-radius: 9px; border: 1px solid #cfd8e3; background: #fff; color: var(--ink); cursor: pointer; }
+  button.pri { background: var(--pri); color: #fff; border-color: var(--pri); font-weight: 600; }
+  .tbl { overflow: auto; max-height: 70vh; margin-top: 12px; border: 1px solid var(--line); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th { position: sticky; top: 0; background: #f5f7fb; text-align: left; font-size: 12px; color: var(--mut); padding: 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tr:hover td { background: #fafbfd; }
+  .pill { display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; }
+  .pill.on { background: #e5f4ec; color: var(--good); } .pill.off { background: #fbe9e7; color: var(--bad); }
+  .small { font-size: 12px; color: var(--mut); }
+  .err { color: var(--bad); font-size: 13px; margin-top: 8px; min-height: 16px; }
+  #lock { max-width: 360px; margin: 60px auto; text-align: center; }
+  #lock input { width: 100%; text-align: center; font-size: 20px; letter-spacing: .3em; margin-top: 12px; }
+  #lock button { width: 100%; margin-top: 12px; }
+  .act button { padding: 5px 10px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar" style="justify-content:space-between">
+    <div><h1>🛡️ Control – Elmeasure Insights app users</h1><div class="sub">Everyone who registered the mobile app with an SMS OTP. Block a user to stop the app opening on their phone.</div></div>
+    <div class="bar" id="topBtns" style="display:none"><button id="refresh">⟳ Refresh</button><button id="csv">⬇ CSV</button><button id="lockBtn">🔒 Lock</button></div>
+  </div>
+
+  <div class="card" id="lock">
+    <div style="font-size:34px">🔐</div>
+    <div style="font-weight:700;margin-top:6px">Enter the Control PIN</div>
+    <div class="small">Set as CONTROL_PIN in Vercel</div>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="off">
+    <button class="pri" id="unlock">Open</button>
+    <div class="err" id="pinErr"></div>
+  </div>
+
+  <div id="main" style="display:none">
+    <div class="kpis" id="kpis" style="margin-top:14px"></div>
+    <div class="card">
+      <div class="bar">
+        <input id="q" placeholder="Search name or mobile" style="flex:1 1 220px">
+        <select id="st"><option value="">All users</option><option value="on">Active</option><option value="off">Blocked</option></select>
+      </div>
+      <div class="err" id="err"></div>
+      <div class="tbl"><table><thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Status</th><th>Registered</th><th>Last opened</th><th>Opens</th><th>Device</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+let PIN = '', USERS = [];
+try { PIN = sessionStorage.getItem('ctlPin') || ''; } catch (e) {}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dt = d => d ? new Date(d).toLocaleString('en-IN', {day:'2-digit', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit'}) : '—';
+const ago = d => { if (!d) return ''; const m = (Date.now() - new Date(d)) / 60000; return m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
+
+async function call(data) {
+  const r = await fetch('/api/app-users', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin: PIN, ...data }) });
+  const j = await r.json().catch(() => ({ error: 'Server error ' + r.status }));
+  if (r.status === 403) { lock('Wrong PIN'); throw new Error('Wrong PIN'); }
+  if (!r.ok) throw new Error(j.error || 'Error ' + r.status);
+  return j;
+}
+function lock(msg) {
+  PIN = ''; try { sessionStorage.removeItem('ctlPin'); } catch (e) {}
+  $('main').style.display = 'none'; $('topBtns').style.display = 'none'; $('lock').style.display = ''; $('pinErr').textContent = msg || ''; $('pin').value = '';
+}
+async function load() {
+  $('err').textContent = '';
+  try {
+    const j = await call({ action: 'list' });
+    USERS = j.users || [];
+    try { sessionStorage.setItem('ctlPin', PIN); } catch (e) {}
+    $('lock').style.display = 'none'; $('main').style.display = ''; $('topBtns').style.display = '';
+    render();
+  } catch (e) { if (e.message !== 'Wrong PIN') { if ($('main').style.display === 'none') $('pinErr').textContent = e.message; else $('err').textContent = e.message; } }
+}
+function render() {
+  const q = $('q').value.trim().toLowerCase(), st = $('st').value;
+  const list = USERS.filter(u => (!q || (u.name || '').toLowerCase().includes(q) || (u.mobile || '').includes(q)) &&
+    (!st || (st === 'on' ? u.is_active !== false : u.is_active === false)));
+  const wk = Date.now() - 7 * 864e5;
+  const k = (l, v) => `<div class="kpi"><div class="k">${l}</div><div class="v">${v}</div></div>`;
+  $('kpis').innerHTML = k('Registered', USERS.length) + k('Active', USERS.filter(u => u.is_active !== false).length) +
+    k('Blocked', USERS.filter(u => u.is_active === false).length) + k('Opened in last 7 days', USERS.filter(u => u.last_seen && new Date(u.last_seen) > wk).length);
+  $('rows').innerHTML = list.map((u, i) => `<tr>
+    <td>${i + 1}</td><td><b>${esc(u.name)}</b></td>
+    <td><a href="tel:+91${esc(u.mobile)}">+91 ${esc(u.mobile)}</a></td>
+    <td><span class="pill ${u.is_active === false ? 'off' : 'on'}">${u.is_active === false ? 'Blocked' : 'Active'}</span></td>
+    <td>${dt(u.registered_at)}</td><td>${dt(u.last_seen)} <span class="small">${ago(u.last_seen)}</span></td>
+    <td>${u.open_count || 0}</td><td class="small" title="${esc(u.device)}">${esc((u.device || '').slice(0, 40))}</td>
+    <td class="act"><button data-m="${esc(u.mobile)}" data-a="${u.is_active === false ? 'on' : 'off'}">${u.is_active === false ? 'Unblock' : 'Block'}</button>
+      <button data-m="${esc(u.mobile)}" data-a="name">Rename</button></td></tr>`).join('') ||
+    '<tr><td colspan="9" class="small" style="text-align:center;padding:24px">No users yet. Users appear here after they register in the app.</td></tr>';
+}
+$('rows').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const m = b.dataset.m, a = b.dataset.a, u = USERS.find(x => x.mobile === m);
+  try {
+    if (a === 'name') {
+      const n = prompt('New name for +91 ' + m, u ? u.name : ''); if (!n) return;
+      await call({ action: 'set', mobile: m, name: n });
+    } else {
+      if (a === 'off' && !confirm(`Block ${u ? u.name : m}? The app will stop opening on their phone.`)) return;
+      await call({ action: 'set', mobile: m, is_active: a === 'on' });
+    }
+    await load();
+  } catch (err) { $('err').textContent = err.message; }
+});
+$('unlock').onclick = () => { PIN = $('pin').value.trim(); if (PIN) load(); };
+$('pin').addEventListener('keydown', e => { if (e.key === 'Enter') $('unlock').click(); });
+$('refresh').onclick = load; $('lockBtn').onclick = () => lock('');
+$('q').oninput = render; $('st').onchange = render;
+$('csv').onclick = () => {
+  const rows = [['Name','Mobile','Status','Registered','Last opened','Opens','Device'], ...USERS.map(u => [u.name, u.mobile, u.is_active === false ? 'Blocked' : 'Active', dt(u.registered_at), dt(u.last_seen), u.open_count || 0, u.device || ''])];
+  const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = 'app-users.csv'; a.click();
+};
+if (PIN) load();
+</script>
+<script src="/gesture-control.js" defer></script>
+</body>
+</html>

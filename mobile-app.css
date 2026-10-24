@@ -10,7 +10,7 @@ html.pm-app .logo-badge { padding: 3px; background: transparent; border: 0; box-
 html.pm-app .logo-chip { padding: 4px 8px; border-radius: 7px; box-shadow: none; }
 html.pm-app .logo-chip img { height: 20px; }
 html.pm-app .brand-title { font-size: 14px; letter-spacing: .03em; }
-html.pm-app .brand-sub { display: none; }
+html.pm-app .brand-sub { font-size: 11px; margin-top: 0; }
 html.pm-app #fsBtn, html.pm-app #gc-btn, html.pm-app #gc-panel { display: none !important; }
 html.pm-app #hamburgerBtn { padding: 8px 14px; border-radius: 10px; background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
 html.pm-app #userInfoBar span { display: none; }
@@ -25,3 +25,60 @@ html.pm-app .seg {
 html.pm-app .seg::before { display: none; }
 html.pm-app .tab-btn { font-size: 15px; padding: 13px 14px; border-radius: 10px; color: #103a52; }
 html.pm-app .tab-btn.active { background: #e6f0f4; color: #103a52; }
+
+/* 24-Oct-2026: mobile OTP registration screen (Elmeasure Insights) */
+#ei-gate { position: fixed; inset: 0; z-index: 99999; background: #f3f6f8; display: flex; align-items: center; justify-content: center;
+  padding: 20px; font-family: inherit; overflow: auto; }
+#ei-gate .card { width: 100%; max-width: 380px; background: #fff; border-radius: 18px; padding: 26px 22px 22px;
+  box-shadow: 0 6px 28px rgba(16,58,82,.12); text-align: center; }
+#ei-gate img { width: 230px; max-width: 80%; height: auto; }
+#ei-gate h1 { font-size: 20px; color: #103a52; margin: 14px 0 2px; }
+#ei-gate p.s { color: #5b6f7c; font-size: 13px; margin: 0 0 18px; }
+#ei-gate label { display: block; text-align: left; font-size: 12px; color: #5b6f7c; margin: 10px 0 4px; font-weight: 600; }
+#ei-gate input { width: 100%; box-sizing: border-box; font-size: 16px; padding: 12px; border: 1px solid #cfdbe2; border-radius: 10px; outline: none; }
+#ei-gate input:focus { border-color: #1b7a9c; box-shadow: 0 0 0 3px rgba(27,122,156,.15); }
+#ei-gate .mob { display: flex; gap: 8px; } #ei-gate .mob span { padding: 12px 10px; background: #eef3f6; border-radius: 10px; color: #103a52; font-weight: 600; }
+#ei-gate #eiOtp { letter-spacing: .5em; text-align: center; font-size: 22px; }
+#ei-gate button.go { width: 100%; margin-top: 18px; padding: 13px; font-size: 16px; font-weight: 700; color: #fff; background: #103a52;
+  border: 0; border-radius: 10px; } #ei-gate button.go:disabled { opacity: .5; }
+#ei-gate .lnk { background: none; border: 0; color: #1b7a9c; font-size: 13px; margin-top: 12px; padding: 4px; }
+#ei-gate .msg { min-height: 18px; font-size: 13px; margin-top: 10px; color: #c0392b; } #ei-gate .msg.ok { color: #2e7d4f; }
+#ei-gate .ft { font-size: 11px; color: #8a9aa5; margin-top: 16px; }
+
+/* 24-Oct-2026: start-up animation (about 3 s, tap to skip) */
+#ei-splash { position: fixed; inset: 0; z-index: 100000; overflow: hidden; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 40%, #0f3f5c 0%, #071a2b 55%, #030b14 100%);
+  perspective: 900px; transition: opacity .6s ease; font-family: inherit; }
+#ei-splash.out { opacity: 0; pointer-events: none; }
+#ei-splash .floor { position: absolute; left: -50%; right: -50%; bottom: -10%; height: 60%;
+  background-image: linear-gradient(rgba(64,200,255,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(64,200,255,.35) 1px, transparent 1px);
+  background-size: 48px 48px; transform: rotateX(72deg); transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, #000 10%, transparent 85%); mask-image: linear-gradient(to top, #000 10%, transparent 85%);
+  animation: eiFloor 1.2s linear infinite; }
+@keyframes eiFloor { to { background-position: 0 48px, 0 0; } }
+#ei-splash .stage { position: relative; width: 190px; height: 190px; transform-style: preserve-3d; animation: eiRise 1s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes eiRise { from { transform: translateZ(-400px) translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+#ei-splash .mark { position: absolute; inset: 25px; border-radius: 50%; background: #fff url(/elmeasure-mark.png) center/88% no-repeat;
+  box-shadow: 0 0 40px rgba(80,210,255,.55), 0 0 90px rgba(120,90,255,.35); animation: eiSpin 2.4s cubic-bezier(.4,0,.2,1) .2s both; backface-visibility: visible; }
+@keyframes eiSpin { from { transform: rotateY(-540deg) scale(.6); } 70% { transform: rotateY(20deg) scale(1.05); } to { transform: rotateY(0) scale(1); } }
+#ei-splash .ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(90,220,255,.55); transform-style: preserve-3d; }
+#ei-splash .ring::after { content: ''; position: absolute; top: -5px; left: 50%; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%;
+  background: #7ef0ff; box-shadow: 0 0 12px #7ef0ff, 0 0 24px #4fc3ff; }
+#ei-splash .r1 { animation: eiR1 2.6s linear infinite; } #ei-splash .r2 { inset: -18px; border-color: rgba(190,120,255,.45); animation: eiR2 3.4s linear infinite; }
+#ei-splash .r2::after { background: #d9a6ff; box-shadow: 0 0 12px #d9a6ff, 0 0 24px #9b5cff; }
+#ei-splash .r3 { inset: -36px; border-color: rgba(120,255,170,.35); animation: eiR3 4.2s linear infinite; }
+#ei-splash .r3::after { background: #9effc4; box-shadow: 0 0 12px #9effc4; }
+@keyframes eiR1 { from { transform: rotateX(70deg) rotateZ(0); } to { transform: rotateX(70deg) rotateZ(360deg); } }
+@keyframes eiR2 { from { transform: rotateY(65deg) rotateZ(0); } to { transform: rotateY(65deg) rotateZ(-360deg); } }
+@keyframes eiR3 { from { transform: rotateX(-60deg) rotateY(30deg) rotateZ(0); } to { transform: rotateX(-60deg) rotateY(30deg) rotateZ(360deg); } }
+#ei-splash svg.wave { width: 260px; height: 46px; margin-top: 40px; overflow: visible; }
+#ei-splash svg.wave path { fill: none; stroke: url(#eiG); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 600; stroke-dashoffset: 600;
+  animation: eiDraw 1.6s ease-out .5s forwards; filter: drop-shadow(0 0 6px rgba(80,210,255,.8)); }
+@keyframes eiDraw { to { stroke-dashoffset: 0; } }
+#ei-splash .t1 { margin-top: 14px; color: #fff; font-size: 26px; font-weight: 800; letter-spacing: .14em; opacity: 0; animation: eiTxt .8s ease-out 1.1s forwards; text-shadow: 0 0 18px rgba(80,210,255,.6); }
+#ei-splash .t1 b { color: #7ef0ff; font-weight: 800; }
+#ei-splash .t2 { margin-top: 6px; color: rgba(255,255,255,.7); font-size: 13px; letter-spacing: .2em; opacity: 0; animation: eiTxt .8s ease-out 1.5s forwards; }
+@keyframes eiTxt { from { opacity: 0; transform: translateY(12px); letter-spacing: .5em; } to { opacity: 1; transform: none; } }
+#ei-splash .dots i { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #7ef0ff; opacity: 0; animation: eiDot 2.2s linear infinite; }
+@keyframes eiDot { 0% { opacity: 0; transform: translateZ(0) scale(.5); } 30% { opacity: .9; } 100% { opacity: 0; transform: translateY(-120px) scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { #ei-splash *, #ei-splash { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
