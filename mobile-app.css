@@ -45,34 +45,65 @@ html.pm-app .tab-btn.active { background: #e6f0f4; color: #103a52; }
 #ei-gate .msg { min-height: 18px; font-size: 13px; margin-top: 10px; color: #c0392b; } #ei-gate .msg.ok { color: #2e7d4f; }
 #ei-gate .ft { font-size: 11px; color: #8a9aa5; margin-top: 16px; }
 
-/* start screen "Earthrise" v2 (25-Oct-2026) – brand first, globe as the stage */
-#ei-splash { position: fixed; inset: 0; z-index: 100000; background: #020610; overflow: hidden; transition: opacity .6s ease;
-  font-family: "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+/* start screen "Insight Bars" (v1.7) */
+#ei-splash { position: fixed; inset: 0; z-index: 100000; transition: opacity .5s ease; }
 #ei-splash.out { opacity: 0; pointer-events: none; }
-#ei-splash canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-#ei-splash .brand { position: absolute; left: 0; right: 0; top: 50%; text-align: center; pointer-events: none; padding: 0 12px; }
-#ei-splash .mk { width: 92px; height: 92px; margin: 0 auto; border-radius: 50%; background: #fff; padding: 7px; box-sizing: border-box;
-  box-shadow: 0 0 0 3px rgba(255,255,255,.12), 0 0 34px rgba(126,240,255,.6), 0 0 80px rgba(123,79,214,.35);
-  opacity: 0; transform: perspective(500px) scale(.3) rotateY(200deg); transition: all 1s cubic-bezier(.2,.9,.25,1.15); }
-#ei-splash .mk img { width: 100%; height: 100%; display: block; }
-#ei-splash .w1 { margin-top: 18px; color: #fff; font-size: clamp(32px, 10.5vw, 44px); font-weight: 900; letter-spacing: .6em; text-indent: .6em;
-  opacity: 0; filter: blur(8px); transition: all 1s ease; text-shadow: 0 0 22px rgba(120,200,255,.5); line-height: 1.05; }
-#ei-splash .w2 { font-size: clamp(36px, 12vw, 52px); font-weight: 900; letter-spacing: .2em; text-indent: .2em; margin-top: 4px; line-height: 1.1;
-  opacity: 0; transform: translateY(14px) scale(.96);
-  background: linear-gradient(90deg, #39b6ff, #00d4c0, #5dff9e, #ffd23f, #ff8a3d, #ff5c93, #a77bff, #39b6ff); background-size: 200% 100%;
-  -webkit-background-clip: text; background-clip: text; color: transparent; transition: all .9s ease; animation: eiShine 3.2s linear infinite;
-  filter: drop-shadow(0 0 14px rgba(120,200,255,.35)); }
-#ei-splash .w3 { margin-top: 14px; font-size: clamp(13px, 4vw, 17px); font-weight: 600; letter-spacing: .3em; text-indent: .3em; text-transform: uppercase;
-  opacity: 0; transition: opacity 1s ease;
-  background: linear-gradient(90deg, #ffd23f, #fff, #7ef0ff, #ff8ac0, #ffd23f); background-size: 250% 100%;
-  -webkit-background-clip: text; background-clip: text; color: transparent; animation: eiShine 2.6s linear infinite; }
-#ei-splash.b1 .mk { opacity: 1; transform: none; }
-#ei-splash.b1 .w1 { opacity: 1; filter: none; letter-spacing: .2em; text-indent: .2em; }
-#ei-splash.b2 .w2 { opacity: 1; transform: none; }
-#ei-splash.b3 .w3 { opacity: 1; }
-#ei-splash .skip { position: absolute; bottom: calc(18px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: rgba(255,255,255,.35); font-size: 11px; letter-spacing: .12em; }
-@keyframes eiShine { to { background-position: -200% 0; } }
-@media (prefers-reduced-motion: reduce) { #ei-splash * { animation: none !important; transition-duration: .01s !important; } }
+#ei-splash .eiw { border-radius: 0; }
+#ei-splash .eiw svg { top: 4%; }
+
+.eiw { position: relative; width: 100%; height: 100%; overflow: hidden; border-radius: 26px; font-family: Poppins, "Segoe UI", system-ui, -apple-system, Roboto, sans-serif;
+  background: radial-gradient(120% 80% at 50% 25%, #fffaf4 0%, #fdeedd 55%, #f7dcc4 100%); }
+.eiw.sB { background: radial-gradient(110% 80% at 50% 30%, #fff6ee 0%, #ffe3cf 50%, #f8c9b0 100%); }
+.eiw.sC { background: linear-gradient(#fde7d3 0%, #ffd9bf 45%, #ffe9d6 100%); }
+.eiw svg { position: absolute; left: 0; top: 0; width: 100%; height: 66%; }
+.eiw .eiw-brand { position: absolute; left: 0; right: 0; top: 60%; text-align: center; padding: 0 10px; }
+.eiw .mk { position: relative; width: 31%; max-width: 124px; aspect-ratio: 1; margin: 0 auto; opacity: 0; transform: scale(.5) rotate(-40deg);
+  animation: eiwRing .9s cubic-bezier(.2,.9,.3,1.25) forwards; animation-delay: var(--b1); }
+.eiw .mk .ring { position: absolute; inset: 0; width: 100%; height: 100%; animation: eiwSpin 14s linear infinite; }
+.eiw .mk .eiw-seg { stroke-dashoffset: 17; opacity: 0; animation: eiwSeg .6s ease-out forwards; }
+.eiw .mk .dots { transform-box: view-box; transform-origin: 60px 60px; animation: eiwSpin 9s linear infinite reverse; }
+.eiw .mk .core { position: absolute; inset: 15%; border-radius: 50%; background: #fff; padding: 6%; box-sizing: border-box;
+  box-shadow: 0 6px 18px rgba(240,140,90,.30), inset 0 0 0 2px #fde6d3; }
+.eiw .mk .core img { width: 100%; height: 100%; display: block; animation: eiwPulse 2.4s ease-in-out infinite; animation-delay: calc(var(--b1) + 1s); }
+@keyframes eiwRing { to { opacity: 1; transform: none; } }
+@keyframes eiwSeg { to { stroke-dashoffset: 0; opacity: 1; } }
+@keyframes eiwSpin { to { transform: rotate(360deg); } }
+@keyframes eiwPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+.eiw .w1 { margin-top: 4%; font-weight: 800; font-size: 2.15em; letter-spacing: .14em; text-indent: .14em; color: #3d2c4a; opacity: 0; animation: eiwUp .8s ease forwards; animation-delay: calc(var(--b1) + .15s); }
+.eiw .w2 { font-weight: 800; font-size: 2.45em; letter-spacing: .12em; text-indent: .12em; line-height: 1.05; opacity: 0;
+  background: linear-gradient(90deg, #f08c5a, #f27a8a, #f5b841, #6cc5b8, #f08c5a); background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: eiwUp .8s ease forwards, eiwShine 4s linear infinite; animation-delay: calc(var(--b1) + .35s), 0s; }
+.eiw .w3 { margin-top: 3%; font-weight: 500; font-size: .92em; letter-spacing: .3em; text-indent: .3em; text-transform: uppercase; color: #a07d6c; opacity: 0; animation: eiwUp .8s ease forwards; animation-delay: calc(var(--b1) + .6s); }
+.eiw .w3 b { color: #f08c5a; font-weight: 700; }
+.eiw .skip { position: absolute; bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center; color: rgba(61,44,74,.35); font-size: 10px; letter-spacing: .1em; }
+.eiw .rise { opacity: 0; transform: translateY(40px); animation: eiwRise .7s cubic-bezier(.2,.9,.3,1.15) forwards; }
+.eiw .grow { transform: scaleY(0); animation: eiwGrow .8s cubic-bezier(.2,.9,.3,1.15) forwards; transform-box: view-box; }
+.eiw .pop { opacity: 0; transform: scale(.2); transform-box: fill-box; transform-origin: center; animation: eiwPop .55s cubic-bezier(.2,.9,.3,1.4) forwards; }
+.eiw .draw { stroke-dasharray: 700; stroke-dashoffset: 700; animation: eiwDraw 1.2s ease forwards; }
+.eiw .lit { opacity: .15; animation: eiwLit .4s ease forwards; }
+.eiw .pulse { opacity: 0; animation: eiwFade .3s ease forwards; filter: drop-shadow(0 0 4px #ff8a3d); }
+.eiw .smoke circle { opacity: 0; animation: eiwSmoke 2s ease-out infinite; transform-box: fill-box; transform-origin: center; }
+.eiw .dialwrap { transform-box: view-box; transform-origin: 180px 230px; animation: eiwTilt 1.3s cubic-bezier(.2,.9,.3,1.1) forwards; }
+.eiw .needle { transform-box: view-box; transform-origin: 180px 230px; transform: rotate(-135deg); animation: eiwNeedle 1.8s cubic-bezier(.3,1.4,.4,1) .5s forwards; }
+.eiw .sweep { stroke-dasharray: 300; stroke-dashoffset: 300; animation: eiwSweep 1.8s ease .5s forwards; }
+.eiw .ripple { opacity: 0; transform-box: fill-box; transform-origin: center; animation: eiwRipple 1.8s ease-out infinite; }
+.eiw .sunrise { transform: translateY(80px); opacity: .2; animation: eiwSun 1.8s ease forwards; }
+@keyframes eiwRise { to { opacity: 1; transform: none; } }
+@keyframes eiwGrow { to { transform: scaleY(1); } }
+@keyframes eiwPop { to { opacity: 1; transform: none; } }
+@keyframes eiwDraw { to { stroke-dashoffset: 0; } }
+@keyframes eiwLit { to { opacity: 1; } }
+@keyframes eiwFade { to { opacity: 1; } }
+@keyframes eiwSmoke { 0% { opacity: 0; transform: translateY(0) scale(.5); } 30% { opacity: .7; } 100% { opacity: 0; transform: translateY(-40px) scale(1.6); } }
+@keyframes eiwTilt { from { transform: perspective(600px) rotateX(70deg) scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes eiwNeedle { to { transform: rotate(70deg); } }
+@keyframes eiwSweep { to { stroke-dashoffset: 62; } }
+@keyframes eiwRipple { 0% { opacity: .8; transform: scale(1); } 100% { opacity: 0; transform: scale(2.2); } }
+@keyframes eiwSun { to { transform: none; opacity: 1; } }
+@keyframes eiwFlip { to { opacity: 1; transform: none; } }
+@keyframes eiwUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes eiwShine { to { background-position: -220% 0; } }
+@media (prefers-reduced-motion: reduce) { .eiw * { animation-duration: .01s !important; animation-delay: 0s !important; } }
 
 /* 25-Oct-2026: tidy header + profile button and sheet */
 html.pm-app .brand { flex: 1 1 auto; min-width: 0; }
@@ -137,3 +168,14 @@ html.pm-app, html.pm-app body, html.pm-app .content, html.pm-app iframe { backgr
 #ei-nav button.on svg { background: #e6f1fb !important; }
 #ei-more .grid button { background: #fff !important; box-shadow: 0 2px 8px rgba(11,42,74,.07); border-color: #e1ebf5 !important; }
 #ei-more .grid button.on { background: #e6f1fb !important; border-color: #9cc6ea !important; }
+
+/* warm light-orange theme – shell (proposal) */
+html.pm-app .topbar { background: linear-gradient(120deg, #f6a46b 0%, #f08c5a 60%, #ec7b52 100%) !important; }
+html.pm-app, html.pm-app body, html.pm-app .content, html.pm-app iframe { background: #fef2e5 !important; }
+#eiMe { background: #fff !important; color: #e0703c !important; border-color: rgba(255,255,255,.8) !important; }
+#ei-nav { background: #fffaf5 !important; border-top-color: #f6dcc6 !important; }
+#ei-nav button { color: #b39282 !important; }
+#ei-nav button.on { color: #e0703c !important; }
+#ei-nav button.on svg { background: #fde3cf !important; }
+#ei-more .sheet { background: #fffaf5 !important; }
+#ei-more .grid button { background: #fff !important; border-color: #f6dcc6 !important; color: #3d2c4a !important; }
