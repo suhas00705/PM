@@ -1,6 +1,7 @@
 // api/app-otp.js (24-Oct-2026) – Elmeasure Insights app: register a mobile number with an SMS OTP.
 //   POST {action:'send',   mobile, name}           → sends a 6-digit OTP (valid 10 min)
 //   POST {action:'verify', mobile, name, otp, device} → registers the user, returns {token}
+//   POST {action:'logout', mobile, token}          → log this phone out
 //   POST {action:'check',  mobile, token}          → is this app still registered and active? (updates last seen)
 //   POST {pin, action:'list' | 'set', ...}          → Control tab (lib/appUsers.js; one function because Hobby allows 12)
 // Limits: 3 OTPs per number per 15 minutes, 5 wrong tries per OTP.
@@ -50,16 +51,22 @@ module.exports = async (req, res) => {
                                device: String(b.device || '').slice(0, 120), last_seen: new Date().toISOString(),
                                ...(old ? {} : { registered_at: new Date().toISOString(), is_active: true }) }) });
       await sb(`app_otp?mobile=eq.${mobile}`, { method: 'PATCH', body: JSON.stringify({ code_hash: null }) });
-      return res.status(200).json({ ok: true, token, name: name || (old && old.name) });
+      const [nu] = await sb(`app_users?mobile=eq.${mobile}&select=registered_at`);
+      return res.status(200).json({ ok: true, token, name: name || (old && old.name), registered: nu && nu.registered_at });
     }
 
     if (b.action === 'check') {
-      const [u] = await sb(`app_users?mobile=eq.${mobile}&select=name,is_active,token_hash,open_count`);
+      const [u] = await sb(`app_users?mobile=eq.${mobile}&select=name,is_active,token_hash,open_count,registered_at`);
       if (u && u.is_active === false) return res.status(200).json({ ok: false, reason: 'blocked' });
       if (!u || !b.token || u.token_hash !== sha(b.token)) return res.status(200).json({ ok: false, reason: 'register' });
       await sb(`app_users?mobile=eq.${enc(mobile)}`, { method: 'PATCH',
         body: JSON.stringify({ last_seen: new Date().toISOString(), open_count: (u.open_count || 0) + 1 }) });
-      return res.status(200).json({ ok: true, name: u.name });
+      return res.status(200).json({ ok: true, name: u.name, registered: u.registered_at });
+    }
+    if (b.action === 'logout') {                         // forget this phone's sign-in
+      const [u] = await sb(`app_users?mobile=eq.${mobile}&select=token_hash`);
+      if (u && b.token && u.token_hash === sha(b.token)) await sb(`app_users?mobile=eq.${mobile}`, { method: 'PATCH', body: JSON.stringify({ token_hash: null }) });
+      return res.status(200).json({ ok: true });
     }
     return res.status(400).json({ error: 'Unknown action' });
   } catch (e) {

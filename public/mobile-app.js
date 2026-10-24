@@ -1,5 +1,7 @@
 /* Elmeasure Insights – Android app mode (the PM Portal as an app)
  * 22-Oct-2026: app look for the shell and every dashboard tab; pinch-zoom and rotation stay available.
+ * 25-Oct-2026: v1.2 – bottom navigation bar (Leads, Deals, Target, Sales, More) and the tab name as the header title.
+ * 25-Oct-2026: v1.1 – mobile layer for every tab (mobile-app-frame.js), profile sheet with log out.
  * 24-Oct-2026: renamed "Elmeasure Insights"; the app asks for name + mobile once and verifies it with an SMS OTP
  *              (/api/app-otp). Registered users are listed in the Control tab, where they can be blocked.
  * Only active when the portal runs as the installed app (or with ?app=1 for testing; ?app=0 turns it off).
@@ -19,7 +21,7 @@
   var twa = /^android-app:\/\//.test(document.referrer || '');
   if (!standalone && !stored && !twa) return;
 
-  var V = '2', APP = 'Elmeasure Insights';
+  var V = '4', APP = 'Elmeasure Insights', VERSION = '1.2';
   document.documentElement.classList.add('pm-app');
   var css = document.createElement('link');
   css.rel = 'stylesheet'; css.href = '/mobile-app.css?v=' + V;
@@ -78,7 +80,7 @@
         .then(function (r) {
           busy = false; $('eiVerify').disabled = false;
           if (!r.ok) return msg(r.error || 'Could not verify.');
-          setUser({ name: r.name || name, mobile: mob, token: r.token });
+          setUser({ name: r.name || name, mobile: mob, token: r.token, registered: r.registered || new Date().toISOString() });
           g.remove(); greet();
         }).catch(function () { busy = false; $('eiVerify').disabled = false; msg('No internet connection.'); });
     }
@@ -90,7 +92,94 @@
 
   function greet() {
     var u = getUser(), s = document.querySelector('.brand-sub');
-    if (u && s) { s.textContent = 'Hi, ' + u.name.split(' ')[0]; }
+    if (s) { s.textContent = u ? 'Hi, ' + u.name.split(' ')[0] : ''; s.style.display = u ? '' : 'none'; }
+    var b = document.getElementById('eiMe');
+    if (!b) {
+      var ham = document.getElementById('hambWrap') || document.getElementById('hamburgerBtn'); if (!ham || !ham.parentElement) return;
+      b = document.createElement('button'); b.id = 'eiMe'; b.type = 'button'; b.title = 'My profile';
+      ham.parentElement.insertBefore(b, ham);
+      b.addEventListener('click', showProfile);
+    }
+    b.textContent = initials(u && u.name);
+  }
+  function initials(n) { n = String(n || '').trim(); if (!n) return '👤'; var p = n.split(/\s+/); return (p[0][0] + (p.length > 1 ? p[p.length - 1][0] : '')).toUpperCase(); }
+
+
+  /* ---------- bottom navigation (replaces the Menu button in the app) ---------- */
+  var ICON = {
+    leads: '<path d="M4 19V9m6 10V5m6 14v-7m4 7H2"/>',
+    potentials: '<path d="M3 17l5-5 4 4 8-8M14 8h6v6"/>',
+    pathtarget: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1"/>',
+    salestracking: '<path d="M4 20h16M7 16v-5m5 5V7m5 9v-8"/>',
+    more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
+  };
+  var MAIN = [['leads', 'Leads'], ['potentials', 'Deals'], ['pathtarget', 'Target'], ['salestracking', 'Sales']];
+  function svg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICON[k] + '</svg>'; }
+  function tabBtns() { return Array.prototype.filter.call(document.querySelectorAll('#tabs .tab-btn'), function (b) { return b.dataset.target && b.style.display !== 'none' && b.dataset.target !== 'authorization'; }); }
+  function label(b) { return (b.textContent || '').replace(/^[^A-Za-z0-9]+/, '').trim(); }
+  function go(k) { if (typeof window.showPortalTab === 'function') window.showPortalTab(k); closeMore(); markNav(); }
+  function closeMore() { var m = document.getElementById('ei-more'); if (m) { m.classList.remove('on'); setTimeout(function () { m.remove(); }, 220); } }
+  function markNav() {
+    var act = document.querySelector('#tabs .tab-btn.active'), k = act ? act.dataset.target : '';
+    var inMain = MAIN.some(function (m) { return m[0] === k; });
+    Array.prototype.forEach.call(document.querySelectorAll('#ei-nav button'), function (b) { b.classList.toggle('on', b.dataset.k === k || (b.dataset.k === 'more' && !inMain && !!k)); });
+    var t = document.querySelector('.brand-title'); if (t && act) t.textContent = label(act).replace('Channel Partner Analytics', 'CP Analytics').replace('PM Cumulative Tracking', 'PM Tracking');
+  }
+  function openMore() {
+    if (document.getElementById('ei-more')) return closeMore();
+    var mainKeys = MAIN.map(function (m) { return m[0]; });
+    var items = tabBtns().filter(function (b) { return mainKeys.indexOf(b.dataset.target) < 0; });
+    var m = document.createElement('div'); m.id = 'ei-more';
+    m.innerHTML = '<div class="sheet"><div class="grab"></div><div class="ttl">All dashboards</div><div class="grid">' +
+      items.map(function (b) { var tx = b.textContent.trim(), em = (tx.match(/^[^A-Za-z0-9]+/) || [''])[0].trim();
+        return '<button data-k="' + b.dataset.target + '"' + (b.classList.contains('active') ? ' class="on"' : '') + '><span class="em">' + esc(em || '•') + '</span><span>' + esc(label(b)) + '</span></button>'; }).join('') +
+      '</div></div>';
+    document.body.appendChild(m);
+    requestAnimationFrame(function () { m.classList.add('on'); });
+    m.addEventListener('click', function (e) { var b = e.target.closest('button[data-k]'); if (b) return go(b.dataset.k); if (e.target === m) closeMore(); });
+  }
+  function bottomNav() {
+    if (document.getElementById('ei-nav') || !document.getElementById('tabs')) return;
+    var visible = tabBtns().map(function (b) { return b.dataset.target; });
+    var n = document.createElement('nav'); n.id = 'ei-nav';
+    n.innerHTML = MAIN.filter(function (m) { return visible.indexOf(m[0]) >= 0; }).map(function (m) {
+      return '<button data-k="' + m[0] + '">' + svg(m[0]) + '<span>' + m[1] + '</span></button>'; }).join('') +
+      '<button data-k="more">' + svg('more') + '<span>More</span></button>';
+    document.body.appendChild(n);
+    document.documentElement.classList.add('ei-hasnav');
+    n.addEventListener('click', function (e) { var b = e.target.closest('button'); if (!b) return; if (b.dataset.k === 'more') openMore(); else go(b.dataset.k); });
+    new MutationObserver(markNav).observe(document.getElementById('tabs'), { attributes: true, subtree: true, attributeFilter: ['class', 'style'] });
+    markNav();
+  }
+
+  /* ---------- profile sheet: name, mobile, app info, log out ---------- */
+  function showProfile() {
+    var u = getUser(); if (!u) return showGate();
+    var old = document.getElementById('ei-prof'); if (old) old.remove();
+    var reg = u.registered ? new Date(u.registered).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+    var p = document.createElement('div'); p.id = 'ei-prof';
+    p.innerHTML = '<div class="sheet"><div class="grab"></div>' +
+      '<div class="av">' + esc(initials(u.name)) + '</div><div class="nm">' + esc(u.name) + '</div>' +
+      '<div class="mb">+91 ' + esc(u.mobile) + '</div>' +
+      '<div class="rows"><div><span>Registered</span><b>' + esc(reg) + '</b></div>' +
+      '<div><span>App</span><b>' + APP + ' v' + VERSION + '</b></div>' +
+      '<div><span>Data</span><b>Synced every 2 hours, 7 AM – 9 PM</b></div></div>' +
+      '<button class="pbtn" id="eiReload">⟳ Refresh data</button>' +
+      '<button class="pbtn out" id="eiLogout">Log out</button>' +
+      '<button class="pbtn ghost" id="eiClose">Close</button>' +
+      '<div class="ft">Elmeasure · Possibilities…Infinite</div></div>';
+    document.body.appendChild(p);
+    requestAnimationFrame(function () { p.classList.add('on'); });
+    function close() { p.classList.remove('on'); setTimeout(function () { p.remove(); }, 250); }
+    p.addEventListener('click', function (e) { if (e.target === p) close(); });
+    document.getElementById('eiClose').onclick = close;
+    document.getElementById('eiReload').onclick = function () { location.reload(); };
+    document.getElementById('eiLogout').onclick = function () {
+      if (!confirm('Log out of ' + APP + '? You will need an OTP to sign in again.')) return;
+      api({ action: 'logout', mobile: u.mobile, token: u.token }).catch(function () {});
+      try { localStorage.removeItem('eiUser'); } catch (e) {}
+      close(); greet(); showGate('You have logged out. Verify your mobile number to sign in again.');
+    };
   }
 
   function checkUser() {
@@ -98,7 +187,10 @@
     if (!u || !u.token) return showGate();
     greet();
     api({ action: 'check', mobile: u.mobile, token: u.token }).then(function (r) {
-      if (r.ok) { if (r.name && r.name !== u.name) { u.name = r.name; setUser(u); greet(); } return; }
+      if (r.ok) { var ch = false;
+        if (r.name && r.name !== u.name) { u.name = r.name; ch = true; }
+        if (r.registered && r.registered !== u.registered) { u.registered = r.registered; ch = true; }
+        if (ch) { setUser(u); greet(); } return; }
       if (r.reason === 'blocked') { try { localStorage.removeItem('eiUser'); } catch (e) {} return showGate('Your access has been blocked. Contact the administrator.'); }
       if (r.reason === 'register') return showGate('Please verify your mobile number again.');
       // server problem: do not lock the user out
@@ -136,6 +228,9 @@
       l.id = 'pm-app-css'; l.rel = 'stylesheet'; l.href = '/mobile-app-frame.css?v=' + V;
       d.head.appendChild(l);
       d.documentElement.classList.add('app-mode');
+      var sc = d.createElement('script');                         // folding sections, key columns, cards, show-more
+      sc.id = 'pm-app-js'; sc.src = '/mobile-app-frame.js?v=' + V;
+      (d.body || d.head).appendChild(sc);
     } catch (e) { /* not same-site: leave it */ }
   }
   function hook() {
@@ -150,6 +245,7 @@
     var t = document.querySelector('.brand-title'); if (t) t.textContent = 'INSIGHTS';
     document.title = APP;
     splash();
+    bottomNav(); setTimeout(bottomNav, 1500); setTimeout(markNav, 1600);
     checkUser();
     hook();
     setInterval(hook, 1500);                                    // tabs load lazily; catch new / reloaded frames

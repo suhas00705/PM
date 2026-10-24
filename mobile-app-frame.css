@@ -1,17 +1,75 @@
-/* Elmeasure PM Portal – dashboard look inside the Android app (only when html.app-mode).
- * Clean and quiet: light grey-green page, white cards, one dark-teal accent. Pinch-zoom and rotation work as usual.
- * Small screens (portrait phone) get stacked filters, 2-per-row KPI tiles and side-scrolling tables / charts.
+/* Elmeasure Insights – dashboard look inside the Android app ONLY (html.app-mode, set by mobile-app.js).
+ * The laptop / desktop portal never loads this file.
+ * 25-Oct-2026: rebuilt for phones – folding sections, hidden notes, key columns, cards, show-more (see mobile-app-frame.js).
  */
 html.app-mode, html.app-mode body { background: #f3f6f8 !important; }
-html.app-mode body { -webkit-text-size-adjust: 100%; }
+html.app-mode body { -webkit-text-size-adjust: 100%; overflow-x: hidden; }
 html.app-mode .card { border-radius: 14px !important; border-color: #e3e9ee !important; box-shadow: 0 1px 3px rgba(16,58,82,.06) !important; }
-html.app-mode th { background-color: #103a52 !important; }
 html.app-mode .btn { border-radius: 10px; }
 html.app-mode .bar { background: #f3f6f8 !important; }
 
-/* tables and charts never squeeze: they scroll sideways */
-html.app-mode .tbl, html.app-mode .chart, html.app-mode .sbox, html.app-mode .sbox2 { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-html.app-mode *:has(> table) { overflow-x: auto; max-width: 100%; }
+/* gesture camera button is not used in the app */
+html.app-mode #gc-btn, html.app-mode #gc-panel { display: none !important; }
+
+/* ---------- tables ---------- */
+html.app-mode .tbl, html.app-mode .chart, html.app-mode .sbox, html.app-mode .sbox2,
+html.app-mode .tbl-wrap, html.app-mode .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; max-width: 100%; }
+html.app-mode table.mx-t th { background-color: #103a52 !important; color: #fff !important; }
+html.app-mode table.mx-t .mx-h { display: none !important; }
+html.app-mode table.mx-t tr.mx-more { display: none !important; }
+html.app-mode table.mx-t:not(.mx-cards) tr > :first-child { position: sticky; left: 0; z-index: 1; background: #fff; box-shadow: 1px 0 0 #e3e9ee; }
+html.app-mode table.mx-t:not(.mx-cards) thead tr > :first-child,
+html.app-mode table.mx-t:not(.mx-cards) tr > th:first-child { background: #103a52; z-index: 2; }
+html.app-mode .mx-tbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 2px; }
+html.app-mode .mx-tbar button { font: inherit; font-size: 13px; font-weight: 600; color: #103a52; background: #e6f0f4; border: 0; border-radius: 99px; padding: 8px 14px; }
+
+/* list tables as cards */
+html.app-mode table.mx-cards, html.app-mode table.mx-cards tbody { display: block; width: 100% !important; min-width: 0 !important; border: 0 !important; background: transparent !important; }
+html.app-mode table.mx-cards thead, html.app-mode table.mx-cards tr:first-child:has(> th) { display: none !important; }
+html.app-mode table.mx-cards tr { display: flex; flex-wrap: wrap; background: #fff; border: 1px solid #e3e9ee; border-radius: 12px;
+  margin: 0 0 8px; padding: 10px 12px; box-shadow: 0 1px 2px rgba(16,58,82,.05); }
+html.app-mode table.mx-cards tr.mx-more { display: none !important; }
+html.app-mode table.mx-cards td { display: flex; flex-direction: column; width: 50%; box-sizing: border-box; border: 0 !important;
+  padding: 4px 6px 4px 0 !important; text-align: left !important; white-space: normal !important; background: transparent !important;
+  position: static !important; font-size: 13px; color: #16264d; min-width: 0; overflow-wrap: anywhere; }
+html.app-mode table.mx-cards td::before { content: attr(data-l); font-size: 10.5px; font-weight: 600; color: #7a8ba0; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 1px; }
+html.app-mode table.mx-cards td.mx-title { order: -1; width: 100%; font-size: 15px; font-weight: 700; color: #103a52; padding-bottom: 6px !important; }
+html.app-mode table.mx-cards td.mx-title::before { display: none; }
+html.app-mode table.mx-cards td:empty { display: none; }
+
+/* ---------- folding sections ---------- */
+html.app-mode .mx-sec { position: relative; }
+html.app-mode .mx-sec > .mx-head { cursor: pointer; padding-right: 58px; }
+html.app-mode .mx-sec > .mx-head h2, html.app-mode .mx-sec > h2.mx-head { padding-right: 58px; }
+html.app-mode .mx-chev { position: absolute; right: 10px; top: 12px; font-size: 13px; color: #103a52; background: #e6f0f4; border-radius: 99px;
+  width: 26px; height: 26px; display: inline-flex !important; align-items: center; justify-content: center; transition: transform .2s; cursor: pointer; z-index: 2; }
+html.app-mode .mx-sec.mx-closed .mx-chev { transform: rotate(-90deg); }
+html.app-mode .mx-info { position: absolute; right: 40px; top: 13px; border: 0; background: none; color: #7a8ba0; font-size: 16px; padding: 2px 4px; z-index: 2; display: inline-block !important; }
+html.app-mode .mx-sec.mx-closed > :not(.mx-head):not(.mx-chev):not(.mx-info) { display: none !important; }
+html.app-mode .mx-sec.mx-closed { padding-bottom: 12px !important; }
+html.app-mode .mx-sec.mx-closed > .mx-head > :not(:has(h2)):not(h2) { display: none !important; }
+/* notes / explanations: hidden until ⓘ */
+html.app-mode .mx-sec:not(.mx-notes) .sub, html.app-mode .mx-sec:not(.mx-notes) .note { display: none !important; }
+
+/* ---------- filters behind one button ---------- */
+html.app-mode .mx-fbtn { font: inherit; font-size: 14px; font-weight: 600; color: #103a52; background: #fff; border: 1px solid #d5e0e7;
+  border-radius: 10px; padding: 9px 14px; margin: 4px 0 8px; align-self: flex-start; }
+html.app-mode .mx-fbtn.on { background: #103a52; color: #fff; border-color: #103a52; }
+html.app-mode .mx-fbox.mx-fclosed { display: none !important; }
+
+html.app-mode .mx-hide { display: none !important; }
+/* view switches stay side by side */
+html.app-mode .toggle { display: inline-flex !important; flex-direction: row !important; flex-wrap: nowrap !important; max-width: 100%; overflow-x: auto; }
+html.app-mode .toggle > button { flex: 0 0 auto; white-space: nowrap; }
+/* one scroll per screen: no boxes that scroll inside the page */
+html.app-mode .tbl.scroll, html.app-mode .sbox, html.app-mode .sbox2 { max-height: none !important; }
+html.app-mode .mx-sec.mx-closed > .sec-h ~ * { display: none !important; }
+
+/* ---------- charts ---------- */
+html.app-mode .mx-chart { position: relative; }
+html.app-mode .mx-chart::after { content: '↔ swipe'; position: sticky; left: calc(100% - 64px); bottom: 4px; display: inline-block; font-size: 11px;
+  color: #fff; background: rgba(16,58,82,.6); padding: 2px 8px; border-radius: 99px; pointer-events: none; }
+html.app-mode .mx-chart.mx-swiped::after { display: none; }
 
 @media (max-width: 760px) {
   html.app-mode body { font-size: 14px; }
@@ -21,16 +79,41 @@ html.app-mode *:has(> table) { overflow-x: auto; max-width: 100%; }
   html.app-mode .ctrls > *, html.app-mode .f { flex: 1 1 140px; min-width: 0; }
   html.app-mode select, html.app-mode input[type=search], html.app-mode .ms-btn { min-height: 38px; font-size: 14px; max-width: 100%; width: 100%; min-width: 0 !important; }
   html.app-mode .toggle { flex-wrap: wrap; }
-  html.app-mode .sync { text-align: left !important; }
+  html.app-mode .sync { text-align: left !important; font-size: 11.5px !important; }
   html.app-mode .card { padding: 12px !important; margin-bottom: 10px !important; }
-  html.app-mode .card-h { flex-direction: column; align-items: stretch !important; }
-  html.app-mode .kpis, html.app-mode .pow { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
-  html.app-mode .kpi { padding: 10px !important; }
-  html.app-mode .kpi .v { font-size: 18px !important; }
-  html.app-mode .chart svg { min-width: 640px; }
-  html.app-mode table { font-size: 12px; }
+  html.app-mode .card-h { flex-direction: column; align-items: stretch !important; gap: 6px; }
+  html.app-mode .kpis, html.app-mode .pow, html.app-mode .kpi-row { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  html.app-mode .kpi { padding: 10px !important; min-width: 0 !important; }
+  html.app-mode .kpi .v, html.app-mode .kpi-value { font-size: 18px !important; }
+  html.app-mode .kpi .s, html.app-mode .kpi-sub { font-size: 11px !important; }
+  html.app-mode .chart svg { min-width: 560px; }
+  html.app-mode table { font-size: 12.5px; }
+  html.app-mode table.mx-t:not(.mx-cards) td, html.app-mode table.mx-t:not(.mx-cards) th { padding: 7px 8px !important; }
+  html.app-mode table.mx-t:not(.mx-cards) th { white-space: normal !important; line-height: 1.25; vertical-align: bottom; min-width: 56px; }
+  html.app-mode table.mx-t:not(.mx-cards) td { white-space: nowrap; }
   html.app-mode .drawer, html.app-mode .pop-box { width: 100% !important; max-width: 100% !important; }
   html.app-mode .pop { padding: 8px !important; }
-  html.app-mode h1 { font-size: 16px !important; }
-  html.app-mode h2 { font-size: 14.5px !important; }
+  html.app-mode h1 { font-size: 17px !important; }
+  html.app-mode h2 { font-size: 15px !important; line-height: 1.3; }
+  /* page-level descriptions */
+  html.app-mode .wrap > .sub, html.app-mode .hdr .sub, html.app-mode .head .sub, html.app-mode .bar .sub { display: none !important; }
+  /* leads / potentials: status chips in one swipeable row, filters full width */
+  html.app-mode .status-bar { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 6px; -webkit-overflow-scrolling: touch; }
+  html.app-mode .status-bar > * { flex: 0 0 auto; }
+  html.app-mode .filter-toolbar { flex-wrap: nowrap; gap: 8px; }
+  html.app-mode .filter-toolbar .search-box { flex: 1; min-width: 0; }
+  html.app-mode .filters .filter-field { min-width: 0 !important; width: 100%; }
+  html.app-mode .month-tabs-wrap, html.app-mode .sec-nav { overflow-x: auto; flex-wrap: nowrap !important; white-space: nowrap; }
+  html.app-mode .sec-nav { position: sticky; top: 0; z-index: 5; background: #f3f6f8; padding: 6px 0 !important; }
+  html.app-mode .sec-nav > * { flex: 0 0 auto; }
+  html.app-mode .month-tabs { flex-wrap: nowrap !important; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  html.app-mode .month-tab { flex: 0 0 auto; }
+  /* tiles two per row */
+  html.app-mode .grid.g3, html.app-mode .grid.g4, html.app-mode .grid.g5 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  html.app-mode .grid.g2 { grid-template-columns: minmax(0, 1fr) !important; }
+  html.app-mode .card.tile { padding: 10px !important; margin: 0 !important; min-width: 0; }
+  html.app-mode .tile .v, html.app-mode .tile .big { font-size: 20px !important; }
+  /* page-level notes and long explanations */
+  html.app-mode #note, html.app-mode #compareNote, html.app-mode .wrap > .note, html.app-mode .scope:empty { display: none !important; }
+  html.app-mode #refreshBtn { width: auto !important; align-self: flex-start; }
 }
