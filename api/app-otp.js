@@ -2,6 +2,7 @@
 //   POST {action:'send',   mobile, name}           → sends a 6-digit OTP (valid 10 min)
 //   POST {action:'verify', mobile, name, otp, device} → registers the user, returns {token}
 //   POST {action:'check',  mobile, token}          → is this app still registered and active? (updates last seen)
+//   POST {pin, action:'list' | 'set', ...}          → Control tab (lib/appUsers.js; one function because Hobby allows 12)
 // Limits: 3 OTPs per number per 15 minutes, 5 wrong tries per OTP.
 const { sb, sha, cleanMobile, cleanName, body, sendSms, crypto } = require('../lib/appAuth');
 
@@ -11,6 +12,7 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method !== 'POST') return res.status(405).json({ error: 'Use POST' });
   const b = body(req);
+  if (b.action === 'list' || b.action === 'set') return require('../lib/appUsers')(req, res);   // Control tab (PIN-protected)
   const mobile = cleanMobile(b.mobile);
   if (!mobile) return res.status(400).json({ error: 'Enter a valid 10-digit mobile number.' });
   try {

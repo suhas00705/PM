@@ -71,7 +71,7 @@ const dt = d => d ? new Date(d).toLocaleString('en-IN', {day:'2-digit', month:'s
 const ago = d => { if (!d) return ''; const m = (Date.now() - new Date(d)) / 60000; return m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 
 async function call(data) {
-  const r = await fetch('/api/app-users', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin: PIN, ...data }) });
+  const r = await fetch('/api/app-otp', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin: PIN, ...data }) });
   const j = await r.json().catch(() => ({ error: 'Server error ' + r.status }));
   if (r.status === 403) { lock('Wrong PIN'); throw new Error('Wrong PIN'); }
   if (!r.ok) throw new Error(j.error || 'Error ' + r.status);
