@@ -45,8 +45,8 @@ src as (
   where s.fy_start in (p_cy, p_cy - 1))
 select s.doc_type, s.fy_start, s.fy_month::int, s.posting_date, s.card_name,
   case
+    when s.eb = 'OEM' then 'OEM'
     when coalesce(s.slp_name, '') ilike 'dileep%' then 'Data Centre'
-    when s.ur like 'HO%' then 'HO / OEM'
     when s.ur like 'EXPORT%' or s.ur like 'IBU%' then 'Export'
     when s.ur = 'GOVT PROJECTS' then 'Govt Projects'
     when s.ur = 'HYDERABAD' then 'Hyderabad'

@@ -273,19 +273,19 @@ const PRODUCTS = [                                 // order = display order
 ];
 const NOTARGET_PRODUCTS = ['Others', 'Prepaid/Smart – Govt'];   // no own target: they share the balance
 const REGIONS = [
-  { k:'HO / OEM', t:10000 }, { k:'Hyderabad', t:6600 }, { k:'Karnataka', t:5000 }, { k:'Delhi NCR', t:3500 },
+  { k:'OEM', t:10000 }, { k:'Hyderabad', t:6600 }, { k:'Karnataka', t:5000 }, { k:'Delhi NCR', t:3500 },
   { k:'Mumbai', t:2660 }, { k:'Gujarat', t:2200 }, { k:'Chennai', t:2100 }, { k:'Pune', t:2100 },
   { k:'Export', t:2000 }, { k:'Data Centre', t:2000 }, { k:'Vijayawada', t:1700 }, { k:'Madurai & Salem', t:1300 },
   { k:'Coimbatore', t:1200 }, { k:'Punjab', t:1080 }, { k:'East India', t:1050 }, { k:'Eastern UP', t:710 },
   { k:'Nagpur & CG', t:700 }, { k:'North Kerala', t:600 }, { k:'MP', t:550 }, { k:'Rajasthan', t:360 },
   { k:'South Kerala', t:300 }, { k:'Govt Projects', t:300 }, { k:'Goa', t:240 },
 ];
-const NOTARGET_REGIONS = ['Other regions'];       // EMS South, North 1-3, Kerala, blank
-const REGION_RULES = 'HO / OEM = regions HO and HO - ISTATIC · Export = all EXPORT regions + IBU · Data Centre = orders of Dileep A K (taken out of Mumbai / HO) · Invoices use the customer’s main order-booking region.';
+const NOTARGET_REGIONS = ['Other regions'];       // HO / HO - ISTATIC (non-OEM), EMS South, North 1-3, Kerala, blank
+const REGION_RULES = 'OEM = OEM basket exactly as in PM Cumulative Tracking (OEM basket + OEM accounts, any region) · HO / HO - ISTATIC (non-OEM) are counted in Other regions · Export = all EXPORT regions + IBU · Data Centre = orders of Dileep A K (taken out of Mumbai) · Invoices use the customer’s main order-booking region.';
 // Zoho potentials use the raw region names; map them to the target regions above.
 function pipeRegion(r){
   const u = String(r || '').trim().toUpperCase();
-  if (u.startsWith('HO')) return 'HO / OEM';
+  if (u.startsWith('HO')) return 'Other regions';     // 25-Oct-2026: HO counts in Other regions; OEM region = OEM basket (sales only)
   if (u.startsWith('EXPORT') || u.startsWith('IBU')) return 'Export';
   const m = { 'HYDERABAD':'Hyderabad','VIJAYAWADA':'Vijayawada','KARNATAKA':'Karnataka','DELHI NCR':'Delhi NCR','MUMBAI':'Mumbai','GUJARAT':'Gujarat',
     'CHENNAI':'Chennai','PUNE':'Pune','MADURAI AND SALEM':'Madurai & Salem','COIMBATORE':'Coimbatore','PUNJAB':'Punjab','EAST INDIA':'East India','EAST':'East India',

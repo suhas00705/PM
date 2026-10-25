@@ -21,7 +21,6 @@ create or replace function public.ptt_region(p_raw text, p_owner text)
 returns text language sql immutable as $$
   select case
     when coalesce(p_owner, '') ilike 'dileep%' then 'Data Centre'
-    when u like 'HO%' then 'HO / OEM'
     when u like 'EXPORT%' or u like 'IBU%' then 'Export'
     when u = 'GOVT PROJECTS' then 'Govt Projects'
     when u = 'HYDERABAD' then 'Hyderabad'

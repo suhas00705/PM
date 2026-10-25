@@ -162,7 +162,7 @@
   <div class="sub" style="line-height:1.6">
     <b>How targets work:</b> FY region targets (₹ lakhs) split 20 / 25 / 25 / 30 % by quarter, each quarter evenly over its 3 months — same targets for Order booking and Invoicing.
     A shortfall carries into the next month; extra first clears a shortfall, then is kept against later shortfalls (same rule as PM Cumulative Tracking).
-    <b>Regions:</b> HO / OEM = HO and HO - ISTATIC · Export = all EXPORT regions + IBU · Data Centre = orders of Dileep A K · invoices use the customer's main order-booking region.
+    <b>Regions:</b> OEM = OEM basket exactly as in PM Cumulative Tracking (OEM basket + OEM accounts, from any region) · HO / HO - ISTATIC (non-OEM) are in Other regions · Export = all EXPORT regions + IBU · Data Centre = orders of Dileep A K · invoices use the customer's main order-booking region.
     <b>Potentials won</b> = Zoho potentials at stage Closed Won, by closing date (₹ L).
   </div>
 </div>
@@ -175,7 +175,7 @@
 /* ======================= CONFIG — region targets (₹ lakhs), FY 2026-27 (same as Path to Target) ======================= */
 const QSHARE = [0.20, 0.25, 0.25, 0.30];
 const REGIONS = [
-  { k:'HO / OEM', t:10000 }, { k:'Hyderabad', t:6600 }, { k:'Karnataka', t:5000 }, { k:'Delhi NCR', t:3500 },
+  { k:'OEM', t:10000 }, { k:'Hyderabad', t:6600 }, { k:'Karnataka', t:5000 }, { k:'Delhi NCR', t:3500 },
   { k:'Mumbai', t:2660 }, { k:'Gujarat', t:2200 }, { k:'Chennai', t:2100 }, { k:'Pune', t:2100 },
   { k:'Export', t:2000 }, { k:'Data Centre', t:2000 }, { k:'Vijayawada', t:1700 }, { k:'Madurai & Salem', t:1300 },
   { k:'Coimbatore', t:1200 }, { k:'Punjab', t:1080 }, { k:'East India', t:1050 }, { k:'Eastern UP', t:710 },
@@ -184,6 +184,7 @@ const REGIONS = [
 ];
 const TARGET_FY = 2026;                           // targets above are for FY 2026-27
 const NOTARGET = ['Other regions'];
+const NO_WON = ['OEM'];                            // potentials are not shown for OEM (user, 25-Oct-2026)
 const BK_COL = ['#0073c8','#12a150','#f08c00','#7b4fd6','#00a3a3','#e0457b','#5b8def','#a0b417','#d9622b','#2f9e8f','#9b6b43','#8a94a6','#c2185b','#3f51b5'];
 
 /* ======================= plumbing ======================= */
@@ -279,8 +280,8 @@ function periodTarget(T, act){
     net = net + p - act[m]; prevSel = sel.has(m); });
   return { tgt, short };
 }
-function wonSum(r, months){ let v = 0, n = 0; const s = new Set(months);
-  S.won.forEach(w => { if (w.y === 0 && (!r || w.r === r) && s.has(w.m)) { v += w.v; n += w.n; } }); return { v, n }; }
+function wonSum(r, months){ let v = 0, n = 0; const s = new Set(months); if (r && NO_WON.includes(r)) return { v:null, n:null };
+  S.won.forEach(w => { if (w.y === 0 && (!r || w.r === r) && s.has(w.m) && !NO_WON.includes(w.r)) { v += w.v; n += w.n; } }); return { v, n }; }
 function regionStats(r){
   const act = monthly(r, S.doc, 0), ly = monthly(r, S.doc, 1), sel = S.months;
   const a = sel.reduce((s, m) => s + act[m], 0), l = sel.reduce((s, m) => s + ly[m], 0);
@@ -328,7 +329,7 @@ function renderHero(){
 function renderLeague(){
   const R = allRegions();
   const sk = S.sort.k, sd = S.sort.d;
-  const val = (x, k) => k === 'r' ? x.r : k === 't' ? (x.tgt ?? -1) : k === 'a' ? x.a : k === 'p' ? (x.pct ?? -1) : k === 'g' ? (x.gap ?? -1e9) : k === 'l' ? x.l : k === 'gr' ? (x.gr ?? -1e9) : k === 'w' ? x.won.v : k === 'wf' ? x.wonFy.v : 0;
+  const val = (x, k) => k === 'r' ? x.r : k === 't' ? (x.tgt ?? -1) : k === 'a' ? x.a : k === 'p' ? (x.pct ?? -1) : k === 'g' ? (x.gap ?? -1e9) : k === 'l' ? x.l : k === 'gr' ? (x.gr ?? -1e9) : k === 'w' ? (x.won.v ?? -1) : k === 'wf' ? x.wonFy.v : 0;
   R.sort((a, b) => { const va = val(a, sk), vb = val(b, sk); return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd; });
   $('lgSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ${periodLabel()} · ₹ lakhs · click a region for its product baskets`;
   if (S.view === 'cards') {
@@ -339,13 +340,13 @@ function renderLeague(){
         <div class="top"><div><span class="rank">#${i + 1}</span><span class="nm">${esc(x.r)}</span></div>${chip(x.pct)}</div>
         <div class="nums"><span>Achieved <b>${fL(x.a)}</b></span><span>Target <b>${fL(x.tgt)}</b></span><span>${grTxt(x.a, x.l)}</span></div>
         <div class="track"><div class="fill" style="width:${w}%;background:${colOf(x.pct)}"></div>${x.tgt != null ? `<div class="mark" style="left:${mk}%"></div>` : ''}</div>
-        <div class="won">◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L</div></div>`; }).join('') + '</div>';
+        <div class="won">${x.won.v == null ? '<span class="sub">Potentials not shown for OEM</span>' : `◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L`}</div></div>`; }).join('') + '</div>';
   } else {
     const H = [['r','Region'],['t','Target'],['a','Achieved'],['p','% achieved'],['g','Gap'],['l','LY same period'],['gr','Growth'],['w','Won · period'],['wf','Won · FY']];
     const tot = R.reduce((o, x) => ({ a:o.a + x.a, l:o.l + x.l, t:o.t + (x.tgt || 0), w:o.w + x.won.v, wn:o.wn + x.won.n, f:o.f + x.wonFy.v }), {a:0, l:0, t:0, w:0, wn:0, f:0});
     const tp = tot.t ? tot.a / tot.t * 100 : null;
     $('league').innerHTML = `<div class="tbl"><table><thead><tr>${H.map(h => `<th data-k="${h[0]}">${h[1]}${sk === h[0] ? ` <span class="s">${sd < 0 ? '▼' : '▲'}</span>` : ''}</th>`).join('')}</tr></thead><tbody>` +
-      R.map(x => `<tr data-r="${esc(x.r)}" class="${x.tgt == null ? 'nt' : ''}"><td><b>${esc(x.r)}</b></td><td>${fL(x.tgt)}</td><td>${fL(x.a)}</td><td>${chip(x.pct)}</td><td>${x.gap == null ? '—' : x.gap > 0 ? fL(x.gap) : '<span class="gr-up">+' + fL(-x.gap) + '</span>'}</td><td>${fL(x.l)}</td><td>${grTxt(x.a, x.l)}</td><td class="wonv">${fL(x.won.v)} <span class="sub">(${x.won.n})</span></td><td class="wonv">${fL(x.wonFy.v)}</td></tr>`).join('') +
+      R.map(x => `<tr data-r="${esc(x.r)}" class="${x.tgt == null ? 'nt' : ''}"><td><b>${esc(x.r)}</b></td><td>${fL(x.tgt)}</td><td>${fL(x.a)}</td><td>${chip(x.pct)}</td><td>${x.gap == null ? '—' : x.gap > 0 ? fL(x.gap) : '<span class="gr-up">+' + fL(-x.gap) + '</span>'}</td><td>${fL(x.l)}</td><td>${grTxt(x.a, x.l)}</td><td class="wonv">${x.won.v == null ? '—' : fL(x.won.v) + ' <span class="sub">(' + x.won.n + ')</span>'}</td><td class="wonv">${fL(x.wonFy.v)}</td></tr>`).join('') +
       `<tr class="tot"><td>Total</td><td>${fL(tot.t || null)}</td><td>${fL(tot.a)}</td><td>${chip(tp)}</td><td>${tot.t ? fL(tot.t - tot.a) : '—'}</td><td>${fL(tot.l)}</td><td>${grTxt(tot.a, tot.l)}</td><td>${fL(tot.w)} <span class="sub">(${tot.wn})</span></td><td>${fL(tot.f)}</td></tr></tbody></table></div>`;
   }
 }
@@ -408,8 +409,8 @@ function openRegion(r, keep){
       <div class="k"><div class="l">Achieved</div><div class="v">${fL(x.a)}</div><div class="s">${chip(x.pct)}</div></div>
       <div class="k"><div class="l">${x.gap != null && x.gap < 0 ? 'Ahead by' : 'Gap'}</div><div class="v">${x.gap == null ? '—' : fL(Math.abs(x.gap))}</div><div class="s">${x.short > 0 ? '' : ''}₹ L</div></div>
       <div class="k"><div class="l">vs last year</div><div class="v">${grTxt(x.a, x.l)}</div><div class="s">LY ${fL(x.l)} L</div></div>
-      <div class="k" style="background:var(--won-bg)"><div class="l">Potentials won</div><div class="v wonv">${fL(x.won.v)}</div><div class="s">${x.won.n} deals · period</div></div>
-      <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.n} deals</div></div></div>
+      <div class="k" style="background:var(--won-bg)"><div class="l">Potentials won</div><div class="v wonv">${fL(x.won.v)}</div><div class="s">${x.won.v == null ? 'not shown for OEM' : x.won.n + ' deals · period'}</div></div>
+      <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.v == null ? 'not shown for OEM' : x.wonFy.n + ' deals'}</div></div></div>
     <div class="card"><div class="card-h"><div><h2>Product basket break-up</h2><div class="sub">Share of the region's ${S.doc === 'OB' ? 'order booking' : 'invoicing'} in the period · click a basket for its product series</div></div></div>
       ${list.length ? `<div class="split">${donut(list, tot)}<div class="tbl"><table class="bk"><thead><tr><th>Product basket</th><th>Value ₹ L</th><th>% contribution</th><th>LY same period</th><th>Growth</th></tr></thead><tbody>` +
         list.map(o => { const p = tot ? o.a / tot * 100 : 0, isO = S.openBk === o.b;

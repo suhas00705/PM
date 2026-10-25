@@ -70,9 +70,9 @@ src as materialized (
 t as (
   select s.*,
     case
+      when s.eb = 'OEM' then 'OEM'
       when coalesce(s.slp_name, '') ilike 'dileep%'
         then 'Data Centre'
-      when s.ur like 'HO%' then 'HO / OEM'
       when s.ur like 'EXPORT%' or s.ur like 'IBU%'
         then 'Export'
       when s.ur = 'GOVT PROJECTS' then 'Govt Projects'
