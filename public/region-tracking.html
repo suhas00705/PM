@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Region Tracking</title>
+<style>
+  :root{
+    --navy:#0B2942; --head:#1a5f9e; --volt:#0073C8; --bg:#eef2f8; --panel:#fff; --line:#e3e7ef;
+    --t1:#16264d; --t2:#3b5384; --t3:#7a8fb8;
+    --good:#0f7a36; --good-bg:#e3f4e8; --warn:#9a5b00; --warn-bg:#fff1d9; --bad:#b42323; --bad-bg:#fde8e8;
+    --g1:#12a150; --a1:#f0a020; --r1:#e0504a; --won:#7b4fd6; --won-bg:#f1ebfd; --ly:#b7c3d6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:'Calibri','Carlito','Segoe UI',sans-serif;font-size:14px}
+  .wrap{max-width:1440px;margin:0 auto;padding:16px 16px 48px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+  .ttl h1{font-size:19px;margin:0;display:flex;align-items:center;gap:8px}
+  .ttl .sub{margin-top:3px}
+  .ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .f{display:flex;flex-direction:column;gap:3px;position:relative}
+  .f label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  select,.ms-btn{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 10px;font:inherit;color:var(--t1);cursor:pointer}
+  .ms-btn{min-width:200px;text-align:left;padding-right:28px;position:relative}
+  .ms-btn:after{content:'▾';position:absolute;right:10px;top:7px;color:var(--t3)}
+  .ms-pop{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:50;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(11,41,66,.18);width:270px;padding:8px}
+  .ms-pop.open{display:block}
+  .ms-acts{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+  .ms-acts button{font:inherit;font-size:11.5px;border:1px solid #cfd6e3;background:#f6f8fb;border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--t2)}
+  .ms-acts button.hl{background:var(--volt);border-color:var(--volt);color:#fff;font-weight:700}
+  .ms-list{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+  .ms-list label{display:flex;gap:6px;align-items:center;padding:5px 4px;border-radius:5px;cursor:pointer;font-size:13px}
+  .ms-list label:hover{background:#f1f5fb}
+  .ms-list label.future{color:var(--t3)}
+  .seg{display:inline-flex;background:#dfe7f2;border-radius:10px;padding:3px}
+  .seg button{font:inherit;font-size:13px;border:0;background:none;padding:6px 14px;border-radius:8px;cursor:pointer;color:var(--t2);font-weight:600}
+  .seg button.on{background:#fff;color:var(--volt);box-shadow:0 1px 4px rgba(11,41,66,.15)}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--volt);color:var(--volt);background:#fff;border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:700}
+  .sync{font-size:12px;color:var(--t3);text-align:right;line-height:1.5}
+  .sync b{color:var(--t2)}
+  .err{display:none;background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  h2{font-size:15.5px;margin:0}
+  .sub{font-size:12px;color:var(--t3)}
+  /* hero */
+  .hero{background:linear-gradient(120deg,#0b2942 0%,#124b7c 55%,#0073c8 100%);color:#fff;border:0;padding:18px 20px;display:grid;grid-template-columns:200px 1fr;gap:22px;align-items:center}
+  .hero .gauge{position:relative;width:200px;height:120px}
+  .hero .gauge svg{width:200px;height:120px;overflow:visible}
+  .hero .gauge .pv{position:absolute;left:0;right:0;top:56px;text-align:center;font-size:30px;font-weight:800;letter-spacing:.01em}
+  .hero .gauge .pl{position:absolute;left:0;right:0;top:94px;text-align:center;font-size:11px;letter-spacing:.12em;text-transform:uppercase;opacity:.75}
+  .hero .kp{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .hero .k{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14);border-radius:12px;padding:11px 13px}
+  .hero .k .l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.78;font-weight:700}
+  .hero .k .v{font-size:23px;font-weight:800;margin-top:3px}
+  .hero .k .s{font-size:12px;opacity:.82;margin-top:2px}
+  .hero .per{grid-column:1/-1;font-size:12.5px;opacity:.9;margin-top:-8px}
+  .up{color:#7ff0b0}.dn{color:#ffb3ad}
+  /* chips */
+  .chip{display:inline-block;min-width:58px;text-align:center;font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:20px}
+  .c-good{color:var(--good);background:var(--good-bg)} .c-warn{color:var(--warn);background:var(--warn-bg)} .c-bad{color:var(--bad);background:var(--bad-bg)} .c-na{color:var(--t3);background:#eceff4}
+  .gr-up{color:var(--good);font-weight:700}.gr-dn{color:var(--bad);font-weight:700}
+  .wonv{color:var(--won);font-weight:700}
+  /* league */
+  .league{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+  .rc{border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;transition:transform .12s, box-shadow .12s;background:#fff;position:relative;overflow:hidden}
+  .rc:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(11,41,66,.10)}
+  .rc .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .rc .nm{font-weight:700;font-size:14.5px}
+  .rc .rank{font-size:11px;color:var(--t3);font-weight:700;margin-right:6px}
+  .rc .nums{display:flex;justify-content:space-between;font-size:12px;color:var(--t2);margin-top:6px}
+  .rc .nums b{color:var(--t1)}
+  .track{position:relative;height:10px;background:#edf1f7;border-radius:6px;margin-top:8px;overflow:visible}
+  .track .fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px}
+  .track .mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--t1);border-radius:1px}
+  .rc .won{margin-top:7px;font-size:11.5px;color:var(--won)}
+  .rc:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--rcc,#ccc)}
+  /* table */
+  .tbl{overflow:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{background:var(--head);color:#fff;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;text-align:right;padding:9px 11px;white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0}
+  th:first-child,td:first-child{text-align:left}
+  th .s{opacity:.7}
+  td{padding:9px 11px;border-bottom:1px solid #edf0f5;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  tbody tr{cursor:pointer}
+  tbody tr:hover td{background:#f5f8fd}
+  tr.tot td{color:var(--volt);font-weight:700;background:#f7faff;cursor:default}
+  tr.nt td{color:var(--t3)}
+  .seg2{display:flex;gap:6px;flex-wrap:wrap}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--t3);margin-top:8px}
+  .legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  /* drawer */
+  .ov{position:fixed;inset:0;background:rgba(11,41,66,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:80}
+  .ov.on{opacity:1;pointer-events:auto}
+  .dr{position:fixed;top:0;right:0;bottom:0;width:min(860px,100%);background:#f6f8fc;z-index:81;transform:translateX(100%);transition:transform .25s ease;overflow:auto;box-shadow:-10px 0 30px rgba(11,41,66,.2)}
+  .dr.on{transform:none}
+  .dr .dh{position:sticky;top:0;z-index:2;background:linear-gradient(120deg,#0b2942,#0073c8);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .dr .dh h3{margin:0;font-size:19px}
+  .dr .dh .s{font-size:12.5px;opacity:.85;margin-top:3px}
+  .dr .x{background:rgba(255,255,255,.15);border:0;color:#fff;font-size:18px;width:34px;height:34px;border-radius:50%;cursor:pointer}
+  .dr .db{padding:16px 20px}
+  .dk{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px}
+  .dk .k{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .dk .k .l{font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;color:var(--t3);font-weight:700}
+  .dk .k .v{font-size:20px;font-weight:800;margin-top:2px}
+  .dk .k .s{font-size:11.5px;color:var(--t3)}
+  .split{display:grid;grid-template-columns:230px minmax(0,1fr);gap:16px;align-items:start}
+  .donut{width:220px;height:220px}
+  .bk td:first-child{display:flex;align-items:center;gap:8px}
+  .sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .pbar{display:inline-block;height:7px;border-radius:4px;background:var(--volt);vertical-align:middle;margin-left:6px;opacity:.8}
+  tr.open td{background:#eef5fd}
+  tr.ser td{background:#fafcff;padding:10px 12px 12px 30px;white-space:normal;cursor:default}
+  .ser table{font-size:12.5px}
+  .ser th{background:#e6eef8;color:var(--t2);position:static;cursor:default}
+  .ser tbody tr{cursor:default}
+  .loading{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;display:none;z-index:99}
+  .loading.on{display:block}
+  .empty{color:var(--t3);font-size:13px;padding:14px 0}
+  @media (max-width:760px){
+    .hero{grid-template-columns:1fr;justify-items:center}
+    .split{grid-template-columns:1fr;justify-items:center}
+    .ms-btn{min-width:0;width:100%}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="ttl"><h1>📍 Region Tracking</h1><div class="sub">Target vs achieved by region · click a region for its product baskets, then a basket for its product series</div></div>
+    <div class="ctrls">
+      <div class="f"><label>Financial year</label><select id="fySel"></select></div>
+      <div class="f"><label>Months</label>
+        <button class="ms-btn" id="mBtn">Apr → latest</button>
+        <div class="ms-pop" id="mPop">
+          <div class="ms-acts"><button data-q="cur" class="hl">Current month</button><button data-q="ytd">Apr → latest</button><button data-q="all">All 12</button><button data-q="none">Clear</button>
+            <button data-q="q1">Q1</button><button data-q="q2">Q2</button><button data-q="q3">Q3</button><button data-q="q4">Q4</button><button data-q="h1">H1</button><button data-q="h2">H2</button></div>
+          <div class="ms-list" id="mList"></div>
+        </div>
+      </div>
+      <div class="f"><label>Basis</label><div class="seg" id="docSeg"><button data-d="OB" class="on">Order booking</button><button data-d="INV">Invoicing</button></div></div>
+      <button class="btn" id="refreshBtn" title="Fetch the latest synced data">⟳ Refresh</button>
+    </div>
+  </div>
+  <div class="sync" id="syncInfo" style="margin:-4px 0 10px"></div>
+  <div class="err" id="errBox"></div>
+
+  <div class="card hero" id="hero"></div>
+
+  <div class="card">
+    <div class="card-h"><div><h2 id="lgTitle">Regions — target vs achieved</h2><div class="sub" id="lgSub"></div></div>
+      <div class="seg" id="viewSeg"><button data-v="cards" class="on">Cards</button><button data-v="table">Table</button></div></div>
+    <div id="league"></div>
+    <div class="legend"><span><i style="background:var(--g1)"></i>≥ 100% of target</span><span><i style="background:var(--a1)"></i>80–99%</span><span><i style="background:var(--r1)"></i>&lt; 80%</span><span><i style="background:var(--t1);width:2px"></i>target</span><span><i style="background:var(--won)"></i>potentials won (Zoho, by closing date)</span></div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><div><h2>Month by month — company</h2><div class="sub" id="mmSub"></div></div></div>
+    <div id="mmChart"></div>
+  </div>
+
+  <div class="sub" style="line-height:1.6">
+    <b>How targets work:</b> FY region targets (₹ lakhs) split 20 / 25 / 25 / 30 % by quarter, each quarter evenly over its 3 months — same targets for Order booking and Invoicing.
+    A shortfall carries into the next month; extra first clears a shortfall, then is kept against later shortfalls (same rule as PM Cumulative Tracking).
+    <b>Regions:</b> HO / OEM = HO and HO - ISTATIC · Export = all EXPORT regions + IBU · Data Centre = orders of Dileep A K · invoices use the customer's main order-booking region.
+    <b>Potentials won</b> = Zoho potentials at stage Closed Won, by closing date (₹ L).
+  </div>
+</div>
+
+<div class="ov" id="ov"></div>
+<div class="dr" id="dr"><div class="dh"><div><h3 id="dTitle"></h3><div class="s" id="dSub"></div></div><button class="x" id="dX" title="Close">✕</button></div><div class="db" id="dBody"></div></div>
+<div class="loading" id="loading">Loading…</div>
+
+<script>
+/* ======================= CONFIG — region targets (₹ lakhs), FY 2026-27 (same as Path to Target) ======================= */
+const QSHARE = [0.20, 0.25, 0.25, 0.30];
+const REGIONS = [
+  { k:'HO / OEM', t:10000 }, { k:'Hyderabad', t:6600 }, { k:'Karnataka', t:5000 }, { k:'Delhi NCR', t:3500 },
+  { k:'Mumbai', t:2660 }, { k:'Gujarat', t:2200 }, { k:'Chennai', t:2100 }, { k:'Pune', t:2100 },
+  { k:'Export', t:2000 }, { k:'Data Centre', t:2000 }, { k:'Vijayawada', t:1700 }, { k:'Madurai & Salem', t:1300 },
+  { k:'Coimbatore', t:1200 }, { k:'Punjab', t:1080 }, { k:'East India', t:1050 }, { k:'Eastern UP', t:710 },
+  { k:'Nagpur & CG', t:700 }, { k:'North Kerala', t:600 }, { k:'MP', t:550 }, { k:'Rajasthan', t:360 },
+  { k:'South Kerala', t:300 }, { k:'Govt Projects', t:300 }, { k:'Goa', t:240 },
+];
+const TARGET_FY = 2026;                           // targets above are for FY 2026-27
+const NOTARGET = ['Other regions'];
+const BK_COL = ['#0073c8','#12a150','#f08c00','#7b4fd6','#00a3a3','#e0457b','#5b8def','#a0b417','#d9622b','#2f9e8f','#9b6b43','#8a94a6','#c2185b','#3f51b5'];
+
+/* ======================= plumbing ======================= */
+const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MONTHS = [4,5,6,7,8,9,10,11,12,1,2,3];
+const MN = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'};
+const QM = {q1:[4,5,6], q2:[7,8,9], q3:[10,11,12], q4:[1,2,3], h1:[4,5,6,7,8,9], h2:[10,11,12,1,2,3]};
+const IDX = m => MONTHS.indexOf(m);
+const fL = v => v == null ? '—' : (Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-IN') : v.toLocaleString('en-IN', {minimumFractionDigits:1, maximumFractionDigits:1}));
+const fCr = v => v == null ? '—' : (v / 100).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' Cr';
+const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
+const S = { cy:null, months:[], doc:'OB', view:'cards', sort:{k:'t', d:-1}, rows:[], won:[], dict:null, open:null, openBk:null, ser:{} };
+
+async function rpc(fn, body){
+  const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer ' + KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+  return r.json();
+}
+function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').textContent = e ? 'Could not load data — ' + e : ''; }
+
+/* ---------- months ---------- */
+function latestIdx(){ const md = S.raw?.max_ob; if (!md) return 11; return IDX(new Date(md).getMonth() + 1); }
+function ytd(){ return MONTHS.slice(0, latestIdx() + 1); }
+function curMonth(){ return MONTHS[latestIdx()]; }
+function periodLabel(){
+  const sel = MONTHS.filter(m => S.months.includes(m)); if (!sel.length) return 'No months';
+  const idx = sel.map(IDX), cont = idx.every((v, i) => !i || v === idx[i - 1] + 1);
+  if (sel.length === 1) return MN[sel[0]] + (sel[0] === curMonth() ? ' (current month)' : '');
+  if (cont && sel[0] === 4 && sel.length === latestIdx() + 1) return `Apr → ${MN[sel[sel.length - 1]]} (year to date)`;
+  return cont ? `${MN[sel[0]]} → ${MN[sel[sel.length - 1]]}` : sel.map(m => MN[m]).join(', ');
+}
+function drawMonths(){
+  const li = latestIdx();
+  $('mList').innerHTML = MONTHS.map((m, i) => `<label class="${i > li ? 'future' : ''}"><input type="checkbox" value="${m}" ${S.months.includes(m) ? 'checked' : ''}> ${MN[m]}</label>`).join('');
+  $('mBtn').textContent = S.months.length === 12 ? 'All 12 months' : S.months.length ? periodLabel() : 'Choose months';
+}
+$('mBtn').onclick = e => { e.stopPropagation(); $('mPop').classList.toggle('open'); };
+$('mPop').onclick = e => e.stopPropagation();
+document.addEventListener('click', () => $('mPop').classList.remove('open'));
+$('mList').onchange = e => { const m = +e.target.value; S.months = e.target.checked ? [...S.months, m] : S.months.filter(x => x !== m); drawMonths(); renderAll(); };
+$('mPop').querySelector('.ms-acts').onclick = e => { const q = e.target.dataset.q; if (!q) return;
+  S.months = q === 'ytd' ? ytd() : q === 'cur' ? [curMonth()] : q === 'all' ? [...MONTHS] : q === 'none' ? [] : [...QM[q]];
+  drawMonths(); renderAll(); if (q !== 'none') $('mPop').classList.remove('open'); };
+$('docSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.doc = b.dataset.d;
+  [...$('docSeg').children].forEach(x => x.classList.toggle('on', x === b)); S.ser = {}; renderAll(); };
+$('viewSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v;
+  [...$('viewSeg').children].forEach(x => x.classList.toggle('on', x === b)); renderLeague(); };
+$('fySel').onchange = e => { S.cy = +e.target.value; S.ser = {}; load(true); };
+$('refreshBtn').onclick = () => { S.ser = {}; load(false); };
+
+/* ---------- data ---------- */
+async function load(resetMonths){
+  $('loading').classList.add('on');
+  try {
+    const first = !S.raw;
+    const [c, w] = await Promise.all([rpc('ptt_cube', { p_cy: S.cy }), rpc('rt_won', { p_cy: S.cy }).catch(e => ({ err: e.message }))]);
+    const wasYtd = S.raw && S.months.join() === ytd().join();
+    S.raw = c; S.dict = { rg:c.rg || [], bk:c.bk || [] };
+    // cube row: [doc 0 OB / 1 INV, year 0 this FY / 1 last FY, month, region#, type#, product#, basket#, value ₹L, like-for-like value ₹L]
+    S.rows = (c.rows || []).map(a => ({ d:a[0] ? 'INV' : 'OB', y:a[1], m:a[2], r:S.dict.rg[a[3]], b:S.dict.bk[a[6]], v:+a[7], lv:+a[8] }));
+    S.won = w && w.rows ? w.rows.map(a => ({ r:a[0], y:a[1], m:a[2], v:+a[3], n:+a[4] })) : [];
+    S.wonErr = w && w.err ? w.err : null;
+    if (first) {
+      const fys = (c.fys || []).filter(f => f >= 2025);
+      $('fySel').innerHTML = (fys.length ? fys : [S.cy]).map(f => `<option value="${f}" ${f === S.cy ? 'selected' : ''}>${fyLabel(f)}</option>`).join('');
+    }
+    if (first || resetMonths || wasYtd) S.months = ytd();
+    const ls = c.last_sync, md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+    $('syncInfo').innerHTML = `Order booking till <b>${md(c.max_ob)}</b> · Invoices till <b>${md(c.max_inv)}</b>` +
+      (ls ? ` · Last Zoho sync <b>${new Date(ls.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</b>` : '');
+    S.loadedAt = Date.now(); showErr(null); drawMonths(); renderAll();
+  } catch (e) { showErr(e.message || e); }
+  finally { $('loading').classList.remove('on'); }
+}
+
+/* ---------- maths ---------- */
+function targetOf(r){ if (S.cy !== TARGET_FY) return null; const x = REGIONS.find(o => o.k === r); return x ? x.t : null; }
+function plan(T, m){ return T * QSHARE[Math.floor(IDX(m) / 3)] / 3; }
+// month actuals for a region (or all regions when r is null)
+function monthly(r, doc, y){ const a = {}; MONTHS.forEach(m => a[m] = 0);
+  S.rows.forEach(x => { if (x.d === doc && x.y === y && (!r || x.r === r)) a[x.m] += (y ? x.lv : x.v); }); return a; }
+function monthlyLyFull(r, doc){ const a = {}; MONTHS.forEach(m => a[m] = 0);
+  S.rows.forEach(x => { if (x.d === doc && x.y === 1 && (!r || x.r === r)) a[x.m] += x.v; }); return a; }
+// same carry rule as PM Cumulative Tracking
+function periodTarget(T, act){
+  if (T == null) return { tgt:null, short:0 };
+  const sel = new Set(S.months); let net = 0, tgt = 0, prevSel = false, short = 0;
+  MONTHS.forEach(m => { const p = plan(T, m), cin = Math.max(0, net);
+    if (sel.has(m)) { tgt += p + (prevSel ? 0 : cin); short = Math.max(0, net + p - act[m]); }
+    net = net + p - act[m]; prevSel = sel.has(m); });
+  return { tgt, short };
+}
+function wonSum(r, months){ let v = 0, n = 0; const s = new Set(months);
+  S.won.forEach(w => { if (w.y === 0 && (!r || w.r === r) && s.has(w.m)) { v += w.v; n += w.n; } }); return { v, n }; }
+function regionStats(r){
+  const act = monthly(r, S.doc, 0), ly = monthly(r, S.doc, 1), sel = S.months;
+  const a = sel.reduce((s, m) => s + act[m], 0), l = sel.reduce((s, m) => s + ly[m], 0);
+  const T = targetOf(r), pt = periodTarget(T, act);
+  const pct = pt.tgt ? a / pt.tgt * 100 : null;
+  return { r, T, act, a, l, tgt:pt.tgt, gap:pt.tgt == null ? null : pt.tgt - a, pct, gr:l ? (a - l) / l * 100 : null,
+           won:wonSum(r, sel), wonFy:wonSum(r, ytd()) };
+}
+function allRegions(){
+  const seen = new Set(S.rows.map(x => x.r));
+  const list = REGIONS.map(o => o.k).concat(NOTARGET.filter(k => seen.has(k)));
+  return list.map(regionStats);
+}
+const colOf = p => p == null ? '#b7c3d6' : p >= 100 ? 'var(--g1)' : p >= 80 ? 'var(--a1)' : 'var(--r1)';
+const chip = p => p == null ? '<span class="chip c-na">—</span>' : `<span class="chip ${p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad'}">${p.toFixed(1)}%</span>`;
+const grTxt = (a, l) => !l ? (a ? '<span class="gr-up">new</span>' : '—') : `<span class="${a >= l ? 'gr-up' : 'gr-dn'}">${a >= l ? '▲' : '▼'} ${Math.abs((a - l) / l * 100).toFixed(1)}%</span>`;
+
+/* ---------- render ---------- */
+function renderAll(){ if (!S.raw) return; renderHero(); renderLeague(); renderMonths(); if (S.open) openRegion(S.open, true); }
+
+function gauge(p){
+  const v = Math.max(0, Math.min(p || 0, 130)), a0 = Math.PI, a1 = Math.PI + Math.PI * Math.min(v, 100) / 100;
+  const P = a => [100 + 82 * Math.cos(a), 104 + 82 * Math.sin(a)];
+  const [x0, y0] = P(a0), [x1, y1] = P(a1), [xe, ye] = P(2 * Math.PI);
+  const c = p == null ? '#9fb3cc' : p >= 100 ? '#3ddc84' : p >= 80 ? '#ffc048' : '#ff7a70';
+  return `<svg viewBox="0 0 200 120"><path d="M${x0},${y0} A82,82 0 0 1 ${xe},${ye}" stroke="rgba(255,255,255,.18)" stroke-width="16" fill="none" stroke-linecap="round"/>` +
+    (v > 0 ? `<path d="M${x0},${y0} A82,82 0 0 1 ${x1},${y1}" stroke="${c}" stroke-width="16" fill="none" stroke-linecap="round"/>` : '') + `</svg>`;
+}
+function renderHero(){
+  const R = allRegions(), tot = R.reduce((o, x) => ({ a:o.a + x.a, l:o.l + x.l, t:o.t + (x.tgt || 0), wv:o.wv + x.won.v, wn:o.wn + x.won.n, fv:o.fv + x.wonFy.v, fn:o.fn + x.wonFy.n }), {a:0, l:0, t:0, wv:0, wn:0, fv:0, fn:0});
+  const hasT = S.cy === TARGET_FY, p = hasT && tot.t ? tot.a / tot.t * 100 : null;
+  const on = R.filter(x => x.pct != null && x.pct >= 100).length, withT = R.filter(x => x.pct != null).length;
+  const docW = S.doc === 'OB' ? 'Order booking' : 'Invoicing';
+  $('hero').innerHTML = `<div class="gauge">${gauge(p)}<div class="pv">${p == null ? '—' : p.toFixed(1) + '%'}</div><div class="pl">of target achieved</div></div>
+    <div class="kp">
+      <div class="k"><div class="l">${S.months.length === 1 ? 'Monthly target' : 'Target'} · regions</div><div class="v">₹${fCr(hasT ? tot.t : null)}</div><div class="s">${hasT ? 'sum of region targets for the period' : 'targets set for FY 2026-27 only'}</div></div>
+      <div class="k"><div class="l">${docW} · achieved</div><div class="v">₹${fCr(tot.a)}</div><div class="s">${hasT ? (tot.t - tot.a > 0 ? 'gap ₹' + fCr(tot.t - tot.a) : 'ahead by ₹' + fCr(tot.a - tot.t)) : ''}</div></div>
+      <div class="k"><div class="l">vs last year (same period)</div><div class="v ${tot.a >= tot.l ? 'up' : 'dn'}">${tot.l ? (tot.a >= tot.l ? '▲ ' : '▼ ') + Math.abs((tot.a - tot.l) / tot.l * 100).toFixed(1) + '%' : '—'}</div><div class="s">LY ₹${fCr(tot.l)}</div></div>
+      <div class="k"><div class="l">Regions on target</div><div class="v">${hasT ? on + ' / ' + withT : '—'}</div><div class="s">at or above 100% for the period</div></div>
+      <div class="k" style="background:rgba(123,79,214,.22);border-color:rgba(190,160,255,.35)"><div class="l">Potentials won · period</div><div class="v">₹${fCr(tot.wv)}</div><div class="s">${tot.wn} deals closed won</div></div>
+      <div class="k" style="background:rgba(123,79,214,.22);border-color:rgba(190,160,255,.35)"><div class="l">Potentials won · FY to date</div><div class="v">₹${fCr(tot.fv)}</div><div class="s">${tot.fn} deals since April</div></div>
+    </div><div class="per">${docW} · <b>${esc(periodLabel())}</b> · ${fyLabel(S.cy)}${S.wonErr ? ' · potentials not loaded (run supabase\\region_tracking.sql)' : ''}</div>`;
+}
+
+function renderLeague(){
+  const R = allRegions();
+  const sk = S.sort.k, sd = S.sort.d;
+  const val = (x, k) => k === 'r' ? x.r : k === 't' ? (x.tgt ?? -1) : k === 'a' ? x.a : k === 'p' ? (x.pct ?? -1) : k === 'g' ? (x.gap ?? -1e9) : k === 'l' ? x.l : k === 'gr' ? (x.gr ?? -1e9) : k === 'w' ? x.won.v : k === 'wf' ? x.wonFy.v : 0;
+  R.sort((a, b) => { const va = val(a, sk), vb = val(b, sk); return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd; });
+  $('lgSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ${periodLabel()} · ₹ lakhs · click a region for its product baskets`;
+  if (S.view === 'cards') {
+    const maxPct = 150;
+    $('league').innerHTML = '<div class="league">' + R.map((x, i) => {
+      const w = x.pct == null ? 0 : Math.min(x.pct, maxPct) / maxPct * 100, mk = 100 / maxPct * 100;
+      return `<div class="rc" data-r="${esc(x.r)}" style="--rcc:${colOf(x.pct)}">
+        <div class="top"><div><span class="rank">#${i + 1}</span><span class="nm">${esc(x.r)}</span></div>${chip(x.pct)}</div>
+        <div class="nums"><span>Achieved <b>${fL(x.a)}</b></span><span>Target <b>${fL(x.tgt)}</b></span><span>${grTxt(x.a, x.l)}</span></div>
+        <div class="track"><div class="fill" style="width:${w}%;background:${colOf(x.pct)}"></div>${x.tgt != null ? `<div class="mark" style="left:${mk}%"></div>` : ''}</div>
+        <div class="won">◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L</div></div>`; }).join('') + '</div>';
+  } else {
+    const H = [['r','Region'],['t','Target'],['a','Achieved'],['p','% achieved'],['g','Gap'],['l','LY same period'],['gr','Growth'],['w','Won · period'],['wf','Won · FY']];
+    const tot = R.reduce((o, x) => ({ a:o.a + x.a, l:o.l + x.l, t:o.t + (x.tgt || 0), w:o.w + x.won.v, wn:o.wn + x.won.n, f:o.f + x.wonFy.v }), {a:0, l:0, t:0, w:0, wn:0, f:0});
+    const tp = tot.t ? tot.a / tot.t * 100 : null;
+    $('league').innerHTML = `<div class="tbl"><table><thead><tr>${H.map(h => `<th data-k="${h[0]}">${h[1]}${sk === h[0] ? ` <span class="s">${sd < 0 ? '▼' : '▲'}</span>` : ''}</th>`).join('')}</tr></thead><tbody>` +
+      R.map(x => `<tr data-r="${esc(x.r)}" class="${x.tgt == null ? 'nt' : ''}"><td><b>${esc(x.r)}</b></td><td>${fL(x.tgt)}</td><td>${fL(x.a)}</td><td>${chip(x.pct)}</td><td>${x.gap == null ? '—' : x.gap > 0 ? fL(x.gap) : '<span class="gr-up">+' + fL(-x.gap) + '</span>'}</td><td>${fL(x.l)}</td><td>${grTxt(x.a, x.l)}</td><td class="wonv">${fL(x.won.v)} <span class="sub">(${x.won.n})</span></td><td class="wonv">${fL(x.wonFy.v)}</td></tr>`).join('') +
+      `<tr class="tot"><td>Total</td><td>${fL(tot.t || null)}</td><td>${fL(tot.a)}</td><td>${chip(tp)}</td><td>${tot.t ? fL(tot.t - tot.a) : '—'}</td><td>${fL(tot.l)}</td><td>${grTxt(tot.a, tot.l)}</td><td>${fL(tot.w)} <span class="sub">(${tot.wn})</span></td><td>${fL(tot.f)}</td></tr></tbody></table></div>`;
+  }
+}
+$('league').addEventListener('click', e => {
+  const th = e.target.closest('th[data-k]'); if (th) { const k = th.dataset.k; S.sort = { k, d:S.sort.k === k ? -S.sort.d : (k === 'r' ? 1 : -1) }; renderLeague(); return; }
+  const el = e.target.closest('[data-r]'); if (el) openRegion(el.dataset.r);
+});
+
+/* ---------- month chart (SVG) ---------- */
+function monthChart(r){
+  const act = monthly(r, S.doc, 0), lyF = monthlyLyFull(r, S.doc), sel = new Set(S.months), li = latestIdx();
+  let T = null;
+  if (S.cy === TARGET_FY) T = r ? targetOf(r) : REGIONS.reduce((s, o) => s + o.t, 0);
+  const plans = MONTHS.map(m => T == null ? null : plan(T, m));
+  const W = 760, H = 230, pl = 48, pr = 10, pt = 14, pb = 34, cw = (W - pl - pr) / 12;
+  const mx = Math.max(1, ...MONTHS.map((m, i) => Math.max(act[m], lyF[m], plans[i] || 0))) * 1.12;
+  const y = v => pt + (H - pt - pb) * (1 - v / mx);
+  let s = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:560px;height:auto">`;
+  for (let g = 0; g <= 4; g++) { const v = mx * g / 4, yy = y(v); s += `<line x1="${pl}" x2="${W - pr}" y1="${yy}" y2="${yy}" stroke="#edf1f7"/><text x="${pl - 6}" y="${yy + 4}" font-size="10" fill="#7a8fb8" text-anchor="end">${fL(v)}</text>`; }
+  MONTHS.forEach((m, i) => {
+    const x = pl + i * cw, bw = cw * .32, on = sel.has(m), fut = i > li;
+    if (on) s += `<rect x="${x + 2}" y="${pt - 6}" width="${cw - 4}" height="${H - pt - pb + 8}" rx="6" fill="#eaf3fd"/>`;
+    s += `<rect x="${x + cw * .16}" y="${y(lyF[m])}" width="${bw}" height="${Math.max(0, H - pb - y(lyF[m]))}" rx="3" fill="#cdd7e6"><title>${MN[m]} last year: ${fL(lyF[m])} L</title></rect>`;
+    if (!fut) s += `<rect x="${x + cw * .5}" y="${y(act[m])}" width="${bw}" height="${Math.max(0, H - pb - y(act[m]))}" rx="3" fill="${plans[i] ? colOf(act[m] / plans[i] * 100) : '#0073c8'}"><title>${MN[m]} this year: ${fL(act[m])} L${plans[i] ? ' · plan ' + fL(plans[i]) + ' L (' + (act[m] / plans[i] * 100).toFixed(0) + '%)' : ''}</title></rect>`;
+    if (plans[i] != null) s += `<line x1="${x + cw * .1}" x2="${x + cw * .9}" y1="${y(plans[i])}" y2="${y(plans[i])}" stroke="#16264d" stroke-width="2" stroke-dasharray="4 3"><title>${MN[m]} plan ${fL(plans[i])} L</title></line>`;
+    s += `<text x="${x + cw / 2}" y="${H - pb + 16}" font-size="11.5" text-anchor="middle" fill="${on ? '#0073c8' : '#7a8fb8'}" font-weight="${on ? 700 : 400}">${MN[m]}</text>`;
+  });
+  s += '</svg>';
+  return `<div style="overflow-x:auto">${s}</div><div class="legend"><span><i style="background:#cdd7e6"></i>last year</span><span><i style="background:var(--g1)"></i>this year (colour = % of plan)</span><span><i style="background:#16264d;height:2px"></i>monthly plan (before carry)</span><span><i style="background:#eaf3fd;border:1px solid #cfe2f6"></i>selected months</span></div>`;
+}
+function renderMonths(){ $('mmSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · all regions · ₹ lakhs`; $('mmChart').innerHTML = monthChart(null); }
+
+/* ---------- region drawer: baskets → series ---------- */
+function basketsOf(r){
+  const sel = new Set(S.months), m = {};
+  S.rows.forEach(x => { if (x.d !== S.doc || x.r !== r || !sel.has(x.m)) return; const o = (m[x.b] = m[x.b] || { b:x.b, a:0, l:0 }); if (x.y === 0) o.a += x.v; else o.l += x.lv; });
+  return Object.values(m).filter(o => Math.abs(o.a) > 0.005 || Math.abs(o.l) > 0.005).sort((a, b) => b.a - a.a);
+}
+function donut(list, total){
+  const R = 90, r0 = 58, cx = 110, cy = 110; let a = -Math.PI / 2, s = `<svg class="donut" viewBox="0 0 220 220">`;
+  const pos = list.filter(o => o.a > 0), sum = pos.reduce((t, o) => t + o.a, 0) || 1;
+  pos.forEach((o, i) => { const f = o.a / sum, a2 = a + f * Math.PI * 2, big = f > .5 ? 1 : 0;
+    const p = (ang, rr) => [cx + rr * Math.cos(ang), cy + rr * Math.sin(ang)];
+    const [x1, y1] = p(a, R), [x2, y2] = p(a2, R), [x3, y3] = p(a2, r0), [x4, y4] = p(a, r0);
+    if (f >= .9999) s += `<circle cx="${cx}" cy="${cy}" r="${(R + r0) / 2}" fill="none" stroke="${o.c}" stroke-width="${R - r0}"/>`;
+    else s += `<path d="M${x1},${y1} A${R},${R} 0 ${big} 1 ${x2},${y2} L${x3},${y3} A${r0},${r0} 0 ${big} 0 ${x4},${y4} Z" fill="${o.c}"><title>${esc(o.b)}: ${(f * 100).toFixed(1)}%</title></path>`;
+    a = a2; });
+  s += `<text x="${cx}" y="${cy - 4}" text-anchor="middle" font-size="22" font-weight="800" fill="#16264d">${fL(total)}</text><text x="${cx}" y="${cy + 16}" text-anchor="middle" font-size="11" fill="#7a8fb8">₹ lakhs</text></svg>`;
+  return s;
+}
+function openRegion(r, keep){
+  S.open = r; if (!keep) S.openBk = null;
+  const x = regionStats(r), list = basketsOf(r), tot = list.reduce((s, o) => s + o.a, 0);
+  list.forEach((o, i) => o.c = BK_COL[i % BK_COL.length]);
+  $('dTitle').textContent = r;
+  $('dSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ${periodLabel()} · ${fyLabel(S.cy)}`;
+  const mxPct = Math.max(1, ...list.map(o => tot ? o.a / tot * 100 : 0));
+  $('dBody').innerHTML = `<div class="dk">
+      <div class="k"><div class="l">Target</div><div class="v">${fL(x.tgt)}</div><div class="s">₹ L · FY ${fL(x.T)}</div></div>
+      <div class="k"><div class="l">Achieved</div><div class="v">${fL(x.a)}</div><div class="s">${chip(x.pct)}</div></div>
+      <div class="k"><div class="l">${x.gap != null && x.gap < 0 ? 'Ahead by' : 'Gap'}</div><div class="v">${x.gap == null ? '—' : fL(Math.abs(x.gap))}</div><div class="s">${x.short > 0 ? '' : ''}₹ L</div></div>
+      <div class="k"><div class="l">vs last year</div><div class="v">${grTxt(x.a, x.l)}</div><div class="s">LY ${fL(x.l)} L</div></div>
+      <div class="k" style="background:var(--won-bg)"><div class="l">Potentials won</div><div class="v wonv">${fL(x.won.v)}</div><div class="s">${x.won.n} deals · period</div></div>
+      <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.n} deals</div></div></div>
+    <div class="card"><div class="card-h"><div><h2>Product basket break-up</h2><div class="sub">Share of the region's ${S.doc === 'OB' ? 'order booking' : 'invoicing'} in the period · click a basket for its product series</div></div></div>
+      ${list.length ? `<div class="split">${donut(list, tot)}<div class="tbl"><table class="bk"><thead><tr><th>Product basket</th><th>Value ₹ L</th><th>% contribution</th><th>LY same period</th><th>Growth</th></tr></thead><tbody>` +
+        list.map(o => { const p = tot ? o.a / tot * 100 : 0, isO = S.openBk === o.b;
+          return `<tr data-b="${esc(o.b)}" class="${isO ? 'open' : ''}"><td><span class="sw" style="background:${o.c}"></span>${isO ? '▾' : '▸'} ${esc(o.b)}</td><td>${fL(o.a)}</td><td>${p.toFixed(1)}%<span class="pbar" style="width:${Math.max(2, p / mxPct * 60)}px;background:${o.c}"></span></td><td>${fL(o.l)}</td><td>${grTxt(o.a, o.l)}</td></tr>` +
+            ''; }).join('') +
+        `<tr class="tot"><td>Total</td><td>${fL(tot)}</td><td>100%</td><td>${fL(list.reduce((s, o) => s + o.l, 0))}</td><td>${grTxt(tot, list.reduce((s, o) => s + o.l, 0))}</td></tr></tbody></table></div></div>` : '<div class="empty">No sales in this period.</div>'}
+    </div>
+    ${S.openBk ? `<div class="card" id="serCard"><div id="serHost">${serHtml(r, S.openBk)}</div></div>` : ''}
+    <div class="card"><div class="card-h"><div><h2>Month by month — ${esc(r)}</h2><div class="sub">₹ lakhs · this year vs last year vs plan</div></div></div>${monthChart(r)}</div>`;
+  $('ov').classList.add('on'); $('dr').classList.add('on');
+  if (S.openBk) { loadSeries(r, S.openBk); if (!keep || S.scrollSer) { const c = $('serCard'); if (c) c.scrollIntoView({ behavior:'smooth', block:'start' }); } S.scrollSer = false; }
+}
+function closeDrawer(){ S.open = null; S.openBk = null; $('ov').classList.remove('on'); $('dr').classList.remove('on'); }
+$('dX').onclick = closeDrawer; $('ov').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+$('dBody').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-b]'); if (!tr) return;
+  const b = tr.dataset.b; S.openBk = S.openBk === b ? null : b; S.scrollSer = !!S.openBk; openRegion(S.open, true);
+});
+function serKey(r, b){ return [S.cy, S.doc, r, b].join('|'); }
+async function loadSeries(r, b){
+  const k = serKey(r, b); if (S.ser[k]) return;
+  S.ser[k] = { loading:true };
+  try { const j = await rpc('rt_series', { p_cy:S.cy, p_doc:S.doc, p_rg:r, p_bk:b }); S.ser[k] = { rows:(j.rows || []).map(a => ({ y:a[0], m:a[1], s:a[2], v:+a[3], lv:+a[4] })) }; }
+  catch (e) { S.ser[k] = { err:e.message || String(e) }; }
+  if (S.open === r && S.openBk === b) { const h = $('serHost'); if (h) h.innerHTML = serHtml(r, b); }
+}
+function serHtml(r, b){
+  const d = S.ser[serKey(r, b)];
+  if (!d || d.loading) return '<div class="empty">Loading product series…</div>';
+  if (d.err) return `<div class="empty">Could not load series — ${esc(d.err)}${/rt_series|PGRST202|404/.test(d.err) ? '<br>Run <b>supabase\\region_tracking.sql</b> in Supabase once.' : ''}</div>`;
+  const sel = new Set(S.months), m = {};
+  d.rows.forEach(x => { if (!sel.has(x.m)) return; const o = (m[x.s] = m[x.s] || { s:x.s, a:0, l:0 }); if (x.y === 0) o.a += x.v; else o.l += x.lv; });
+  const list = Object.values(m).filter(o => Math.abs(o.a) > 0.005 || Math.abs(o.l) > 0.005).sort((a, c) => c.a - a.a), tot = list.reduce((s, o) => s + o.a, 0);
+  if (!list.length) return '<div class="empty">No series in this period.</div>';
+  const mx = Math.max(...list.map(o => o.a), 1);
+  return `<div class="ser"><div class="card-h"><div><h2>${esc(b)} — product series</h2><div class="sub">${list.length} series · share of the basket in the period · click another basket to switch</div></div></div><div class="tbl"><table><thead><tr><th>Product series</th><th>Value ₹ L</th><th>% of basket</th><th>LY same period</th><th>Growth</th></tr></thead><tbody>` +
+    list.map(o => { const p = tot ? o.a / tot * 100 : 0; return `<tr><td>${esc(o.s)}</td><td>${fL(o.a)}</td><td>${p.toFixed(1)}%<span class="pbar" style="width:${Math.max(2, o.a / mx * 70)}px"></span></td><td>${fL(o.l)}</td><td>${grTxt(o.a, o.l)}</td></tr>`; }).join('') + '</tbody></table></div></div>';
+}
+
+/* ---------- start + auto refresh ---------- */
+(function init(){
+  const d = new Date(); S.cy = d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1;
+  load(true);
+  setInterval(() => { if (!document.hidden) load(false); }, 30 * 60 * 1000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && S.loadedAt && Date.now() - S.loadedAt > 10 * 60 * 1000) load(false); });
+})();
+</script>
+<script src="/gesture-control.js" defer></script>
+</body>
+</html>
