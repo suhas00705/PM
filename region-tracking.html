@@ -329,9 +329,9 @@ function wonSum(r, months){ let v = 0, n = 0; const s = new Set(months); if (r &
 function regionStats(r){
   const act = monthly(r, S.doc, 0), ly = monthly(r, S.doc, 1), sel = S.months;
   const a = sel.reduce((s, m) => s + act[m], 0), l = sel.reduce((s, m) => s + ly[m], 0);
-  const T = targetOf(r), pt = periodTarget(T, act);
-  const pct = pt.tgt ? a / pt.tgt * 100 : null;
-  return { r, T, act, a, l, tgt:pt.tgt, gap:pt.tgt == null ? null : pt.tgt - a, pct, gr:l ? (a - l) / l * 100 : null,
+  const T = targetOf(r), plain = T == null ? null : S.months.reduce((s2, m) => s2 + plan(T, m), 0);
+  const pct = plain ? a / plain * 100 : null;      // plain target: no carried-forward items on regions (user, 26-Oct-2026)
+  return { r, T, act, a, l, plain, tgt:plain, gap:plain == null ? null : plain - a, pct, gr:l ? (a - l) / l * 100 : null,
            won:wonSum(r, sel), wonFy:wonSum(r, ytd()) };
 }
 function allRegions(all){
@@ -339,6 +339,13 @@ function allRegions(all){
   const order = [...GMS.flatMap(g => g.regions), ...REGIONS.map(o => o.k)];
   const list = [...new Set(order)].filter(k => REGIONS.some(o => o.k === k) || seen.has(k));
   return list.map(regionStats).map(x => (x.gm = gmOf(x.r), x)).filter(x => all || !S.gm || x.gm === S.gm);
+}
+// target of a group of regions with the shortfall NETTED across the group (regions ahead offset regions behind)
+function groupTarget(R){
+  const T = R.reduce((s2, x) => s2 + (x.T || 0), 0), act = {}; MONTHS.forEach(m => act[m] = 0);
+  R.forEach(x => MONTHS.forEach(m => act[m] += x.act[m]));
+  const plain = S.months.reduce((s2, m) => s2 + plan(T, m), 0), pt = periodTarget(T, act);
+  return { T, plain, tgt:pt.tgt, cf:Math.max(0, (pt.tgt || 0) - plain) };
 }
 // FY view for the header: full-year target, achieved so far, plan till the latest data date (current month by days)
 function fyView(R){
@@ -367,8 +374,9 @@ function gauge(p){
     (v > 0 ? `<path d="M${x0},${y0} A82,82 0 0 1 ${x1},${y1}" stroke="${c}" stroke-width="16" fill="none" stroke-linecap="round"/>` : '') + `</svg>`;
 }
 function renderHero(){
-  const R = allRegions(), tot = R.reduce((o, x) => ({ a:o.a + x.a, l:o.l + x.l, t:o.t + (x.tgt || 0), wv:o.wv + x.won.v, wn:o.wn + x.won.n, fv:o.fv + x.wonFy.v, fn:o.fn + x.wonFy.n }), {a:0, l:0, t:0, wv:0, wn:0, fv:0, fn:0});
-  const hasT = S.cy === TARGET_FY, p = hasT && tot.t ? tot.a / tot.t * 100 : null;
+  const R = allRegions(), tot = R.reduce((o, x) => ({ a:o.a + x.a, l:o.l + x.l, t:o.t + (x.tgt || 0), pl:o.pl + (x.plain || 0), wv:o.wv + x.won.v, wn:o.wn + x.won.n, fv:o.fv + x.wonFy.v, fn:o.fn + x.wonFy.n }), {a:0, l:0, t:0, pl:0, wv:0, wn:0, fv:0, fn:0});
+  const GT = groupTarget(R); tot.t = GT.tgt || 0; tot.pl = GT.plain;
+  const hasT = S.cy === TARGET_FY, p = hasT && tot.pl ? tot.a / tot.pl * 100 : null, cf = GT.cf, pc = hasT && tot.t ? tot.a / tot.t * 100 : null;
   const on = R.filter(x => x.pct != null && x.pct >= 100).length, withT = R.filter(x => x.pct != null).length;
   const docW = S.doc === 'OB' ? 'Order booking' : 'Invoicing';
   const FV = fyView(R), dl = FV.date.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
@@ -378,10 +386,11 @@ function renderHero(){
       <div><div class="l">Should be achieved till ${dl}</div><div class="v">₹${fCr(FV.plan)}</div><div class="s">plan to date (current month by days)</div></div>
       <div><div class="l">Achieved till ${dl}</div><div class="v ${FV.done >= FV.plan ? 'up' : 'dn'}">${(FV.done / FV.plan * 100).toFixed(1)}%</div><div class="s">${FV.done >= FV.plan ? 'ahead by ₹' + fCr(FV.done - FV.plan) : 'short by ₹' + fCr(FV.plan - FV.done)}</div></div>
     </div>` : '';
-  $('hero').innerHTML = fyStrip + `<div class="gauge">${gauge(p)}<div class="pv">${p == null ? '—' : p.toFixed(1) + '%'}</div><div class="pl">of period target</div></div>
+  $('hero').innerHTML = fyStrip + `<div class="gauge">${gauge(p)}<div class="pv">${p == null ? '—' : p.toFixed(1) + '%'}</div><div class="pl">of plain target</div></div>
     <div class="kp">
-      <div class="k"><div class="l">${S.months.length === 1 ? 'Monthly target' : 'Target'} · regions</div><div class="v">₹${fCr(hasT ? tot.t : null)}</div><div class="s">${hasT ? esc(periodLabel()) + ' · all regions incl. unassigned' : 'targets set for FY 2026-27 only'}</div></div>
-      <div class="k"><div class="l">${docW} · achieved</div><div class="v">₹${fCr(tot.a)}</div><div class="s">${hasT ? (tot.t - tot.a > 0 ? 'gap ₹' + fCr(tot.t - tot.a) : 'ahead by ₹' + fCr(tot.a - tot.t)) : ''}</div></div>
+      <div class="k"><div class="l">${S.months.length === 1 ? 'Monthly target' : 'Target'} · plain</div><div class="v">₹${fCr(hasT ? tot.pl : null)}</div><div class="s">${hasT ? esc(periodLabel()) + ' · 520 Cr phased 20/25/25/30' : 'targets set for FY 2026-27 only'}</div></div>
+      <div class="k"><div class="l">Carried forward</div><div class="v">${hasT ? '₹' + fCr(cf) : '—'}</div><div class="s">${hasT ? 'shortfall from earlier months' : ''}</div></div>
+      <div class="k"><div class="l">${docW} · achieved</div><div class="v">₹${fCr(tot.a)}</div><div class="s">${hasT ? (tot.pl - tot.a > 0 ? 'gap to plain target ₹' + fCr(tot.pl - tot.a) : 'ahead of plain target by ₹' + fCr(tot.a - tot.pl)) : ''}</div></div>
       <div class="k"><div class="l">vs last year (same period)</div><div class="v ${tot.a >= tot.l ? 'up' : 'dn'}">${tot.l ? (tot.a >= tot.l ? '▲ ' : '▼ ') + Math.abs((tot.a - tot.l) / tot.l * 100).toFixed(1) + '%' : '—'}</div><div class="s">LY ₹${fCr(tot.l)}</div></div>
       <div class="k"><div class="l">Regions on target</div><div class="v">${hasT ? on + ' / ' + withT : '—'}</div><div class="s">at or above 100% for the period</div></div>
       <div class="k" style="background:rgba(123,79,214,.22);border-color:rgba(190,160,255,.35)"><div class="l">Potentials won · period</div><div class="v">₹${fCr(tot.wv)}</div><div class="s">${tot.wn} deals closed won</div></div>
@@ -396,7 +405,7 @@ function renderLeague(){
   R.sort((a, b) => { const va = val(a, sk), vb = val(b, sk); return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd; });
   $('lgSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ${periodLabel()} · ₹ lakhs · click a region for its product baskets`;
   const groups = [...GMS.map(g => g.gm), NOGM].map(gm => ({ gm, R:R.filter(x => x.gm === gm) })).filter(g => g.R.length);
-  const gmHead = g => { const T = g.R.reduce((s, x) => s + (x.T || 0), 0), t = g.R.reduce((s, x) => s + (x.tgt || 0), 0), a = g.R.reduce((s, x) => s + x.a, 0), p = t ? a / t * 100 : null;
+  const gmHead = g => { const GT = groupTarget(g.R), T = GT.T, t = GT.plain, a = g.R.reduce((s, x) => s + x.a, 0), p = t ? a / t * 100 : null;
     return `<div class="gmh"><div class="gmn">${g.gm === NOGM ? esc(NOGM) : '👤 ' + esc(g.gm)}<span class="sub"> · ${g.R.map(x => esc(x.r)).join(', ')}</span></div>
       <div class="gmv"><span>FY target <b>${fL(T)}</b></span><span>Target <b>${fL(t)}</b></span><span>${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} <b>${fL(a)}</b></span>
       <span class="gmp ${p == null ? '' : p >= 100 ? 'gr-up' : p >= 80 ? 'warnT' : 'gr-dn'}">${p == null ? '—' : p.toFixed(1) + '% achieved'}</span><span class="sub">${T ? (a / T * 100).toFixed(0) + '% of FY' : ''}</span></div></div>`; };
