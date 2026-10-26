@@ -139,6 +139,8 @@
   html.app-mode .hero .k{background:rgba(255,255,255,.16)!important;border-color:rgba(255,255,255,.28)!important}
   html.app-mode .dr .dh{background:linear-gradient(120deg,#b9502a,#f08c5a)}
   html.app-mode .hero .gauge{transform:scale(.9)}
+  html.app-mode .dr table.mx-t tr>td:first-child{background:transparent!important}
+  html.app-mode .dr table.mx-t tr>:first-child{position:static!important;box-shadow:none!important}  /* no sticky column inside the drawer (it floated over the title) */
   @media (max-width:760px){
     .hero{grid-template-columns:1fr;justify-items:stretch;padding:16px 12px}
     .hero .gauge{margin:0 auto}
@@ -147,6 +149,15 @@
     .hero .k{padding:9px 10px}
     .hero .k .v{font-size:19px}
     .split{grid-template-columns:1fr;justify-items:center}
+    /* phone: basket + series lists fit the screen (LY column hidden, names wrap) */
+    .split>.tbl{width:100%;justify-self:stretch}
+    .dr table.bk th:nth-child(4),.dr table.bk td:nth-child(4),.dr .ser th:nth-child(4),.dr .ser td:nth-child(4){display:none}
+    .dr table{font-size:12.5px}
+    .dr th{padding:8px 6px;font-size:9.5px}
+    .dr td{padding:9px 6px}
+    .dr td:first-child{white-space:normal;word-break:break-word}
+    .dr .pbar{display:block;margin:4px 0 0 auto;max-width:60px}
+    .dr .ser .card-h h2{font-size:15px}
     .ms-btn{min-width:0;width:100%}
   }
 </style>

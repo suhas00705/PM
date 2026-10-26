@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Control – app users</title>
+<title>Control – users</title>
 <style>
   :root { --ink:#16264d; --mut:#6b7a90; --line:#e2e8f0; --bg:#eef1f6; --pri:#103a52; --good:#2e7d4f; --bad:#c0392b; }
   * { box-sizing: border-box; }
@@ -32,10 +32,62 @@
   #lock input { width: 100%; text-align: center; font-size: 20px; letter-spacing: .3em; margin-top: 12px; }
   #lock button { width: 100%; margin-top: 12px; }
   .act button { padding: 5px 10px; font-size: 12px; }
+  .seg2 { display:inline-flex; background:#dfe6ef; border-radius:11px; padding:3px; gap:3px; margin-bottom:14px; }
+  .seg2 button { border:0; background:transparent; padding:8px 16px; font-weight:600; color:var(--mut); border-radius:9px; }
+  .seg2 button.on { background:#fff; color:var(--ink); box-shadow:0 1px 3px rgba(16,38,77,.15); }
+  .seg2 .cnt { background:#e67e22; color:#fff; border-radius:99px; font-size:11px; padding:1px 7px; margin-left:6px; }
+  .pill.pend { background:#fff3e0; color:#c25e00; }
+  .chips { display:flex; flex-wrap:wrap; gap:4px; max-width:340px; white-space:normal; }
+  .chip { background:#eef3fb; color:#3b5384; border-radius:6px; padding:2px 7px; font-size:11.5px; }
+  .av { width:26px; height:26px; border-radius:50%; vertical-align:middle; margin-right:8px; background:#dfe6ef; }
+  button.ok { background:var(--good); color:#fff; border-color:var(--good); font-weight:600; }
+  button.danger { color:var(--bad); }
+  .modal { position:fixed; inset:0; background:rgba(10,20,40,.5); display:none; align-items:center; justify-content:center; z-index:50; }
+  .modal.open { display:flex; }
+  .mbox { background:#fff; border-radius:16px; padding:22px 24px; width:94%; max-width:640px; max-height:88vh; overflow:auto; box-shadow:0 24px 64px rgba(0,0,0,.3); }
+  .mbox h3 { margin:0 0 4px; font-size:17px; } .lbl { font-size:11px; font-weight:700; color:var(--mut); letter-spacing:.07em; margin:16px 0 8px; display:flex; justify-content:space-between; align-items:center; }
+  .lbl button { padding:3px 9px; font-size:11px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:7px 14px; }
+  .grid label { font-size:13px; display:flex; gap:7px; align-items:center; cursor:pointer; }
+  .rgrid { max-height:230px; overflow:auto; border:1px solid var(--line); border-radius:10px; padding:10px; }
+  .mact { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="seg2" id="seg2"><button data-s="portal" class="on">💻 Portal users (Google)<span class="cnt" id="pendCnt" style="display:none"></span></button><button data-s="app">📱 App users (OTP)</button></div>
+
+  <div id="secPortal">
+    <div class="bar" style="justify-content:space-between">
+      <div><h1>💻 Portal users – Google sign-in</h1><div class="sub">Everyone who uses the desktop portal signs in with their @elmeasure.com Google account. New people wait here as <b>Pending</b> until you approve them.</div></div>
+      <div class="bar" id="pBtns" style="display:none"><button class="pri" id="pAdd">＋ Add user</button><button id="pRefresh">⟳ Refresh</button><button id="pCsv">⬇ CSV</button></div>
+    </div>
+    <div class="card" id="pMsg" style="display:none;text-align:center;color:var(--mut)"></div>
+    <div id="pMain" style="display:none">
+      <div class="kpis" id="pKpis" style="margin-top:14px"></div>
+      <div class="card">
+        <div class="bar">
+          <input id="pq" placeholder="Search name or email" style="flex:1 1 220px">
+          <select id="pst"><option value="">All users</option><option value="pending">Pending approval</option><option value="approved">Approved</option><option value="blocked">Blocked</option></select>
+        </div>
+        <div class="err" id="pErr"></div>
+        <div class="tbl"><table><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Status</th><th>Tabs</th><th>Regions</th><th>Requested</th><th>Last login</th><th>Logins</th><th>Action</th></tr></thead><tbody id="pRows"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="pModal"><div class="mbox">
+    <h3 id="mTitle"></h3><div class="small" id="mSub"></div>
+    <div id="mEmailWrap"><div class="lbl">EMAIL</div><input id="mEmail" placeholder="name@elmeasure.com" style="width:100%"></div>
+    <div class="lbl">TABS THIS PERSON CAN SEE <span><button type="button" data-all="t1">All</button> <button type="button" data-all="t0">None</button></span></div>
+    <div class="grid" id="mTabs"></div>
+    <div class="lbl">REGIONS <span style="font-weight:400;letter-spacing:0">&nbsp;(none ticked = all regions)</span><span><button type="button" data-all="r1">All</button> <button type="button" data-all="r0">None</button></span></div>
+    <div class="rgrid"><div class="grid" id="mRegs"><span class="small">Loading regions…</span></div></div>
+    <div class="err" id="mErr"></div>
+    <div class="mact"><button id="mCancel">Cancel</button><button class="pri" id="mSave">Save</button></div>
+  </div></div>
+
+  <div id="secApp" style="display:none">
   <div class="bar" style="justify-content:space-between">
     <div><h1>🛡️ Control – Elmeasure Insights app users</h1><div class="sub">Everyone who registered the mobile app with an SMS OTP. Block a user to stop the app opening on their phone.</div></div>
     <div class="bar" id="topBtns" style="display:none"><button id="refresh">⟳ Refresh</button><button id="csv">⬇ CSV</button><button id="lockBtn">🔒 Lock</button></div>
@@ -60,6 +112,7 @@
       <div class="err" id="err"></div>
       <div class="tbl"><table><thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Status</th><th>Registered</th><th>Last opened</th><th>Opens</th><th>Device</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
     </div>
+  </div>
   </div>
 </div>
 <script>
@@ -132,7 +185,139 @@ $('csv').onclick = () => {
   const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = 'app-users.csv'; a.click();
 };
-if (PIN) load();
+// ── Section switch ──
+let appStarted = false;
+function showSec(k) {
+  document.querySelectorAll('#seg2 button').forEach(b => b.classList.toggle('on', b.dataset.s === k));
+  $('secPortal').style.display = k === 'portal' ? '' : 'none';
+  $('secApp').style.display = k === 'app' ? '' : 'none';
+  if (k === 'app' && !appStarted) { appStarted = true; if (PIN) load(); }
+}
+$('seg2').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showSec(b.dataset.s); });
+
+// ── Portal users (Google sign-in) ──
+const TAB_NAMES = {leads:'📊 Leads', potentials:'📈 Potentials', cpanalytics:'🤝 CP Analytics', pmtracking:'🎯 PM Cumulative Tracking', oemtracking:'🏭 OEM Tracking',
+  salestracking:'💹 Sales Tracking', pathtarget:'🏁 Path to Target', regiontrack:'📍 Region Tracking', lvs:'🔌 LVS', createleads:'➕ Create Lead'};
+const DEFAULT_TABS = ['leads', 'potentials'];
+let PU = [], PTABS = Object.keys(TAB_NAMES), REGIONS = null, editing = null;
+const tok = () => { try { return localStorage.getItem('pmSess') || ''; } catch (e) { return ''; } };
+async function papi(data) {
+  const r = await fetch('/api/user-permissions', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ token: tok(), ...data }) });
+  const j = await r.json().catch(() => ({ error: 'Server error ' + r.status }));
+  if (!r.ok) throw new Error(j.error || 'Error ' + r.status);
+  return j;
+}
+const pstat = u => u.is_active === false ? 'blocked' : u.status === 'pending' ? 'pending' : 'approved';
+async function pload() {
+  $('pErr').textContent = '';
+  try {
+    const j = await papi({ action: 'list' });
+    PU = (j.users || []).filter(u => u.email !== j.admin); PTABS = (j.tabs || PTABS).filter(t => TAB_NAMES[t]);
+    $('pMsg').style.display = 'none'; $('pMain').style.display = ''; $('pBtns').style.display = '';
+    prender();
+  } catch (e) {
+    $('pMain').style.display = 'none'; $('pBtns').style.display = 'none';
+    $('pMsg').style.display = ''; $('pMsg').textContent = e.message;
+  }
+}
+function prender() {
+  const q = $('pq').value.trim().toLowerCase(), st = $('pst').value;
+  const order = { pending: 0, approved: 1, blocked: 2 };
+  const list = PU.filter(u => (!q || (u.name || '').toLowerCase().includes(q) || u.email.includes(q)) && (!st || pstat(u) === st))
+    .sort((a, b) => order[pstat(a)] - order[pstat(b)] || String(b.last_login || b.requested_at || '').localeCompare(String(a.last_login || a.requested_at || '')));
+  const wk = Date.now() - 7 * 864e5, n = s => PU.filter(u => pstat(u) === s).length, pend = n('pending');
+  const k = (l, v) => `<div class="kpi"><div class="k">${l}</div><div class="v">${v}</div></div>`;
+  $('pKpis').innerHTML = k('Portal users', PU.length) + k('Approved', n('approved')) + k('Pending approval', `<span style="color:${pend ? '#c25e00' : 'inherit'}">${pend}</span>`) +
+    k('Blocked', n('blocked')) + k('Signed in last 7 days', PU.filter(u => u.last_login && new Date(u.last_login) > wk).length);
+  $('pendCnt').style.display = pend ? '' : 'none'; $('pendCnt').textContent = pend;
+  const pill = s => `<span class="pill ${s === 'approved' ? 'on' : s === 'pending' ? 'pend' : 'off'}">${s === 'approved' ? 'Approved' : s === 'pending' ? 'Pending' : 'Blocked'}</span>`;
+  $('pRows').innerHTML = list.map((u, i) => { const s = pstat(u), e = esc(u.email);
+    const acts = s === 'pending' ? `<button class="ok" data-e="${e}" data-a="approve">Approve</button> <button class="danger" data-e="${e}" data-a="del">Reject</button>`
+      : s === 'approved' ? `<button data-e="${e}" data-a="edit">Edit</button> <button class="danger" data-e="${e}" data-a="block">Block</button>`
+      : `<button data-e="${e}" data-a="unblock">Unblock</button> <button class="danger" data-e="${e}" data-a="del">Remove</button>`;
+    const tabs = (u.allowed_tabs || []).filter(t => TAB_NAMES[t]);
+    return `<tr><td>${i + 1}</td>
+      <td>${u.picture ? `<img class="av" src="${esc(u.picture)}" referrerpolicy="no-referrer">` : '<span class="av" style="display:inline-block"></span>'}<b>${esc(u.name || u.email.split('@')[0])}</b></td>
+      <td>${e}</td><td>${pill(s)}</td>
+      <td><div class="chips">${tabs.length ? tabs.map(t => `<span class="chip">${TAB_NAMES[t]}</span>`).join('') : '<span class="small">—</span>'}</div></td>
+      <td>${(u.allowed_regions || []).length ? `<div class="chips">${u.allowed_regions.map(r => `<span class="chip">${esc(r)}</span>`).join('')}</div>` : '<span class="small">All regions</span>'}</td>
+      <td>${dt(u.requested_at || u.created_at)}</td><td>${dt(u.last_login)} <span class="small">${ago(u.last_login)}</span></td><td>${u.login_count || 0}</td>
+      <td class="act">${acts}</td></tr>`; }).join('') ||
+    '<tr><td colspan="10" class="small" style="text-align:center;padding:24px">No users yet. People appear here when they first sign in with Google.</td></tr>';
+}
+async function loadRegions() {
+  if (REGIONS) return REGIONS;
+  try { const c = JSON.parse(sessionStorage.getItem('ctlRegions') || 'null'); if (c && c.length) return (REGIONS = c); } catch (e) {}
+  const URL_ = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1/', KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+  const set = new Set();
+  for (const t of ['leads_cache', 'potentials_cache']) {
+    for (let from = 0; from < 200000; from += 1000) {
+      const r = await fetch(URL_ + t + '?select=region&order=region', { headers: { apikey: KEY, Authorization: 'Bearer ' + KEY, Range: from + '-' + (from + 999) } });
+      const rows = await r.json().catch(() => []);
+      if (!Array.isArray(rows) || !rows.length) break;
+      rows.forEach(x => x.region && set.add(x.region));
+      if (rows.length < 1000) break;
+    }
+  }
+  PU.forEach(u => (u.allowed_regions || []).forEach(r => set.add(r)));
+  REGIONS = [...set].sort((a, b) => a.localeCompare(b));
+  try { sessionStorage.setItem('ctlRegions', JSON.stringify(REGIONS)); } catch (e) {}
+  return REGIONS;
+}
+async function openEdit(email, approve) {
+  const u = email ? PU.find(x => x.email === email) : null; editing = { email, approve, isNew: !email };
+  $('mTitle').textContent = !u ? 'Add a portal user' : approve ? 'Approve ' + (u.name || u.email) : 'Edit ' + (u.name || u.email);
+  $('mSub').textContent = u ? u.email : 'They can sign in with Google straight away.';
+  $('mEmailWrap').style.display = u ? 'none' : ''; $('mEmail').value = ''; $('mErr').textContent = '';
+  $('mSave').textContent = approve ? 'Approve' : 'Save';
+  const have = u && !approve ? (u.allowed_tabs || []) : (u && (u.allowed_tabs || []).length ? u.allowed_tabs : DEFAULT_TABS);
+  $('mTabs').innerHTML = PTABS.map(t => `<label><input type="checkbox" value="${t}" ${have.includes(t) ? 'checked' : ''}> ${TAB_NAMES[t]}</label>`).join('');
+  $('pModal').classList.add('open');
+  const sel = (u && u.allowed_regions) || [];
+  $('mRegs').innerHTML = '<span class="small">Loading regions…</span>';
+  const regs = await loadRegions().catch(() => sel);
+  $('mRegs').innerHTML = (regs.length ? regs : sel).map(r => `<label><input type="checkbox" value="${esc(r)}" ${sel.includes(r) ? 'checked' : ''}> ${esc(r)}</label>`).join('') || '<span class="small">No regions found</span>';
+}
+$('pModal').addEventListener('click', e => {
+  if (e.target.id === 'pModal') return $('pModal').classList.remove('open');
+  const b = e.target.closest('button[data-all]'); if (!b) return;
+  const box = b.dataset.all[0] === 't' ? '#mTabs' : '#mRegs', on = b.dataset.all[1] === '1';
+  document.querySelectorAll(box + ' input').forEach(i => i.checked = on);
+});
+$('mCancel').onclick = () => $('pModal').classList.remove('open');
+$('mSave').onclick = async () => {
+  const email = editing.email || $('mEmail').value.trim().toLowerCase();
+  const tabs = [...document.querySelectorAll('#mTabs input:checked')].map(i => i.value);
+  const regs = [...document.querySelectorAll('#mRegs input:checked')].map(i => i.value);
+  if (!/^[^\s@]+@elmeasure\.com$/.test(email)) return $('mErr').textContent = 'Enter a valid @elmeasure.com email.';
+  if (!tabs.length) return $('mErr').textContent = 'Tick at least one tab.';
+  $('mSave').disabled = true;
+  try {
+    await papi({ action: 'save', email, allowed_tabs: tabs, allowed_regions: regs, ...(editing.approve || editing.isNew ? { status: 'approved', is_active: true } : {}) });
+    $('pModal').classList.remove('open'); await pload();
+  } catch (e) { $('mErr').textContent = e.message; } finally { $('mSave').disabled = false; }
+};
+$('pRows').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const em = b.dataset.e, a = b.dataset.a, u = PU.find(x => x.email === em), nm = u ? (u.name || em) : em;
+  try {
+    if (a === 'approve') return openEdit(em, true);
+    if (a === 'edit') return openEdit(em, false);
+    if (a === 'block') { if (!confirm(`Block ${nm}? They will be signed out and cannot open the portal.`)) return; await papi({ action: 'save', email: em, is_active: false }); }
+    if (a === 'unblock') await papi({ action: 'save', email: em, is_active: true, status: 'approved' });
+    if (a === 'del') { if (!confirm(`Remove ${nm} from the list?`)) return; await papi({ action: 'delete', email: em }); }
+    await pload();
+  } catch (err) { $('pErr').textContent = err.message; }
+});
+$('pAdd').onclick = () => openEdit(null, false);
+$('pRefresh').onclick = pload; $('pq').oninput = prender; $('pst').onchange = prender;
+$('pCsv').onclick = () => {
+  const rows = [['Name','Email','Status','Tabs','Regions','Requested','Last login','Logins'], ...PU.map(u => [u.name || '', u.email, pstat(u), (u.allowed_tabs || []).join(' | '), (u.allowed_regions || []).join(' | ') || 'All', dt(u.requested_at || u.created_at), dt(u.last_login), u.login_count || 0])];
+  const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type: 'text/csv'})); a.download = 'portal-users.csv'; a.click();
+};
+window.addEventListener('message', e => { if (e.data && e.data.type === 'pm-tab-shown' && $('secPortal').style.display !== 'none') pload(); });
+pload();
 </script>
 <script src="/gesture-control.js" defer></script>
 </body>

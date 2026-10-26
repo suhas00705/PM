@@ -77,7 +77,7 @@
       if (!isHead) bodyRows.push(r);
       if (!simple) return;
       Array.prototype.forEach.call(r.cells, function (cell, i) {
-        var hide = compact && !keep[i];
+        var hide = !!(compact && !keep[i]);   // must be true/false: toggle(x, undefined) flips the class on every run
         if (cell.classList.contains('mx-h') !== hide) cell.classList.toggle('mx-h', hide);
         if (cards && !isHead) {
           if (cell.getAttribute('data-l') !== heads[i]) cell.setAttribute('data-l', heads[i] || '');
