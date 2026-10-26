@@ -3,7 +3,9 @@
 //   POST {action:'verify', mobile, name, otp, device} → registers the user, returns {token}
 //   POST {action:'logout', mobile, token}          → log this phone out
 //   POST {action:'check',  mobile, token}          → is this app still registered and active? (updates last seen)
-//   POST {pin, action:'list' | 'set', ...}          → Control tab (lib/appUsers.js; one function because Hobby allows 12)
+//   POST {pin|token, action:'list' | 'set', ...}    → Control tab (lib/appUsers.js; one function because Hobby allows 12)
+// 26-Oct-2026: a NEW number is saved as status 'pending' – the app shows "waiting for approval" until the admin
+//              approves it in Control → App users (check returns reason 'pending').
 // Limits: 3 OTPs per number per 15 minutes, 5 wrong tries per OTP.
 const { sb, sha, cleanMobile, cleanName, body, sendSms, crypto } = require('../lib/appAuth');
 
@@ -43,22 +45,26 @@ module.exports = async (req, res) => {
         await sb(`app_otp?mobile=eq.${mobile}`, { method: 'PATCH', body: JSON.stringify({ tries: row.tries + 1 }) });
         return res.status(400).json({ error: `Wrong OTP. ${4 - row.tries} tries left.` });
       }
-      const [old] = await sb(`app_users?mobile=eq.${mobile}&select=is_active,name`);
+      const [old] = await sb(`app_users?mobile=eq.${mobile}&select=*`);
       if (old && old.is_active === false) return res.status(403).json({ error: 'This number has been blocked. Contact the administrator.' });
       const token = crypto.randomBytes(24).toString('hex');
-      await sb('app_users?on_conflict=mobile', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' },
-        body: JSON.stringify({ mobile, name: name || (old && old.name) || 'User', token_hash: sha(token),
-                               device: String(b.device || '').slice(0, 120), last_seen: new Date().toISOString(),
-                               ...(old ? {} : { registered_at: new Date().toISOString(), is_active: true }) }) });
+      const urow = { mobile, name: name || (old && old.name) || 'User', token_hash: sha(token),
+                    device: String(b.device || '').slice(0, 120), last_seen: new Date().toISOString(),
+                    ...(old ? {} : { registered_at: new Date().toISOString(), is_active: true, status: 'pending' }) };
+      const save = r => sb('app_users?on_conflict=mobile', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(r) });
+      try { await save(urow); }
+      catch (e) { if (!/status/.test(e.message)) throw e; delete urow.status; await save(urow); }   // SQL not run yet: register as before
       await sb(`app_otp?mobile=eq.${mobile}`, { method: 'PATCH', body: JSON.stringify({ code_hash: null }) });
-      const [nu] = await sb(`app_users?mobile=eq.${mobile}&select=registered_at`);
-      return res.status(200).json({ ok: true, token, name: name || (old && old.name), registered: nu && nu.registered_at });
+      const [nu] = await sb(`app_users?mobile=eq.${mobile}&select=*`);
+      return res.status(200).json({ ok: true, token, name: name || (old && old.name), registered: nu && nu.registered_at,
+                                    pending: !!(nu && nu.status === 'pending') });
     }
 
     if (b.action === 'check') {
-      const [u] = await sb(`app_users?mobile=eq.${mobile}&select=name,is_active,token_hash,open_count,registered_at`);
+      const [u] = await sb(`app_users?mobile=eq.${mobile}&select=*`);
       if (u && u.is_active === false) return res.status(200).json({ ok: false, reason: 'blocked' });
       if (!u || !b.token || u.token_hash !== sha(b.token)) return res.status(200).json({ ok: false, reason: 'register' });
+      if (u.status === 'pending') return res.status(200).json({ ok: false, reason: 'pending', name: u.name });
       await sb(`app_users?mobile=eq.${enc(mobile)}`, { method: 'PATCH',
         body: JSON.stringify({ last_seen: new Date().toISOString(), open_count: (u.open_count || 0) + 1 }) });
       return res.status(200).json({ ok: true, name: u.name, registered: u.registered_at });

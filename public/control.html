@@ -55,7 +55,7 @@
 </head>
 <body>
 <div class="wrap">
-  <div class="seg2" id="seg2"><button data-s="portal" class="on">💻 Portal users (Google)<span class="cnt" id="pendCnt" style="display:none"></span></button><button data-s="app">📱 App users (OTP)</button></div>
+  <div class="seg2" id="seg2"><button data-s="portal" class="on">💻 Portal users (Google)<span class="cnt" id="pendCnt" style="display:none"></span></button><button data-s="app">📱 App users (OTP)<span class="cnt" id="appPendCnt" style="display:none"></span></button></div>
 
   <div id="secPortal">
     <div class="bar" style="justify-content:space-between">
@@ -89,7 +89,7 @@
 
   <div id="secApp" style="display:none">
   <div class="bar" style="justify-content:space-between">
-    <div><h1>🛡️ Control – Elmeasure Insights app users</h1><div class="sub">Everyone who registered the mobile app with an SMS OTP. Block a user to stop the app opening on their phone.</div></div>
+    <div><h1>🛡️ Control – Elmeasure Insights app users</h1><div class="sub">Everyone who registers the mobile app with an SMS OTP. New numbers wait here as <b>Pending</b> until you approve them. Block a user to stop the app opening on their phone.</div></div>
     <div class="bar" id="topBtns" style="display:none"><button id="refresh">⟳ Refresh</button><button id="csv">⬇ CSV</button><button id="lockBtn">🔒 Lock</button></div>
   </div>
 
@@ -107,7 +107,7 @@
     <div class="card">
       <div class="bar">
         <input id="q" placeholder="Search name or mobile" style="flex:1 1 220px">
-        <select id="st"><option value="">All users</option><option value="on">Active</option><option value="off">Blocked</option></select>
+        <select id="st"><option value="">All users</option><option value="pend">Pending approval</option><option value="on">Active</option><option value="off">Blocked</option></select>
       </div>
       <div class="err" id="err"></div>
       <div class="tbl"><table><thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Status</th><th>Registered</th><th>Last opened</th><th>Opens</th><th>Device</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
@@ -124,9 +124,9 @@ const dt = d => d ? new Date(d).toLocaleString('en-IN', {day:'2-digit', month:'s
 const ago = d => { if (!d) return ''; const m = (Date.now() - new Date(d)) / 60000; return m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 
 async function call(data) {
-  const r = await fetch('/api/app-otp', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin: PIN, ...data }) });
+  const r = await fetch('/api/app-otp', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ pin: PIN, token: (() => { try { return localStorage.getItem('pmSess') || ''; } catch (e) { return ''; } })(), ...data }) });
   const j = await r.json().catch(() => ({ error: 'Server error ' + r.status }));
-  if (r.status === 403) { lock('Wrong PIN'); throw new Error('Wrong PIN'); }
+  if (r.status === 403) { lock(PIN ? 'Wrong PIN' : ''); throw new Error('Wrong PIN'); }
   if (!r.ok) throw new Error(j.error || 'Error ' + r.status);
   return j;
 }
@@ -146,19 +146,24 @@ async function load() {
 }
 function render() {
   const q = $('q').value.trim().toLowerCase(), st = $('st').value;
-  const list = USERS.filter(u => (!q || (u.name || '').toLowerCase().includes(q) || (u.mobile || '').includes(q)) &&
-    (!st || (st === 'on' ? u.is_active !== false : u.is_active === false)));
+  const ast = u => u.is_active === false ? 'off' : u.status === 'pending' ? 'pend' : 'on';
+  const list = USERS.filter(u => (!q || (u.name || '').toLowerCase().includes(q) || (u.mobile || '').includes(q)) && (!st || ast(u) === st))
+    .sort((a, b) => (ast(a) === 'pend' ? 0 : 1) - (ast(b) === 'pend' ? 0 : 1));
+  const npend = USERS.filter(u => ast(u) === 'pend').length;
+  $('appPendCnt').style.display = npend ? '' : 'none'; $('appPendCnt').textContent = npend;
   const wk = Date.now() - 7 * 864e5;
   const k = (l, v) => `<div class="kpi"><div class="k">${l}</div><div class="v">${v}</div></div>`;
-  $('kpis').innerHTML = k('Registered', USERS.length) + k('Active', USERS.filter(u => u.is_active !== false).length) +
+  $('kpis').innerHTML = k('Registered', USERS.length) + k('Active', USERS.filter(u => ast(u) === 'on').length) +
+    k('Pending approval', `<span style="color:${npend ? '#c25e00' : 'inherit'}">${npend}</span>`) +
     k('Blocked', USERS.filter(u => u.is_active === false).length) + k('Opened in last 7 days', USERS.filter(u => u.last_seen && new Date(u.last_seen) > wk).length);
   $('rows').innerHTML = list.map((u, i) => `<tr>
     <td>${i + 1}</td><td><b>${esc(u.name)}</b></td>
     <td><a href="tel:+91${esc(u.mobile)}">+91 ${esc(u.mobile)}</a></td>
-    <td><span class="pill ${u.is_active === false ? 'off' : 'on'}">${u.is_active === false ? 'Blocked' : 'Active'}</span></td>
+    <td><span class="pill ${ast(u) === 'pend' ? 'pend' : ast(u)}">${{ off: 'Blocked', pend: 'Pending', on: 'Active' }[ast(u)]}</span></td>
     <td>${dt(u.registered_at)}</td><td>${dt(u.last_seen)} <span class="small">${ago(u.last_seen)}</span></td>
     <td>${u.open_count || 0}</td><td class="small" title="${esc(u.device)}">${esc((u.device || '').slice(0, 40))}</td>
-    <td class="act"><button data-m="${esc(u.mobile)}" data-a="${u.is_active === false ? 'on' : 'off'}">${u.is_active === false ? 'Unblock' : 'Block'}</button>
+    <td class="act">${ast(u) === 'pend' ? `<button class="ok" data-m="${esc(u.mobile)}" data-a="approve">Approve</button> <button class="danger" data-m="${esc(u.mobile)}" data-a="off">Reject</button>` :
+      `<button data-m="${esc(u.mobile)}" data-a="${u.is_active === false ? 'on' : 'off'}">${u.is_active === false ? 'Unblock' : 'Block'}</button>`}
       <button data-m="${esc(u.mobile)}" data-a="name">Rename</button></td></tr>`).join('') ||
     '<tr><td colspan="9" class="small" style="text-align:center;padding:24px">No users yet. Users appear here after they register in the app.</td></tr>';
 }
@@ -170,8 +175,11 @@ $('rows').addEventListener('click', async e => {
       const n = prompt('New name for +91 ' + m, u ? u.name : ''); if (!n) return;
       await call({ action: 'set', mobile: m, name: n });
     } else {
-      if (a === 'off' && !confirm(`Block ${u ? u.name : m}? The app will stop opening on their phone.`)) return;
-      await call({ action: 'set', mobile: m, is_active: a === 'on' });
+      if (a === 'approve') await call({ action: 'set', mobile: m, status: 'approved', is_active: true });
+      else {
+        if (a === 'off' && !confirm(`${u && u.status === 'pending' ? 'Reject' : 'Block'} ${u ? u.name : m}? The app will not open on their phone.`)) return;
+        await call({ action: 'set', mobile: m, is_active: a === 'on', ...(a === 'on' ? { status: 'approved' } : {}) });
+      }
     }
     await load();
   } catch (err) { $('err').textContent = err.message; }
@@ -191,7 +199,7 @@ function showSec(k) {
   document.querySelectorAll('#seg2 button').forEach(b => b.classList.toggle('on', b.dataset.s === k));
   $('secPortal').style.display = k === 'portal' ? '' : 'none';
   $('secApp').style.display = k === 'app' ? '' : 'none';
-  if (k === 'app' && !appStarted) { appStarted = true; if (PIN) load(); }
+  if (k === 'app' && !appStarted) { appStarted = true; load(); }
 }
 $('seg2').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showSec(b.dataset.s); });
 
@@ -318,6 +326,7 @@ $('pCsv').onclick = () => {
 };
 window.addEventListener('message', e => { if (e.data && e.data.type === 'pm-tab-shown' && $('secPortal').style.display !== 'none') pload(); });
 pload();
+appStarted = true; load();   // admin's portal sign-in opens App users without the PIN (also fills the Pending badge)
 </script>
 <script src="/gesture-control.js" defer></script>
 </body>

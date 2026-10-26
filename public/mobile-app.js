@@ -155,14 +155,52 @@ window.eiSplash = function () {
         .then(function (r) {
           busy = false; $('eiVerify').disabled = false;
           if (!r.ok) return msg(r.error || 'Could not verify.');
-          setUser({ name: r.name || name, mobile: mob, token: r.token, registered: r.registered || new Date().toISOString() });
+          setUser({ name: r.name || name, mobile: mob, token: r.token, registered: r.registered || new Date().toISOString(), pending: !!r.pending });
           g.remove(); greet();
+          if (r.pending) showPending();
         }).catch(function () { busy = false; $('eiVerify').disabled = false; msg('No internet connection.'); });
     }
     $('eiSend').onclick = send; $('eiResend').onclick = send; $('eiVerify').onclick = verify;
     $('eiChange').onclick = function () { $('eiStep2').style.display = 'none'; $('eiStep1').style.display = ''; msg(''); };
     $('eiOtp').addEventListener('input', function () { if (this.value.replace(/\D/g, '').length === 6) verify(); });
     $('eiMob').addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+  }
+
+  /* ---------- waiting for the admin's approval (new numbers, 26-Oct-2026) ---------- */
+  var pendTimer = null;
+  function showPending() {
+    var u = getUser() || {}, old = document.getElementById('ei-gate');
+    if (old && old.getAttribute('data-k') === 'pending') return;
+    if (old) old.remove();
+    var g = document.createElement('div'); g.id = 'ei-gate'; g.setAttribute('data-k', 'pending');
+    g.innerHTML = '<div class="card"><img src="/elmeasure-logo.png" alt="Elmeasure">' +
+      '<div style="font-size:40px;margin:6px 0 2px">⏳</div><h1>Waiting for approval</h1>' +
+      '<p class="s">Hi ' + esc((u.name || '').split(' ')[0]) + ', your request has been sent to the administrator. ' +
+      'The app opens here automatically as soon as it is approved.</p>' +
+      '<button class="go" id="eiPendChk">Check now</button>' +
+      '<button class="lnk" id="eiPendOut">Use a different number</button>' +
+      '<div class="msg" id="eiPendMsg"></div><div class="ft">Elmeasure · Possibilities…Infinite</div></div>';
+    document.body.appendChild(g);
+    document.getElementById('eiPendChk').onclick = function () { pendCheck(true); };
+    document.getElementById('eiPendOut').onclick = function () {
+      clearInterval(pendTimer); try { localStorage.removeItem('eiUser'); } catch (e) {} g.remove(); showGate();
+    };
+    clearInterval(pendTimer); pendTimer = setInterval(function () { if (!document.hidden) pendCheck(false); }, 20000);
+  }
+  function pendCheck(manual) {
+    var u = getUser(); if (!u || !u.token) return;
+    var m = document.getElementById('eiPendMsg'); if (manual && m) { m.className = 'msg ok'; m.textContent = 'Checking…'; }
+    api({ action: 'check', mobile: u.mobile, token: u.token }).then(function (r) {
+      if (r.ok) {
+        clearInterval(pendTimer); u.pending = false; if (r.name) u.name = r.name; setUser(u);
+        var g = document.getElementById('ei-gate'); if (g) g.remove(); greet(); return;
+      }
+      if (r.reason === 'pending') { if (manual && m) { m.className = 'msg'; m.textContent = 'Not approved yet. Please wait for the administrator.'; } return; }
+      clearInterval(pendTimer);
+      var g2 = document.getElementById('ei-gate'); if (g2) g2.remove();
+      if (r.reason === 'blocked') { try { localStorage.removeItem('eiUser'); } catch (e) {} return showGate('Your request was not approved. Contact the administrator.'); }
+      showGate('Please verify your mobile number again.');
+    }).catch(function () { if (manual && m) { m.className = 'msg'; m.textContent = 'No internet connection.'; } });
   }
 
   function greet() {
@@ -262,12 +300,14 @@ window.eiSplash = function () {
     var u = getUser();
     if (!u || !u.token) return showGate();
     greet();
+    if (u.pending) return showPending(), pendCheck(false);
     api({ action: 'check', mobile: u.mobile, token: u.token }).then(function (r) {
       if (r.ok) { var ch = false;
         if (r.name && r.name !== u.name) { u.name = r.name; ch = true; }
         if (r.registered && r.registered !== u.registered) { u.registered = r.registered; ch = true; }
         if (ch) { setUser(u); greet(); } return; }
       if (r.reason === 'blocked') { try { localStorage.removeItem('eiUser'); } catch (e) {} return showGate('Your access has been blocked. Contact the administrator.'); }
+      if (r.reason === 'pending') { u.pending = true; setUser(u); return showPending(); }
       if (r.reason === 'register') return showGate('Please verify your mobile number again.');
       // server problem: do not lock the user out
     }).catch(function () {});

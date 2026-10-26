@@ -58,3 +58,7 @@ data-import/*.csv
 data-import/*.csv.gz
 Claude outputs/
 *.xlsx
+
+# Android app experiment (not used) – keep out of GitHub / Vercel
+android/
+.vercelignore

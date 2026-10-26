@@ -7,29 +7,15 @@
 //   {action:'delete',  token, email}          → remove a user             (admin only)
 // The mobile app (Elmeasure Insights) does NOT use this – it keeps its SMS OTP login (/api/app-otp).
 // Secrets only from Vercel env vars: SUPABASE_SERVICE_KEY (already set). Optional SESSION_SECRET.
-const { sb, body, crypto } = require('../lib/appAuth');
+const { sb, body } = require('../lib/appAuth');
+const { sign, readToken } = require('../lib/portalSession');
 
 const ADMIN_EMAIL = 'suhas.s@elmeasure.com';
 const CLIENT_ID   = '907018546073-cgdqmgd5ubs2o0aig3ioqh28qb2r5rhc.apps.googleusercontent.com';
 const DOMAIN      = '@elmeasure.com';
-const DAYS        = 7;
 const TABS        = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs','createleads'];
 const ADMIN_TABS  = [...TABS.slice(0, 9), 'control', 'createleads'];
 const enc = encodeURIComponent;
-
-function secret() { return process.env.SESSION_SECRET || process.env.SUPABASE_SERVICE_KEY || ''; }
-const b64u = s => Buffer.from(s).toString('base64url');
-function sign(email) {
-  const p = b64u(JSON.stringify({ e: email, x: Date.now() + DAYS * 864e5 }));
-  return p + '.' + crypto.createHmac('sha256', secret()).update(p).digest('base64url');
-}
-function readToken(t) {
-  const [p, s] = String(t || '').split('.');
-  if (!p || !s || !secret()) return null;
-  const good = crypto.createHmac('sha256', secret()).update(p).digest('base64url');
-  if (s.length !== good.length || !crypto.timingSafeEqual(Buffer.from(s), Buffer.from(good))) return null;
-  try { const j = JSON.parse(Buffer.from(p, 'base64url').toString()); return j.x > Date.now() ? String(j.e).toLowerCase() : null; } catch (e) { return null; }
-}
 
 async function verifyGoogle(credential) {
   const r = await fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + enc(String(credential || '')));
