@@ -80,6 +80,18 @@
   .rc .fyt b{color:var(--t1)}
   .rc .won{margin-top:4px;font-size:11.5px;color:var(--won)}
   .rc:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--rcc,#ccc)}
+  .gmh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 8px;padding:9px 14px;border-radius:10px;background:linear-gradient(90deg,#eaf3fd,#f6f9fd);border:1px solid #d8e6f6}
+  .gmh:first-child{margin-top:0}
+  .gmn{font-weight:800;font-size:15px;color:var(--navy)}
+  .gmv{display:flex;gap:14px;flex-wrap:wrap;align-items:baseline;font-size:12.5px;color:var(--t2)}
+  .gmv b{color:var(--t1)}
+  .gmp{font-weight:800;font-size:14px}
+  .warnT{color:var(--warn);font-weight:800}
+  tr.gmr td{background:#eaf3fd;color:var(--navy);font-weight:700;text-align:left;cursor:default}
+  .fyband{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px 12px}
+  .fyband .l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;font-weight:700}
+  .fyband .v{font-size:22px;font-weight:800;margin-top:2px}
+  .fyband .s{font-size:12px;opacity:.85}
   /* table */
   .tbl{overflow:auto}
   table{border-collapse:collapse;width:100%;font-size:13px}
@@ -131,6 +143,7 @@
     .hero{grid-template-columns:1fr;justify-items:stretch;padding:16px 12px}
     .hero .gauge{margin:0 auto}
     .hero .kp{grid-template-columns:1fr 1fr;gap:8px}
+    .fyband{grid-template-columns:1fr 1fr}
     .hero .k{padding:9px 10px}
     .hero .k .v{font-size:19px}
     .split{grid-template-columns:1fr;justify-items:center}
@@ -152,6 +165,7 @@
           <div class="ms-list" id="mList"></div>
         </div>
       </div>
+      <div class="f"><label>GM</label><select id="gmSel"></select></div>
       <div class="f"><label>Basis</label><div class="seg" id="docSeg"><button data-d="OB" class="on">Order booking</button><button data-d="INV">Invoicing</button></div></div>
       <button class="btn" id="refreshBtn" title="Fetch the latest synced data">⟳ Refresh</button>
     </div>
@@ -195,9 +209,23 @@ const REGIONS = [
   { k:'Coimbatore', t:1200 }, { k:'Punjab', t:1080 }, { k:'East India', t:1050 }, { k:'Eastern UP', t:710 },
   { k:'Nagpur & CG', t:700 }, { k:'North Kerala', t:600 }, { k:'MP', t:550 }, { k:'Rajasthan', t:360 },
   { k:'South Kerala', t:300 }, { k:'Govt Projects', t:300 }, { k:'Goa', t:240 },
+  { k:'Other regions', t:3750 },     // 37.5 Cr not given to any region → company total = 520 Cr
 ];
+// GM ownership (user, 26-Oct-2026) – shown in this order
+const GMS = [
+  { gm:'Nitin Agarwal', regions:['Hyderabad', 'Vijayawada', 'Vizag', 'East India'] },
+  { gm:'Anwar',         regions:['Delhi NCR', 'MP', 'Eastern UP', 'Punjab', 'Rajasthan'] },
+  { gm:'Joseph',        regions:['Chennai', 'Coimbatore', 'Madurai & Salem', 'North Kerala', 'South Kerala'] },
+  { gm:'Vaibhav',       regions:['Mumbai', 'Pune', 'Goa'] },
+  { gm:'Vivek',         regions:['Gujarat', 'Nagpur & CG'] },
+  { gm:'Vinod Kumar',   regions:['Karnataka'] },
+  { gm:'Dileep A K',    regions:['Data Centre'] },
+  { gm:'Sam J',         regions:['Export'] },
+];
+const NOGM = 'Other business (no GM)';   // OEM, Govt Projects, Other regions
+const gmOf = r => { const g = GMS.find(x => x.regions.includes(r)); return g ? g.gm : NOGM; };
 const TARGET_FY = 2026;                           // targets above are for FY 2026-27
-const NOTARGET = ['Other regions'];
+const NOTARGET = [];
 const NO_WON = ['OEM'];                            // potentials are not shown for OEM (user, 25-Oct-2026)
 const BK_COL = ['#0073c8','#12a150','#f08c00','#7b4fd6','#00a3a3','#e0457b','#5b8def','#a0b417','#d9622b','#2f9e8f','#9b6b43','#8a94a6','#c2185b','#3f51b5'];
 
@@ -213,7 +241,7 @@ const IDX = m => MONTHS.indexOf(m);
 const fL = v => v == null ? '—' : (Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-IN') : v.toLocaleString('en-IN', {minimumFractionDigits:1, maximumFractionDigits:1}));
 const fCr = v => v == null ? '—' : (v / 100).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' Cr';
 const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
-const S = { cy:null, months:[], doc:'OB', view:'cards', sort:{k:'t', d:-1}, rows:[], won:[], dict:null, open:null, openBk:null, ser:{} };
+const S = { cy:null, months:[], doc:'OB', view:'cards', gm:'',  sort:{k:'t', d:-1}, rows:[], won:[], dict:null, open:null, openBk:null, ser:{} };
 
 async function rpc(fn, body){
   const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer ' + KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
@@ -247,6 +275,8 @@ $('mPop').querySelector('.ms-acts').onclick = e => { const q = e.target.dataset.
   drawMonths(); renderAll(); if (q !== 'none') $('mPop').classList.remove('open'); };
 $('docSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.doc = b.dataset.d;
   [...$('docSeg').children].forEach(x => x.classList.toggle('on', x === b)); S.ser = {}; renderAll(); };
+$('gmSel').innerHTML = '<option value="">All GMs</option>' + GMS.map(g => `<option>${esc(g.gm)}</option>`).join('') + `<option value="${NOGM}">${NOGM}</option>`;
+$('gmSel').onchange = e => { S.gm = e.target.value; renderAll(); };
 $('viewSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v;
   [...$('viewSeg').children].forEach(x => x.classList.toggle('on', x === b)); renderLeague(); };
 $('fySel').onchange = e => { S.cy = +e.target.value; S.ser = {}; load(true); };
@@ -304,10 +334,22 @@ function regionStats(r){
   return { r, T, act, a, l, tgt:pt.tgt, gap:pt.tgt == null ? null : pt.tgt - a, pct, gr:l ? (a - l) / l * 100 : null,
            won:wonSum(r, sel), wonFy:wonSum(r, ytd()) };
 }
-function allRegions(){
+function allRegions(all){
   const seen = new Set(S.rows.map(x => x.r));
-  const list = REGIONS.map(o => o.k).concat(NOTARGET.filter(k => seen.has(k)));
-  return list.map(regionStats);
+  const order = [...GMS.flatMap(g => g.regions), ...REGIONS.map(o => o.k)];
+  const list = [...new Set(order)].filter(k => REGIONS.some(o => o.k === k) || seen.has(k));
+  return list.map(regionStats).map(x => (x.gm = gmOf(x.r), x)).filter(x => all || !S.gm || x.gm === S.gm);
+}
+// FY view for the header: full-year target, achieved so far, plan till the latest data date (current month by days)
+function fyView(R){
+  const T = R.reduce((s, x) => s + (x.T || 0), 0), act = {}; MONTHS.forEach(m => act[m] = 0);
+  R.forEach(x => MONTHS.forEach(m => act[m] += x.act[m]));
+  const li = latestIdx(), md = S.doc === 'OB' ? S.raw.max_ob : S.raw.max_inv, d = md ? new Date(md) : new Date();
+  const dim = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(), frac = Math.min(1, d.getDate() / dim);
+  let plan = 0, done = 0;
+  MONTHS.forEach((m, i) => { if (i < li) plan += T * QSHARE[Math.floor(i / 3)] / 3; else if (i === li) plan += T * QSHARE[Math.floor(i / 3)] / 3 * frac;
+    if (i <= li) done += act[m]; });
+  return { T, plan, done, date:d };
 }
 const colOf = p => p == null ? '#b7c3d6' : p >= 100 ? 'var(--g1)' : p >= 80 ? 'var(--a1)' : 'var(--r1)';
 const chip = p => p == null ? '<span class="chip c-na">—</span>' : `<span class="chip ${p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad'}">${p.toFixed(1)}%</span>`;
@@ -329,9 +371,16 @@ function renderHero(){
   const hasT = S.cy === TARGET_FY, p = hasT && tot.t ? tot.a / tot.t * 100 : null;
   const on = R.filter(x => x.pct != null && x.pct >= 100).length, withT = R.filter(x => x.pct != null).length;
   const docW = S.doc === 'OB' ? 'Order booking' : 'Invoicing';
-  $('hero').innerHTML = `<div class="gauge">${gauge(p)}<div class="pv">${p == null ? '—' : p.toFixed(1) + '%'}</div><div class="pl">of target achieved</div></div>
+  const FV = fyView(R), dl = FV.date.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+  const fyStrip = hasT ? `<div class="fyband">
+      <div><div class="l">FY target${S.gm ? ' · ' + esc(S.gm) : ''}</div><div class="v">₹${fCr(FV.T)}</div><div class="s">${esc(fyLabel(S.cy))}</div></div>
+      <div><div class="l">${docW} so far</div><div class="v">₹${fCr(FV.done)}</div><div class="s"><b>${(FV.done / FV.T * 100).toFixed(1)}%</b> of the FY target</div></div>
+      <div><div class="l">Should be achieved till ${dl}</div><div class="v">₹${fCr(FV.plan)}</div><div class="s">plan to date (current month by days)</div></div>
+      <div><div class="l">Achieved till ${dl}</div><div class="v ${FV.done >= FV.plan ? 'up' : 'dn'}">${(FV.done / FV.plan * 100).toFixed(1)}%</div><div class="s">${FV.done >= FV.plan ? 'ahead by ₹' + fCr(FV.done - FV.plan) : 'short by ₹' + fCr(FV.plan - FV.done)}</div></div>
+    </div>` : '';
+  $('hero').innerHTML = fyStrip + `<div class="gauge">${gauge(p)}<div class="pv">${p == null ? '—' : p.toFixed(1) + '%'}</div><div class="pl">of period target</div></div>
     <div class="kp">
-      <div class="k"><div class="l">${S.months.length === 1 ? 'Monthly target' : 'Target'} · regions</div><div class="v">₹${fCr(hasT ? tot.t : null)}</div><div class="s">${hasT ? 'sum of region targets for the period' : 'targets set for FY 2026-27 only'}</div></div>
+      <div class="k"><div class="l">${S.months.length === 1 ? 'Monthly target' : 'Target'} · regions</div><div class="v">₹${fCr(hasT ? tot.t : null)}</div><div class="s">${hasT ? esc(periodLabel()) + ' · all regions incl. unassigned' : 'targets set for FY 2026-27 only'}</div></div>
       <div class="k"><div class="l">${docW} · achieved</div><div class="v">₹${fCr(tot.a)}</div><div class="s">${hasT ? (tot.t - tot.a > 0 ? 'gap ₹' + fCr(tot.t - tot.a) : 'ahead by ₹' + fCr(tot.a - tot.t)) : ''}</div></div>
       <div class="k"><div class="l">vs last year (same period)</div><div class="v ${tot.a >= tot.l ? 'up' : 'dn'}">${tot.l ? (tot.a >= tot.l ? '▲ ' : '▼ ') + Math.abs((tot.a - tot.l) / tot.l * 100).toFixed(1) + '%' : '—'}</div><div class="s">LY ₹${fCr(tot.l)}</div></div>
       <div class="k"><div class="l">Regions on target</div><div class="v">${hasT ? on + ' / ' + withT : '—'}</div><div class="s">at or above 100% for the period</div></div>
@@ -346,22 +395,29 @@ function renderLeague(){
   const val = (x, k) => k === 'r' ? x.r : k === 't' ? (x.tgt ?? -1) : k === 'a' ? x.a : k === 'p' ? (x.pct ?? -1) : k === 'g' ? (x.gap ?? -1e9) : k === 'l' ? x.l : k === 'gr' ? (x.gr ?? -1e9) : k === 'w' ? (x.won.v ?? -1) : k === 'wf' ? x.wonFy.v : 0;
   R.sort((a, b) => { const va = val(a, sk), vb = val(b, sk); return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd; });
   $('lgSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ${periodLabel()} · ₹ lakhs · click a region for its product baskets`;
+  const groups = [...GMS.map(g => g.gm), NOGM].map(gm => ({ gm, R:R.filter(x => x.gm === gm) })).filter(g => g.R.length);
+  const gmHead = g => { const T = g.R.reduce((s, x) => s + (x.T || 0), 0), t = g.R.reduce((s, x) => s + (x.tgt || 0), 0), a = g.R.reduce((s, x) => s + x.a, 0), p = t ? a / t * 100 : null;
+    return `<div class="gmh"><div class="gmn">${g.gm === NOGM ? esc(NOGM) : '👤 ' + esc(g.gm)}<span class="sub"> · ${g.R.map(x => esc(x.r)).join(', ')}</span></div>
+      <div class="gmv"><span>FY target <b>${fL(T)}</b></span><span>Target <b>${fL(t)}</b></span><span>${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} <b>${fL(a)}</b></span>
+      <span class="gmp ${p == null ? '' : p >= 100 ? 'gr-up' : p >= 80 ? 'warnT' : 'gr-dn'}">${p == null ? '—' : p.toFixed(1) + '% achieved'}</span><span class="sub">${T ? (a / T * 100).toFixed(0) + '% of FY' : ''}</span></div></div>`; };
   if (S.view === 'cards') {
     const maxPct = 150;
-    $('league').innerHTML = '<div class="league">' + R.map((x, i) => {
+    $('league').innerHTML = groups.map(g => gmHead(g) + '<div class="league">' + g.R.map((x, i) => {
       const w = x.pct == null ? 0 : Math.min(x.pct, maxPct) / maxPct * 100, mk = 100 / maxPct * 100;
       return `<div class="rc" data-r="${esc(x.r)}" style="--rcc:${colOf(x.pct)}">
         <div class="top"><div><span class="rank">#${i + 1}</span><span class="nm">${esc(x.r)}</span></div>${chip(x.pct)}</div>
         <div class="nums"><span>Achieved <b>${fL(x.a)}</b></span><span>Target <b>${fL(x.tgt)}</b></span><span>${grTxt(x.a, x.l)}</span></div>
         <div class="trow"><div class="track"><div class="fill" style="width:${w}%;background:${colOf(x.pct)}"></div>${x.tgt != null ? `<div class="mark" style="left:${mk}%"></div>` : ''}</div>${x.T != null ? `<div class="fyv">FY target <b>${fL(x.T)}</b></div>` : ''}</div>
         ${x.T != null ? `<div class="fyt">${(x.a / x.T * 100).toFixed(0)}% of FY done</div>` : ''}
-        <div class="won">${x.won.v == null ? '<span class="sub">Potentials not shown for OEM</span>' : `◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L`}</div></div>`; }).join('') + '</div>';
+        <div class="won">${x.won.v == null ? '<span class="sub">Potentials not shown for OEM</span>' : `◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L`}</div></div>`; }).join('') + '</div>').join('');
   } else {
     const H = [['r','Region'],['t','Target'],['a','Achieved'],['p','% achieved'],['g','Gap'],['l','LY same period'],['gr','Growth'],['w','Won · period'],['wf','Won · FY']];
     const tot = R.reduce((o, x) => ({ a:o.a + x.a, l:o.l + x.l, t:o.t + (x.tgt || 0), w:o.w + x.won.v, wn:o.wn + x.won.n, f:o.f + x.wonFy.v }), {a:0, l:0, t:0, w:0, wn:0, f:0});
     const tp = tot.t ? tot.a / tot.t * 100 : null;
     $('league').innerHTML = `<div class="tbl"><table><thead><tr>${H.map(h => `<th data-k="${h[0]}">${h[1]}${sk === h[0] ? ` <span class="s">${sd < 0 ? '▼' : '▲'}</span>` : ''}</th>`).join('')}</tr></thead><tbody>` +
-      R.map(x => `<tr data-r="${esc(x.r)}" class="${x.tgt == null ? 'nt' : ''}"><td><b>${esc(x.r)}</b></td><td>${fL(x.tgt)}</td><td>${fL(x.a)}</td><td>${chip(x.pct)}</td><td>${x.gap == null ? '—' : x.gap > 0 ? fL(x.gap) : '<span class="gr-up">+' + fL(-x.gap) + '</span>'}</td><td>${fL(x.l)}</td><td>${grTxt(x.a, x.l)}</td><td class="wonv">${x.won.v == null ? '—' : fL(x.won.v) + ' <span class="sub">(' + x.won.n + ')</span>'}</td><td class="wonv">${fL(x.wonFy.v)}</td></tr>`).join('') +
+      groups.map(g => { const a = g.R.reduce((s, x) => s + x.a, 0), t = g.R.reduce((s, x) => s + (x.tgt || 0), 0), T = g.R.reduce((s, x) => s + (x.T || 0), 0);
+        return `<tr class="gmr"><td colspan="9">${g.gm === NOGM ? esc(NOGM) : '👤 ' + esc(g.gm)} — FY target ${fL(T)} · target ${fL(t)} · achieved ${fL(a)} · <b>${t ? (a / t * 100).toFixed(1) + '% achieved' : '—'}</b></td></tr>` +
+      g.R.map(x => `<tr data-r="${esc(x.r)}" class="${x.tgt == null ? 'nt' : ''}"><td><b>${esc(x.r)}</b></td><td>${fL(x.tgt)}</td><td>${fL(x.a)}</td><td>${chip(x.pct)}</td><td>${x.gap == null ? '—' : x.gap > 0 ? fL(x.gap) : '<span class="gr-up">+' + fL(-x.gap) + '</span>'}</td><td>${fL(x.l)}</td><td>${grTxt(x.a, x.l)}</td><td class="wonv">${x.won.v == null ? '—' : fL(x.won.v) + ' <span class="sub">(' + x.won.n + ')</span>'}</td><td class="wonv">${fL(x.wonFy.v)}</td></tr>`).join(''); }).join('') +
       `<tr class="tot"><td>Total</td><td>${fL(tot.t || null)}</td><td>${fL(tot.a)}</td><td>${chip(tp)}</td><td>${tot.t ? fL(tot.t - tot.a) : '—'}</td><td>${fL(tot.l)}</td><td>${grTxt(tot.a, tot.l)}</td><td>${fL(tot.w)} <span class="sub">(${tot.wn})</span></td><td>${fL(tot.f)}</td></tr></tbody></table></div>`;
   }
 }
