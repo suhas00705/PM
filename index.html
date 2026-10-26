@@ -12,7 +12,7 @@ setTimeout(function(){h.classList.remove('ei-boot');},6000);}catch(e){}})();</sc
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#103a52">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
-<script src="/mobile-app.js?v=3" defer></script>
+<script src="/mobile-app.js?v=4" defer></script>
 <title>Product Management Portal — Elmeasure</title>
 <style>
   :root{
@@ -264,7 +264,7 @@ window.__userPerms = null;
 
 function isAppMode() { return document.documentElement.classList.contains('pm-app'); }
 function tabAllowed(t) {
-  if (isAppMode()) return true;
+  if (isAppMode() && !window.__userPerms) return true;
   if (!document.querySelector('.tab-btn[data-target="' + t + '"]')) return !!window.__userPerms;   // inner views (e.g. Geo-Leads) of an allowed tab
   return !!(window.__userPerms && window.__userPerms.allowedTabs.includes(t));
 }

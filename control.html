@@ -51,6 +51,7 @@
   .grid label { font-size:13px; display:flex; gap:7px; align-items:center; cursor:pointer; }
   .rgrid { max-height:230px; overflow:auto; border:1px solid var(--line); border-radius:10px; padding:10px; }
   .mact { display:flex; justify-content:flex-end; gap:8px; margin-top:20px; }
+  html.app-mode .bar input, html.app-mode .bar select { flex:0 0 auto !important; height:auto !important; width:100%; }   /* phone: search box was 220px tall */
 </style>
 </head>
 <body>
@@ -110,16 +111,21 @@
         <select id="st"><option value="">All users</option><option value="pend">Pending approval</option><option value="on">Active</option><option value="off">Blocked</option></select>
       </div>
       <div class="err" id="err"></div>
-      <div class="tbl"><table><thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Status</th><th>Registered</th><th>Last opened</th><th>Opens</th><th>Device</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
+      <div class="tbl"><table><thead><tr><th>#</th><th>Name</th><th>Mobile</th><th>Status</th><th>Tabs</th><th>Regions</th><th>Registered</th><th>Last opened</th><th>Opens</th><th>Device</th><th>Action</th></tr></thead><tbody id="rows"></tbody></table></div>
     </div>
   </div>
   </div>
 </div>
 <script>
 const $ = id => document.getElementById(id);
-let PIN = '', USERS = [];
+let PIN = '', USERS = [], APP_TABS = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs'], APP_ADMIN = '6366908219';
 try { PIN = sessionStorage.getItem('ctlPin') || ''; } catch (e) {}
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function appTabsCell(u) {
+  const t = (u.allowed_tabs || []).filter(k => TAB_NAMES[k]);
+  if (!t.length) return '<span class="small">All tabs</span>';
+  return `<div class="chips">${t.map(k => `<span class="chip">${TAB_NAMES[k]}</span>`).join('')}</div>`;
+}
 const dt = d => d ? new Date(d).toLocaleString('en-IN', {day:'2-digit', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit'}) : '—';
 const ago = d => { if (!d) return ''; const m = (Date.now() - new Date(d)) / 60000; return m < 60 ? Math.round(m) + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' d ago'; };
 
@@ -138,7 +144,7 @@ async function load() {
   $('err').textContent = '';
   try {
     const j = await call({ action: 'list' });
-    USERS = j.users || [];
+    USERS = j.users || []; if (j.tabs) APP_TABS = j.tabs; if (j.admin_mobile) APP_ADMIN = j.admin_mobile;
     try { sessionStorage.setItem('ctlPin', PIN); } catch (e) {}
     $('lock').style.display = 'none'; $('main').style.display = ''; $('topBtns').style.display = '';
     render();
@@ -159,13 +165,15 @@ function render() {
   $('rows').innerHTML = list.map((u, i) => `<tr>
     <td>${i + 1}</td><td><b>${esc(u.name)}</b></td>
     <td><a href="tel:+91${esc(u.mobile)}">+91 ${esc(u.mobile)}</a></td>
-    <td><span class="pill ${ast(u) === 'pend' ? 'pend' : ast(u)}">${{ off: 'Blocked', pend: 'Pending', on: 'Active' }[ast(u)]}</span></td>
+    <td><span class="pill ${ast(u) === 'pend' ? 'pend' : ast(u)}">${{ off: 'Blocked', pend: 'Pending', on: 'Active' }[ast(u)]}</span>${u.mobile === APP_ADMIN ? ' <span class="chip">Admin</span>' : ''}</td>
+    <td>${u.mobile === APP_ADMIN ? '<span class="small">All + Control</span>' : appTabsCell(u)}</td>
+    <td>${(u.allowed_regions || []).length ? `<div class="chips">${u.allowed_regions.map(r => `<span class="chip">${esc(r)}</span>`).join('')}</div>` : '<span class="small">All regions</span>'}</td>
     <td>${dt(u.registered_at)}</td><td>${dt(u.last_seen)} <span class="small">${ago(u.last_seen)}</span></td>
     <td>${u.open_count || 0}</td><td class="small" title="${esc(u.device)}">${esc((u.device || '').slice(0, 40))}</td>
     <td class="act">${ast(u) === 'pend' ? `<button class="ok" data-m="${esc(u.mobile)}" data-a="approve">Approve</button> <button class="danger" data-m="${esc(u.mobile)}" data-a="off">Reject</button>` :
-      `<button data-m="${esc(u.mobile)}" data-a="${u.is_active === false ? 'on' : 'off'}">${u.is_active === false ? 'Unblock' : 'Block'}</button>`}
+      `${u.is_active !== false && u.mobile !== APP_ADMIN ? `<button data-m="${esc(u.mobile)}" data-a="edit">Edit access</button> ` : ''}${u.mobile === APP_ADMIN ? '' : `<button data-m="${esc(u.mobile)}" data-a="${u.is_active === false ? 'on' : 'off'}">${u.is_active === false ? 'Unblock' : 'Block'}</button>`}`}
       <button data-m="${esc(u.mobile)}" data-a="name">Rename</button></td></tr>`).join('') ||
-    '<tr><td colspan="9" class="small" style="text-align:center;padding:24px">No users yet. Users appear here after they register in the app.</td></tr>';
+    '<tr><td colspan="11" class="small" style="text-align:center;padding:24px">No users yet. Users appear here after they register in the app.</td></tr>';
 }
 $('rows').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
@@ -175,7 +183,7 @@ $('rows').addEventListener('click', async e => {
       const n = prompt('New name for +91 ' + m, u ? u.name : ''); if (!n) return;
       await call({ action: 'set', mobile: m, name: n });
     } else {
-      if (a === 'approve') await call({ action: 'set', mobile: m, status: 'approved', is_active: true });
+      if (a === 'approve' || a === 'edit') return openEdit(null, a === 'approve', m);
       else {
         if (a === 'off' && !confirm(`${u && u.status === 'pending' ? 'Reject' : 'Block'} ${u ? u.name : m}? The app will not open on their phone.`)) return;
         await call({ action: 'set', mobile: m, is_active: a === 'on', ...(a === 'on' ? { status: 'approved' } : {}) });
@@ -272,7 +280,8 @@ async function loadRegions() {
   try { sessionStorage.setItem('ctlRegions', JSON.stringify(REGIONS)); } catch (e) {}
   return REGIONS;
 }
-async function openEdit(email, approve) {
+async function openEdit(email, approve, mobile) {
+  if (mobile) return openAppEdit(mobile, approve);
   const u = email ? PU.find(x => x.email === email) : null; editing = { email, approve, isNew: !email };
   $('mTitle').textContent = !u ? 'Add a portal user' : approve ? 'Approve ' + (u.name || u.email) : 'Edit ' + (u.name || u.email);
   $('mSub').textContent = u ? u.email : 'They can sign in with Google straight away.';
@@ -282,6 +291,19 @@ async function openEdit(email, approve) {
   $('mTabs').innerHTML = PTABS.map(t => `<label><input type="checkbox" value="${t}" ${have.includes(t) ? 'checked' : ''}> ${TAB_NAMES[t]}</label>`).join('');
   $('pModal').classList.add('open');
   const sel = (u && u.allowed_regions) || [];
+  $('mRegs').innerHTML = '<span class="small">Loading regions…</span>';
+  const regs = await loadRegions().catch(() => sel);
+  $('mRegs').innerHTML = (regs.length ? regs : sel).map(r => `<label><input type="checkbox" value="${esc(r)}" ${sel.includes(r) ? 'checked' : ''}> ${esc(r)}</label>`).join('') || '<span class="small">No regions found</span>';
+}
+async function openAppEdit(mobile, approve) {
+  const u = USERS.find(x => x.mobile === mobile) || { mobile }; editing = { kind: 'app', mobile, approve };
+  $('mTitle').textContent = (approve ? 'Approve ' : 'Access for ') + (u.name || '+91 ' + mobile);
+  $('mSub').textContent = '📱 App user · +91 ' + mobile; $('mEmailWrap').style.display = 'none'; $('mErr').textContent = '';
+  $('mSave').textContent = approve ? 'Approve' : 'Save';
+  const cur = (u.allowed_tabs || []).filter(k => APP_TABS.includes(k)), have = cur.length ? cur : APP_TABS;   // empty = all tabs
+  $('mTabs').innerHTML = APP_TABS.map(t => `<label><input type="checkbox" value="${t}" ${have.includes(t) ? 'checked' : ''}> ${TAB_NAMES[t]}</label>`).join('');
+  $('pModal').classList.add('open');
+  const sel = u.allowed_regions || [];
   $('mRegs').innerHTML = '<span class="small">Loading regions…</span>';
   const regs = await loadRegions().catch(() => sel);
   $('mRegs').innerHTML = (regs.length ? regs : sel).map(r => `<label><input type="checkbox" value="${esc(r)}" ${sel.includes(r) ? 'checked' : ''}> ${esc(r)}</label>`).join('') || '<span class="small">No regions found</span>';
@@ -297,6 +319,15 @@ $('mSave').onclick = async () => {
   const email = editing.email || $('mEmail').value.trim().toLowerCase();
   const tabs = [...document.querySelectorAll('#mTabs input:checked')].map(i => i.value);
   const regs = [...document.querySelectorAll('#mRegs input:checked')].map(i => i.value);
+  if (editing.kind === 'app') {
+    if (!tabs.length) return $('mErr').textContent = 'Tick at least one tab.';
+    $('mSave').disabled = true;
+    try {
+      await call({ action: 'set', mobile: editing.mobile, allowed_tabs: tabs, allowed_regions: regs, ...(editing.approve ? { status: 'approved', is_active: true } : {}) });
+      $('pModal').classList.remove('open'); await load();
+    } catch (e) { $('mErr').textContent = e.message; } finally { $('mSave').disabled = false; }
+    return;
+  }
   if (!/^[^\s@]+@elmeasure\.com$/.test(email)) return $('mErr').textContent = 'Enter a valid @elmeasure.com email.';
   if (!tabs.length) return $('mErr').textContent = 'Tick at least one tab.';
   $('mSave').disabled = true;

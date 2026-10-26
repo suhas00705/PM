@@ -96,7 +96,7 @@ window.eiSplash = function () {
   var twa = /^android-app:\/\//.test(document.referrer || '');
   if (!standalone && !stored && !twa) return;
 
-  var V = '11', APP = 'Elmeasure Insights', VERSION = '1.8';
+  var V = '12', APP = 'Elmeasure Insights', VERSION = '1.8';
   document.documentElement.classList.add('pm-app');
   var css = document.createElement('link');
   css.rel = 'stylesheet'; css.href = '/mobile-app.css?v=' + V;
@@ -157,13 +157,35 @@ window.eiSplash = function () {
           if (!r.ok) return msg(r.error || 'Could not verify.');
           setUser({ name: r.name || name, mobile: mob, token: r.token, registered: r.registered || new Date().toISOString(), pending: !!r.pending });
           g.remove(); greet();
-          if (r.pending) showPending();
+          if (r.pending) showPending(); else checkUser();
         }).catch(function () { busy = false; $('eiVerify').disabled = false; msg('No internet connection.'); });
     }
     $('eiSend').onclick = send; $('eiResend').onclick = send; $('eiVerify').onclick = verify;
     $('eiChange').onclick = function () { $('eiStep2').style.display = 'none'; $('eiStep1').style.display = ''; msg(''); };
     $('eiOtp').addEventListener('input', function () { if (this.value.replace(/\D/g, '').length === 6) verify(); });
     $('eiMob').addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+  }
+
+  /* ---------- tab / region access of this app user (26-Oct-2026, set in Control → App users) ---------- */
+  function applyPerms(p) {
+    if (!p || !p.allowed_tabs) return;
+    var tabs = p.allowed_tabs.filter(function (k) { return !isHiddenFor(k, p); });
+    window.__userPerms = { email: 'app', name: (getUser() || {}).name || '', picture: '', isAdmin: !!p.is_admin,
+                           allowedTabs: tabs, allowedRegions: p.allowed_regions || [] };
+    document.cookie = 'pm_regions=' + encodeURIComponent((p.allowed_regions || []).join(',')) + ';path=/;SameSite=Lax;max-age=604800';
+    try { if (p.portal_token) localStorage.setItem('pmSess', p.portal_token); else localStorage.removeItem('pmSess'); } catch (e) {}
+    Array.prototype.forEach.call(document.querySelectorAll('#tabs .tab-btn'), function (b) {
+      var k = b.dataset.target; if (k) b.style.display = tabs.indexOf(k) >= 0 ? '' : 'none';
+    });
+    var act = document.querySelector('#tabs .tab-btn.active');
+    if ((!act || tabs.indexOf(act.dataset.target) < 0) && tabs.length && typeof window.showPortalTab === 'function') window.showPortalTab(tabs[0]);
+    var nav = document.getElementById('ei-nav'); if (nav) { nav.remove(); bottomNav(); }
+  }
+  function isHiddenFor(k, p) { return HIDE_IN_APP.indexOf(k) >= 0 || (k === 'control' && !p.is_admin); }
+  function savePerms(r) {
+    var u = getUser(); if (!u || !r || !r.allowed_tabs) return;
+    u.perms = { allowed_tabs: r.allowed_tabs, allowed_regions: r.allowed_regions || [], is_admin: !!r.is_admin, portal_token: r.portal_token || '' };
+    setUser(u); applyPerms(u.perms);
   }
 
   /* ---------- waiting for the admin's approval (new numbers, 26-Oct-2026) ---------- */
@@ -183,7 +205,7 @@ window.eiSplash = function () {
     document.body.appendChild(g);
     document.getElementById('eiPendChk').onclick = function () { pendCheck(true); };
     document.getElementById('eiPendOut').onclick = function () {
-      clearInterval(pendTimer); try { localStorage.removeItem('eiUser'); } catch (e) {} g.remove(); showGate();
+      clearInterval(pendTimer); try { localStorage.removeItem('eiUser'); localStorage.removeItem('pmSess'); } catch (e) {} g.remove(); showGate();
     };
     clearInterval(pendTimer); pendTimer = setInterval(function () { if (!document.hidden) pendCheck(false); }, 20000);
   }
@@ -192,13 +214,13 @@ window.eiSplash = function () {
     var m = document.getElementById('eiPendMsg'); if (manual && m) { m.className = 'msg ok'; m.textContent = 'Checking…'; }
     api({ action: 'check', mobile: u.mobile, token: u.token }).then(function (r) {
       if (r.ok) {
-        clearInterval(pendTimer); u.pending = false; if (r.name) u.name = r.name; setUser(u);
+        clearInterval(pendTimer); u.pending = false; if (r.name) u.name = r.name; setUser(u); savePerms(r);
         var g = document.getElementById('ei-gate'); if (g) g.remove(); greet(); return;
       }
       if (r.reason === 'pending') { if (manual && m) { m.className = 'msg'; m.textContent = 'Not approved yet. Please wait for the administrator.'; } return; }
       clearInterval(pendTimer);
       var g2 = document.getElementById('ei-gate'); if (g2) g2.remove();
-      if (r.reason === 'blocked') { try { localStorage.removeItem('eiUser'); } catch (e) {} return showGate('Your request was not approved. Contact the administrator.'); }
+      if (r.reason === 'blocked') { try { localStorage.removeItem('eiUser'); localStorage.removeItem('pmSess'); } catch (e) {} return showGate('Your request was not approved. Contact the administrator.'); }
       showGate('Please verify your mobile number again.');
     }).catch(function () { if (manual && m) { m.className = 'msg'; m.textContent = 'No internet connection.'; } });
   }
@@ -226,10 +248,11 @@ window.eiSplash = function () {
     salestracking: '<path d="M4 20h16M7 16v-5m5 5V7m5 9v-8"/>',
     more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
   };
-  var HIDE_IN_APP = ['authorization', 'control', 'createleads'];          // admin tabs stay on the laptop portal only
+  var HIDE_IN_APP = ['authorization', 'createleads'];                     // never in the app; Control only for the app admin
+  function isHidden(k) { return HIDE_IN_APP.indexOf(k) >= 0 || (k === 'control' && !((getUser() || {}).perms || {}).is_admin); }
   var MAIN = [['leads', 'Leads'], ['potentials', 'Deals'], ['pathtarget', 'Target'], ['salestracking', 'Sales']];
   function svg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICON[k] + '</svg>'; }
-  function tabBtns() { return Array.prototype.filter.call(document.querySelectorAll('#tabs .tab-btn'), function (b) { return b.dataset.target && b.style.display !== 'none' && HIDE_IN_APP.indexOf(b.dataset.target) < 0; }); }
+  function tabBtns() { return Array.prototype.filter.call(document.querySelectorAll('#tabs .tab-btn'), function (b) { return b.dataset.target && b.style.display !== 'none' && !isHidden(b.dataset.target); }); }
   function label(b) { return (b.textContent || '').replace(/^[^A-Za-z0-9]+/, '').trim(); }
   function go(k) { if (typeof window.showPortalTab === 'function') window.showPortalTab(k); closeMore(); markNav(); }
   function closeMore() { var m = document.getElementById('ei-more'); if (m) { m.classList.remove('on'); setTimeout(function () { m.remove(); }, 220); } }
@@ -291,7 +314,7 @@ window.eiSplash = function () {
     document.getElementById('eiLogout').onclick = function () {
       if (!confirm('Log out of ' + APP + '? You will need an OTP to sign in again.')) return;
       api({ action: 'logout', mobile: u.mobile, token: u.token }).catch(function () {});
-      try { localStorage.removeItem('eiUser'); } catch (e) {}
+      try { localStorage.removeItem('eiUser'); localStorage.removeItem('pmSess'); } catch (e) {}
       close(); greet(); showGate('You have logged out. Verify your mobile number to sign in again.');
     };
   }
@@ -302,11 +325,11 @@ window.eiSplash = function () {
     greet();
     if (u.pending) return showPending(), pendCheck(false);
     api({ action: 'check', mobile: u.mobile, token: u.token }).then(function (r) {
-      if (r.ok) { var ch = false;
+      if (r.ok) { var ch = false; savePerms(r); u = getUser() || u;
         if (r.name && r.name !== u.name) { u.name = r.name; ch = true; }
         if (r.registered && r.registered !== u.registered) { u.registered = r.registered; ch = true; }
         if (ch) { setUser(u); greet(); } return; }
-      if (r.reason === 'blocked') { try { localStorage.removeItem('eiUser'); } catch (e) {} return showGate('Your access has been blocked. Contact the administrator.'); }
+      if (r.reason === 'blocked') { try { localStorage.removeItem('eiUser'); localStorage.removeItem('pmSess'); } catch (e) {} return showGate('Your access has been blocked. Contact the administrator.'); }
       if (r.reason === 'pending') { u.pending = true; setUser(u); return showPending(); }
       if (r.reason === 'register') return showGate('Please verify your mobile number again.');
       // server problem: do not lock the user out
@@ -347,6 +370,7 @@ window.eiSplash = function () {
     var tc = document.querySelector('meta[name=theme-color]'); if (tc) tc.setAttribute('content', '#f08c5a');
     splash();
     document.documentElement.classList.remove('ei-boot');   // early cover from index.html: the start screen / app now covers the page
+    var cu = getUser(); if (cu && cu.perms && !cu.pending) applyPerms(cu.perms);   // last known access, refreshed by checkUser()
     bottomNav(); setTimeout(bottomNav, 1500); setTimeout(markNav, 1600);
     checkUser();
     hook();

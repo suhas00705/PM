@@ -8,6 +8,16 @@
 //              approves it in Control → App users (check returns reason 'pending').
 // Limits: 3 OTPs per number per 15 minutes, 5 wrong tries per OTP.
 const { sb, sha, cleanMobile, cleanName, body, sendSms, crypto } = require('../lib/appAuth');
+const { sign, ADMIN_EMAIL } = require('../lib/portalSession');
+// 26-Oct-2026: tab / region access per app user (set in Control → App users). Empty tabs = all app tabs, empty regions = all.
+const ADMIN_MOBILE = '6366908219';                       // app admin: always approved, all tabs + Control
+const APP_TABS = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs'];
+const list = v => Array.isArray(v) ? v : [];
+function perms(u, mobile) {
+  if (mobile === ADMIN_MOBILE) return { is_admin: true, allowed_tabs: [...APP_TABS, 'control'], allowed_regions: [], portal_token: sign(ADMIN_EMAIL) };
+  const t = list(u && u.allowed_tabs).filter(x => APP_TABS.includes(x));
+  return { is_admin: false, allowed_tabs: t.length ? t : APP_TABS, allowed_regions: list(u && u.allowed_regions) };
+}
 
 const enc = encodeURIComponent;
 
@@ -50,7 +60,7 @@ module.exports = async (req, res) => {
       const token = crypto.randomBytes(24).toString('hex');
       const urow = { mobile, name: name || (old && old.name) || 'User', token_hash: sha(token),
                     device: String(b.device || '').slice(0, 120), last_seen: new Date().toISOString(),
-                    ...(old ? {} : { registered_at: new Date().toISOString(), is_active: true, status: 'pending' }) };
+                    ...(old ? {} : { registered_at: new Date().toISOString(), is_active: true, status: mobile === ADMIN_MOBILE ? 'approved' : 'pending' }) };
       const save = r => sb('app_users?on_conflict=mobile', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates' }, body: JSON.stringify(r) });
       try { await save(urow); }
       catch (e) { if (!/status/.test(e.message)) throw e; delete urow.status; await save(urow); }   // SQL not run yet: register as before
@@ -64,10 +74,10 @@ module.exports = async (req, res) => {
       const [u] = await sb(`app_users?mobile=eq.${mobile}&select=*`);
       if (u && u.is_active === false) return res.status(200).json({ ok: false, reason: 'blocked' });
       if (!u || !b.token || u.token_hash !== sha(b.token)) return res.status(200).json({ ok: false, reason: 'register' });
-      if (u.status === 'pending') return res.status(200).json({ ok: false, reason: 'pending', name: u.name });
+      if (u.status === 'pending' && mobile !== ADMIN_MOBILE) return res.status(200).json({ ok: false, reason: 'pending', name: u.name });
       await sb(`app_users?mobile=eq.${enc(mobile)}`, { method: 'PATCH',
         body: JSON.stringify({ last_seen: new Date().toISOString(), open_count: (u.open_count || 0) + 1 }) });
-      return res.status(200).json({ ok: true, name: u.name, registered: u.registered_at });
+      return res.status(200).json({ ok: true, name: u.name, registered: u.registered_at, ...perms(u, mobile) });
     }
     if (b.action === 'logout') {                         // forget this phone's sign-in
       const [u] = await sb(`app_users?mobile=eq.${mobile}&select=token_hash`);

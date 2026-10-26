@@ -39,7 +39,7 @@
     'frame-lvs': { open: 2, tables: {
         projTbl: { keep: [0, 2, 8, 9, 10, 11], rows: 15 }, powTbl: { keep: [0, 1, 3, 4, 8] }, poTbl: { keep: [0, 2, 10, 14, 15, 16], rows: 15 } } },
     'frame-regiontrack': { open: 9, tables: { league: { keep: [0, 1, 2, 3, 7], rows: 30 } } },
-    'frame-control': { open: 9, tables: { rows: { cards: true, title: 1, keep: [1, 2, 3, 5, 8] } } }
+    'frame-control': { open: 9, tables: { rows: { cards: true, title: 1, keep: [1, 2, 3, 4, 5, 10] }, pRows: { cards: true, title: 1, keep: [1, 2, 3, 4, 5, 9] } } }
   };
   var C = CFG[KEY] || { open: 3, tables: {} };
   var DEFAULT_ROWS = 20;
