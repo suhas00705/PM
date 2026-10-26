@@ -188,7 +188,7 @@ window.eiSplash = function () {
     salestracking: '<path d="M4 20h16M7 16v-5m5 5V7m5 9v-8"/>',
     more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>'
   };
-  var HIDE_IN_APP = ['authorization', 'control', 'createleads', 'regiontrack'];   // regiontrack: web only until approved for the app          // admin tabs stay on the laptop portal only
+  var HIDE_IN_APP = ['authorization', 'control', 'createleads'];          // admin tabs stay on the laptop portal only
   var MAIN = [['leads', 'Leads'], ['potentials', 'Deals'], ['pathtarget', 'Target'], ['salestracking', 'Sales']];
   function svg(k) { return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICON[k] + '</svg>'; }
   function tabBtns() { return Array.prototype.filter.call(document.querySelectorAll('#tabs .tab-btn'), function (b) { return b.dataset.target && b.style.display !== 'none' && HIDE_IN_APP.indexOf(b.dataset.target) < 0; }); }

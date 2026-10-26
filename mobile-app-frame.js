@@ -38,6 +38,7 @@
         accTbl: { cards: true, title: 1, keep: [1, 2, 4, 5, 7, 8], rows: 12 } } },
     'frame-lvs': { open: 2, tables: {
         projTbl: { keep: [0, 2, 8, 9, 10, 11], rows: 15 }, powTbl: { keep: [0, 1, 3, 4, 8] }, poTbl: { keep: [0, 2, 10, 14, 15, 16], rows: 15 } } },
+    'frame-regiontrack': { open: 9, tables: { league: { keep: [0, 1, 2, 3, 7], rows: 30 } } },
     'frame-control': { open: 9, tables: { rows: { cards: true, title: 1, keep: [1, 2, 3, 5, 8] } } }
   };
   var C = CFG[KEY] || { open: 3, tables: {} };
@@ -119,7 +120,7 @@
   function doSections() {
     var cards = D.querySelectorAll('.card, .table-card, .sec');
     Array.prototype.forEach.call(cards, function (card) {
-      if (card.__mx || card.closest('.pop, .drawer, .modal, #lock, .mx-skip, .mx-sec') || card.classList.contains('tile')) return;
+      if (card.__mx || card.closest('.pop, .drawer, .dr, .modal, #lock, .mx-skip, .mx-sec') || card.classList.contains('tile')) return;
       var h2 = card.querySelector(':scope > h2, :scope > .card-h h2, :scope > div > h2, :scope > .card-h > div > h2, :scope > .sec-h h2');
       if (!h2) return;
       var head = h2; while (head.parentElement && head.parentElement !== card) head = head.parentElement;
