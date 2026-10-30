@@ -15,7 +15,11 @@
 // from the browser worked. Calls now always go to the production domain (never the per-deployment URL the
 // cron request may carry, which can be behind Vercel login), the function gets 60 s (vercel.json "functions"),
 // and every run is written to cron_2h_log (supabase/cron_2h_log.sql) so missed slots can be seen.
+// 30-Oct-2026: in the 07–21 IST slots it also runs the target-alert check (/api/app-otp?action=push_check), which
+// sends a phone notification when a region / product reaches 100% of its monthly target (lib/pushAlerts.js).
+// It reads the data synced up to the previous slot, so an alert comes at most about 2 hours after the order.
 
+const crypto = require('crypto');
 const OB_INV_FROM = 7, OB_INV_TO = 21;          // IST hours (inclusive) when orders / invoices are synced
 const CALL_TIMEOUT_MS = 55000;
 const PROD = process.env.PORTAL_URL || 'https://project-management-elmeasure.vercel.app';
@@ -43,7 +47,7 @@ async function call(base, path) {
     // keep the reply short: counts and errors only
     if (body && typeof body === 'object') {
       const keep = {};
-      ['ok', 'fetched', 'upserted', 'deleted', 'skipped', 'saved', 'count', 'hasMore', 'resumeWith', 'error', 'saveError'].forEach(k => { if (body[k] !== undefined) keep[k] = body[k]; });
+      ['ok', 'fetched', 'upserted', 'deleted', 'skipped', 'saved', 'count', 'hasMore', 'resumeWith', 'error', 'saveError', 'events', 'new', 'alerts', 'phones', 'sent', 'note'].forEach(k => { if (body[k] !== undefined) keep[k] = body[k]; });
       body = keep;
     }
     return { path, status: r.status, ms: Date.now() - started, body };
@@ -65,6 +69,8 @@ module.exports = async (req, res) => {
   if (obInv) {
     const days = h === OB_INV_FROM ? 10 : 2;    // first run of the day catches up 10 days (replaces the old daily job)
     jobs.push(`/api/sync-ob?days=${days}`, `/api/sync-invoice?days=${days}`);
+    const k = crypto.createHash('sha256').update('push|' + (process.env.SUPABASE_SERVICE_KEY || '')).digest('hex').slice(0, 24);
+    jobs.push(`/api/app-otp?action=push_check&k=${k}`);
   }
   const results = await Promise.all(jobs.map(p => call(base, p)));
   const out = { istHour: h, obInvSynced: obInv, byCron, ranAt: started, results };

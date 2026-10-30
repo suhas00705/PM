@@ -265,6 +265,8 @@ async function load(resetMonths, quiet){
       $('fySel').value = S.fy;
     }
     if (resetMonths) S.months = ytdMonths();
+    // 30-Oct-2026: opened from a target alert (pm-tracking.html?m=cur) → current month only, on the first load
+    if (resetMonths && !S.__mCurDone && new URLSearchParams(location.search).get('m') === 'cur') { S.__mCurDone = true; S.months = [MONTHS[latestMonthIdx()]]; }
     const ls = S.data.last_sync, md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
     $('syncInfo').innerHTML = `OB data till <b>${md(S.data.max_date_ob)}</b> · Invoices till <b>${md(S.data.max_date_inv)}</b>` +
       (ls ? `<br>Last Zoho sync <b>${new Date(ls.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</b>${ls.status === 'error' ? ' (failed)' : ''}` : '');

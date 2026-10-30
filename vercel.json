@@ -2,6 +2,9 @@
   "functions": {
     "api/cron-2h.js": {
       "maxDuration": 60
+    },
+    "api/app-otp.js": {
+      "maxDuration": 60
     }
   },
   "crons": [

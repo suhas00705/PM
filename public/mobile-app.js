@@ -96,7 +96,7 @@ window.eiSplash = function () {
   var twa = /^android-app:\/\//.test(document.referrer || '');
   if (!standalone && !stored && !twa) return;
 
-  var V = '12', APP = 'Elmeasure Insights', VERSION = '1.8';
+  var V = '13', APP = 'Elmeasure Insights', VERSION = '1.9';
   document.documentElement.classList.add('pm-app');
   var css = document.createElement('link');
   css.rel = 'stylesheet'; css.href = '/mobile-app.css?v=' + V;
@@ -186,6 +186,58 @@ window.eiSplash = function () {
     var u = getUser(); if (!u || !r || !r.allowed_tabs) return;
     u.perms = { allowed_tabs: r.allowed_tabs, allowed_regions: r.allowed_regions || [], is_admin: !!r.is_admin, portal_token: r.portal_token || '' };
     setUser(u); applyPerms(u.perms);
+    setTimeout(pushOffer, 2500);
+  }
+
+
+  /* ---------- target alerts: phone notifications (30-Oct-2026, sent by lib/pushAlerts.js) ---------- */
+  function pushSupported() { return 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window; }
+  function b64ToBytes(s) { var p = '='.repeat((4 - s.length % 4) % 4), b = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')), a = new Uint8Array(b.length);
+    for (var i = 0; i < b.length; i++) a[i] = b.charCodeAt(i); return a; }
+  function pushOn() {                                  // ask permission (needs the user's tap), subscribe, tell the server
+    var u = getUser(); if (!u || !u.token || !pushSupported()) return Promise.reject(new Error('Not supported on this phone'));
+    return Notification.requestPermission().then(function (perm) {
+      if (perm !== 'granted') throw new Error('Notifications are blocked. Allow them in the phone settings for this app.');
+      return Promise.all([navigator.serviceWorker.ready, fetch('/api/app-otp?action=push_key').then(function (r) { return r.json(); })]);
+    }).then(function (x) {
+      if (!x[1].key) throw new Error('Alerts are not set up on the server yet.');
+      return x[0].pushManager.getSubscription().then(function (old) {
+        return old || x[0].pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(x[1].key) });
+      });
+    }).then(function (sub) {
+      return api({ action: 'push_sub', mobile: u.mobile, token: u.token, sub: sub.toJSON() });
+    }).then(function (r) { if (!r.ok) throw new Error(r.error || 'Could not turn on alerts'); try { localStorage.setItem('eiPushAt', String(Date.now())); } catch (e) {} return r; });
+  }
+  function pushState() { return !pushSupported() ? 'unsupported' : Notification.permission; }   // granted / default / denied
+  function pushOffer() {                               // small card above the bottom bar, once; "Not now" = ask again in 7 days
+    var u = getUser(); if (!u || u.pending || !u.perms || document.getElementById('ei-push') || document.getElementById('ei-gate')) return;
+    var st = pushState();
+    if (st === 'granted') {                            // keep this phone's subscription fresh (once a day)
+      var last = 0; try { last = +localStorage.getItem('eiPushAt') || 0; } catch (e) {}
+      if (Date.now() - last > 864e5) pushOn().catch(function () {});
+      return;
+    }
+    if (st !== 'default') return;
+    try { if (Date.now() - (+localStorage.getItem('eiPushNo') || 0) < 7 * 864e5) return; } catch (e) {}
+    if (!document.getElementById('ei-push-css')) { var st2 = document.createElement('style'); st2.id = 'ei-push-css';
+      st2.textContent = '#ei-push{position:fixed;left:10px;right:10px;bottom:calc(74px + env(safe-area-inset-bottom));z-index:9000;background:#fff;border-radius:16px;' +
+        'box-shadow:0 10px 30px rgba(11,42,74,.22);padding:12px 12px 12px 14px;display:flex;gap:10px;align-items:center;border-left:4px solid #f08c5a;animation:eipIn .3s ease}' +
+        '@keyframes eipIn{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}' +
+        '#ei-push .ic{font-size:26px}#ei-push .tx{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:#5b6f7c;line-height:1.35}' +
+        '#ei-push .tx b{font-size:14px;color:#103a52}#ei-push .bt{display:flex;flex-direction:column;gap:6px}' +
+        '#ei-push button{font:inherit;font-size:13px;font-weight:700;border-radius:10px;padding:8px 12px;border:0;white-space:nowrap}' +
+        '#ei-push .on{background:#f08c5a;color:#fff}#ei-push .no{background:transparent;color:#7a8ba0;padding:4px 12px}';
+      document.head.appendChild(st2); }
+    var c = document.createElement('div'); c.id = 'ei-push';
+    c.innerHTML = '<div class="ic">🔔</div><div class="tx"><b>Get target alerts</b><span>A notification when a region or product reaches 100% of its monthly target.</span></div>' +
+      '<div class="bt"><button class="on" type="button">Turn on</button><button class="no" type="button">Not now</button></div>';
+    document.body.appendChild(c);
+    c.querySelector('.no').onclick = function () { try { localStorage.setItem('eiPushNo', String(Date.now())); } catch (e) {} c.remove(); };
+    c.querySelector('.on').onclick = function () {
+      var b = this; b.disabled = true; b.textContent = '…';
+      pushOn().then(function () { c.querySelector('.tx').innerHTML = '<b>Alerts are on ✓</b><span>You will get a test notification now.</span>'; c.querySelector('.bt').remove(); setTimeout(function () { c.remove(); }, 3500); })
+        .catch(function (e) { c.querySelector('.tx span').textContent = e.message; b.disabled = false; b.textContent = 'Try again'; });
+    };
   }
 
   /* ---------- waiting for the admin's approval (new numbers, 26-Oct-2026) ---------- */
@@ -300,7 +352,8 @@ window.eiSplash = function () {
       '<div class="mb">+91 ' + esc(u.mobile) + '</div>' +
       '<div class="rows"><div><span>Registered</span><b>' + esc(reg) + '</b></div>' +
       '<div><span>App</span><b>' + APP + ' v' + VERSION + '</b></div>' +
-      '<div><span>Data</span><b>Synced every 2 hours, 7 AM – 9 PM</b></div></div>' +
+      '<div><span>Data</span><b>Synced every 2 hours, 7 AM – 9 PM</b></div>' +
+      '<div><span>Target alerts</span><b id="eiPushSt">' + ({ granted: 'On ✓', denied: 'Blocked in phone settings', unsupported: 'Not available on this phone' }[pushState()] || '<button class="lnk" id="eiPushBtn" type="button">Turn on</button>') + '</b></div></div>' +
       '<button class="pbtn" id="eiReload">⟳ Refresh data</button>' +
       '<button class="pbtn out" id="eiLogout">Log out</button>' +
       '<button class="pbtn ghost" id="eiClose">Close</button>' +
@@ -311,6 +364,9 @@ window.eiSplash = function () {
     p.addEventListener('click', function (e) { if (e.target === p) close(); });
     document.getElementById('eiClose').onclick = close;
     document.getElementById('eiReload').onclick = function () { location.reload(); };
+    var pb = document.getElementById('eiPushBtn');
+    if (pb) pb.onclick = function () { pb.disabled = true; pushOn().then(function () { document.getElementById('eiPushSt').textContent = 'On ✓'; var c = document.getElementById('ei-push'); if (c) c.remove(); })
+      .catch(function (e) { document.getElementById('eiPushSt').textContent = e.message; }); };
     document.getElementById('eiLogout').onclick = function () {
       if (!confirm('Log out of ' + APP + '? You will need an OTP to sign in again.')) return;
       api({ action: 'logout', mobile: u.mobile, token: u.token }).catch(function () {});

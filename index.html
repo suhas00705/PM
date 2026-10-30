@@ -12,7 +12,7 @@ setTimeout(function(){h.classList.remove('ei-boot');},6000);}catch(e){}})();</sc
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#103a52">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
-<script src="/mobile-app.js?v=4" defer></script>
+<script src="/mobile-app.js?v=5" defer></script>
 <title>Product Management Portal — Elmeasure</title>
 <style>
   :root{
@@ -417,7 +417,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const t = btn.dataset.target;
     if (t && t !== 'authorization') btn.style.display = '';
   });
-  showPortalTab('leads');
+  // 30-Oct-2026: a target-alert notification opens a tab directly (?tab=regiontrack, or ?tab=pmtracking&pm=cur = current month)
+  const q = new URLSearchParams(location.search), want = q.get('tab');
+  if (q.get('pm') === 'cur') { const pf = document.getElementById('frame-pmtracking'); if (pf) pf.dataset.src = '/pm-tracking.html?m=cur'; }
+  showPortalTab(want && document.getElementById('frame-' + want) ? want : 'leads');
 });
 </script>
 

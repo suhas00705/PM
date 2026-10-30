@@ -12,3 +12,28 @@ self.addEventListener('fetch', e => {
     '<div><h2 style="margin:0 0 8px">You are offline</h2><p style="margin:0;color:#5b7083">Connect to the internet and pull down to reload.</p></div>',
     { headers: { 'content-type': 'text/html; charset=utf-8' } })));
 });
+
+// 30-Oct-2026: target alerts (phone notifications) – sent by lib/pushAlerts.js.
+// Tapping one opens the app on the right tab (Region Tracking, or PM Cumulative with the current month).
+self.addEventListener('push', e => {
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { d = { body: e.data ? e.data.text() : '' }; }
+  e.waitUntil(self.registration.showNotification(d.title || 'Elmeasure Insights', {
+    body: d.body || '', icon: '/icon-192.png', badge: '/badge-96.png', tag: d.tag || undefined, renotify: !!d.tag,
+    timestamp: Date.now(), data: { url: d.url || '/?app=1' }
+  }));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL((e.notification.data && e.notification.data.url) || '/?app=1', self.location.origin).href;
+  e.waitUntil((async () => {
+    const list = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of list) {
+      if (c.url.startsWith(self.location.origin)) {
+        try { const n = await c.navigate(url); if (n) return n.focus(); } catch (x) { /* fall through */ }
+        try { return await c.focus(); } catch (x) {}
+      }
+    }
+    return self.clients.openWindow(url);
+  })());
+});
