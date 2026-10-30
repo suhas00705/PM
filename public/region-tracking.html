@@ -133,6 +133,14 @@
   .ser tbody tr{cursor:default}
   .loading{position:fixed;top:12px;left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;padding:6px 14px;border-radius:20px;font-size:12px;display:none;z-index:99}
   .loading.on{display:block}
+  /* won potentials without OA */
+  table.noa td, table.noa th{text-align:left}
+  table.noa td:nth-child(5), table.noa th:nth-child(5){text-align:right}
+  table.noa td:first-child, table.noa td:nth-child(2), table.noa td:nth-child(3){white-space:normal;min-width:120px;max-width:240px}
+  table.noa a{color:var(--volt);font-weight:700;text-decoration:none}
+  table.noa a:hover{text-decoration:underline}
+  .dd{display:inline-block;font-weight:700;font-size:11.5px;padding:2px 9px;border-radius:20px;white-space:nowrap}
+  .dd1{background:#e8f6ee;color:#12804a} .dd2{background:#fff3df;color:#b4640a} .dd3{background:#fde7e6;color:#c0392b}
   .empty{color:var(--t3);font-size:13px;padding:14px 0}
   /* inside the Elmeasure Insights app (warm theme): keep the hero coloured */
   html.app-mode .card.hero{background:linear-gradient(120deg,#b9502a 0%,#e0703c 50%,#f6a46b 100%)!important;color:#fff!important;border:0!important}
@@ -252,7 +260,7 @@ const IDX = m => MONTHS.indexOf(m);
 const fL = v => v == null ? '—' : (Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-IN') : v.toLocaleString('en-IN', {minimumFractionDigits:1, maximumFractionDigits:1}));
 const fCr = v => v == null ? '—' : (v / 100).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' Cr';
 const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
-const S = { cy:null, months:[], doc:'OB', view:'cards', gm:'',  sort:{k:'t', d:-1}, rows:[], won:[], dict:null, open:null, openBk:null, ser:{} };
+const S = { cy:null, months:[], doc:'OB', view:'cards', gm:'',  sort:{k:'t', d:-1}, rows:[], won:[], dict:null, open:null, openBk:null, ser:{}, noa:{} };
 
 async function rpc(fn, body){
   const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer ' + KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
@@ -285,13 +293,13 @@ $('mPop').querySelector('.ms-acts').onclick = e => { const q = e.target.dataset.
   S.months = q === 'ytd' ? ytd() : q === 'cur' ? [curMonth()] : q === 'all' ? [...MONTHS] : q === 'none' ? [] : [...QM[q]];
   drawMonths(); renderAll(); if (q !== 'none') $('mPop').classList.remove('open'); };
 $('docSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.doc = b.dataset.d;
-  [...$('docSeg').children].forEach(x => x.classList.toggle('on', x === b)); S.ser = {}; renderAll(); };
+  [...$('docSeg').children].forEach(x => x.classList.toggle('on', x === b)); S.ser = {}; S.noa = {}; renderAll(); };
 $('gmSel').innerHTML = '<option value="">All GMs</option>' + GMS.map(g => `<option>${esc(g.gm)}</option>`).join('') + `<option value="${NOGM}">${NOGM}</option>`;
 $('gmSel').onchange = e => { S.gm = e.target.value; renderAll(); };
 $('viewSeg').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v;
   [...$('viewSeg').children].forEach(x => x.classList.toggle('on', x === b)); renderLeague(); };
-$('fySel').onchange = e => { S.cy = +e.target.value; S.ser = {}; load(true); };
-$('refreshBtn').onclick = () => { S.ser = {}; load(false); };
+$('fySel').onchange = e => { S.cy = +e.target.value; S.ser = {}; S.noa = {}; load(true); };
+$('refreshBtn').onclick = () => { S.ser = {}; S.noa = {}; load(false); };
 
 /* ---------- data ---------- */
 async function load(resetMonths){
@@ -502,6 +510,7 @@ function openRegion(r, keep){
       <div class="k"><div class="l">vs last year</div><div class="v">${grTxt(x.a, x.l)}</div><div class="s">LY ${fL(x.l)} L</div></div>
       <div class="k" style="background:var(--won-bg)"><div class="l">Potentials won</div><div class="v wonv">${fL(x.won.v)}</div><div class="s">${x.won.v == null ? 'not shown for OEM' : x.won.n + ' deals · period'}</div></div>
       <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.v == null ? 'not shown for OEM' : x.wonFy.n + ' deals'}</div></div></div>
+    ${NO_WON.includes(r) ? '' : `<div class="card" id="noaCard"><div id="noaHost">${noaHtml(r)}</div></div>`}
     <div class="card"><div class="card-h"><div><h2>Product basket break-up</h2><div class="sub">Share of the region's ${S.doc === 'OB' ? 'order booking' : 'invoicing'} in the period · click a basket for its product series</div></div></div>
       ${list.length ? `<div class="split">${donut(list, tot)}<div class="tbl"><table class="bk"><thead><tr><th>Product basket</th><th>Value ₹ L</th><th>% contribution</th><th>LY same period</th><th>Growth</th></tr></thead><tbody>` +
         list.map(o => { const p = tot ? o.a / tot * 100 : 0, isO = S.openBk === o.b;
@@ -512,7 +521,55 @@ function openRegion(r, keep){
     ${S.openBk ? `<div class="card" id="serCard"><div id="serHost">${serHtml(r, S.openBk)}</div></div>` : ''}
     <div class="card"><div class="card-h"><div><h2>Month by month — ${esc(r)}</h2><div class="sub">₹ lakhs · this year vs last year vs plan</div></div></div>${monthChart(r)}</div>`;
   $('ov').classList.add('on'); $('dr').classList.add('on');
+  if (!NO_WON.includes(r)) loadNoa(r);
   if (S.openBk) { loadSeries(r, S.openBk); if (!keep || S.scrollSer) { const c = $('serCard'); if (c) c.scrollIntoView({ behavior:'smooth', block:'start' }); } S.scrollSer = false; }
+}
+/* ---------- won potentials with NO OA yet (30-Oct-2026) ----------
+   Closed Won in Zoho (closing date in the selected months) but no approved OA linked to the deal, at any date.
+   Click a potential to open it in Zoho CRM. */
+const ZOHO_POT = id => `https://crm.zoho.com/crm/org286180109/tab/Potentials/${id}`;
+const PRODUCT_BASKETS = {      // same groups as the Leads / Potentials filters
+  'Panel Meters': ['Basic Meters','Multi-Function Meters','Dual Source Meter','PQ Analyzer','Power Analyzer','Transducers',"CT's",'Demand Controller',
+                   'Demand Monitors and Controllers','Load Manager','iPFC','EL-Tag','GMD','GD','EDC','iELR','iPFC / iELR','BM/PDU'],
+  'ATES': ['ATeS','ATeS - Solenoid','MTS'], 'ACCL': ['ACCL'], 'SWITCHGEAR': ['LV SwitchGear','Breaker Status Management System','EL-Guard'],
+  'Prepaid/Smart': ['Prepaid Meter','Prepaid Meters','Postpaid Meter','Prepaid Metering Solution'],
+  'EMS': ['Renewable Energy Solutions','Data Center Management System','Data Centre Management System','Energy and Process Management System',
+          'EPM/EPC','Water Management System','Textile Management System'],
+  'EV CHARGER': ['EV Charger'], 'Nano VIP': ['NanoVIP','Nano VIP']
+};
+const TYPE_TO_BASKET = {}; Object.entries(PRODUCT_BASKETS).forEach(([b, ts]) => ts.forEach(t => TYPE_TO_BASKET[t.toLowerCase()] = b));
+function basketOfTypes(txt){
+  const out = [...new Set(String(txt || '').split(/\s*,\s*/).filter(Boolean).map(t => TYPE_TO_BASKET[t.toLowerCase()] || t))];
+  return out.length ? out.join(', ') : '—';
+}
+function daysSince(d){ if (!d) return null; const a = new Date(d + 'T00:00:00+05:30'); return Math.max(0, Math.floor((Date.now() - a) / 864e5)); }
+function noaKey(r){ return S.cy + '|' + r; }
+async function loadNoa(r){
+  const k = noaKey(r); if (S.noa[k]) return;
+  S.noa[k] = { loading:true };
+  try { const j = await rpc('rt_noa', { p_cy:S.cy, p_rg:r });
+        S.noa[k] = { rows:(j.rows || []).map(a => ({ id:a[0], name:a[1], proj:a[2], acc:a[3], owner:a[4], types:a[5], v:+a[6], cd:a[7] })) }; }
+  catch (e) { S.noa[k] = { err:e.message || String(e) }; }
+  if (S.open === r) { const h = $('noaHost'); if (h) h.innerHTML = noaHtml(r); }
+}
+function noaHtml(r){
+  const head = (sub) => `<div class="card-h"><div><h2>⚠️ Won potentials without OA</h2><div class="sub">${sub}</div></div></div>`;
+  const d = S.noa[noaKey(r)];
+  if (!d || d.loading) return head('Closed Won in Zoho, no OA yet') + '<div class="empty">Loading…</div>';
+  if (d.err) return head('Closed Won in Zoho, no OA yet') + `<div class="empty">Could not load — ${esc(d.err)}${/rt_noa|PGRST202|404/.test(d.err) ? '<br>Run <b>supabase\\region_noa.sql</b> in Supabase once.' : ''}</div>`;
+  const sel = new Set(S.months);
+  const list = d.rows.filter(x => x.cd && sel.has(+x.cd.slice(5, 7)))
+    .map(x => ({ ...x, days:daysSince(x.cd) })).sort((a, b) => b.days - a.days || b.v - a.v);
+  const tot = list.reduce((s, x) => s + x.v, 0);
+  const sub = `Closed Won in Zoho (closing date in ${periodLabel()}) but no OA raised yet · ${list.length} potential${list.length === 1 ? '' : 's'} · ₹${fL(tot)} L · tap a potential to open it in Zoho CRM`;
+  if (!list.length) return head(sub) + '<div class="empty">✅ Every won potential in this period has an OA.</div>';
+  const dc = n => n > 30 ? 'dd3' : n > 7 ? 'dd2' : 'dd1';
+  return head(sub) + `<div class="tbl"><table class="noa"><thead><tr><th>Potential</th><th>Project</th><th>Account</th><th>Product basket</th><th>Value ₹ L</th><th>Closed on</th><th>Days without OA</th></tr></thead><tbody>` +
+    list.map(x => `<tr><td><a href="${ZOHO_POT(encodeURIComponent(x.id))}" target="_blank" rel="noopener" title="Open in Zoho CRM${x.owner ? ' · ' + esc(x.owner) : ''}">${esc(x.name || '(no name)')} ↗</a></td>
+      <td>${esc(x.proj || '—')}</td><td>${esc(x.acc || '—')}</td><td>${esc(basketOfTypes(x.types))}</td><td>${fL(x.v)}</td>
+      <td>${new Date(x.cd + 'T00:00:00').toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}</td>
+      <td><span class="dd ${dc(x.days)}">${x.days} day${x.days === 1 ? '' : 's'}</span></td></tr>`).join('') +
+    `<tr class="tot"><td>Total</td><td></td><td></td><td></td><td>${fL(tot)}</td><td></td><td></td></tr></tbody></table></div>`;
 }
 function closeDrawer(){ S.open = null; S.openBk = null; $('ov').classList.remove('on'); $('dr').classList.remove('on'); }
 $('dX').onclick = closeDrawer; $('ov').onclick = closeDrawer;
