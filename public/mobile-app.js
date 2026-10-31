@@ -206,13 +206,31 @@ window.eiSplash = function () {
       });
     }).then(function (sub) {
       return api({ action: 'push_sub', mobile: u.mobile, token: u.token, sub: sub.toJSON() });
-    }).then(function (r) { if (!r.ok) throw new Error(r.error || 'Could not turn on alerts'); try { localStorage.setItem('eiPushAt', String(Date.now())); } catch (e) {} return r; });
+    }).then(function (r) { if (!r.ok) throw new Error(r.error || 'Could not turn on alerts'); try { localStorage.setItem('eiPushAt', String(Date.now())); localStorage.removeItem('eiPushOff'); } catch (e) {} return r; });
   }
-  function pushState() { return !pushSupported() ? 'unsupported' : Notification.permission; }   // granted / default / denied
+  function pushIsOff() { try { return localStorage.getItem('eiPushOff') === '1'; } catch (e) { return false; } }
+  function pushState() {                               // on / off / denied / default / unsupported
+    if (!pushSupported()) return 'unsupported';
+    var p = Notification.permission;
+    if (p === 'granted') return pushIsOff() ? 'off' : 'on';
+    return p;
+  }
+  function pushOff() {                                 // 31-Oct-2026: stop alerts on this phone (profile → Turn off)
+    var u = getUser();
+    try { localStorage.setItem('eiPushOff', '1'); localStorage.removeItem('eiPushAt'); } catch (e) {}
+    return navigator.serviceWorker.ready.then(function (reg) { return reg.pushManager.getSubscription(); }).then(function (sub) {
+      if (!sub) return null;
+      var ep = sub.endpoint;
+      return sub.unsubscribe().catch(function () {}).then(function () {
+        if (u && u.token) return api({ action: 'push_unsub', mobile: u.mobile, token: u.token, endpoint: ep });
+      });
+    });
+  }
   function pushOffer() {                               // small card above the bottom bar, once; "Not now" = ask again in 7 days
     var u = getUser(); if (!u || u.pending || !u.perms || document.getElementById('ei-push') || document.getElementById('ei-gate')) return;
     var st = pushState();
-    if (st === 'granted') {                            // keep this phone's subscription fresh (once a day)
+    if (st === 'off') return;                          // turned off in the profile: leave it off
+    if (st === 'on') {                                 // keep this phone's subscription fresh (once a day)
       var last = 0; try { last = +localStorage.getItem('eiPushAt') || 0; } catch (e) {}
       if (Date.now() - last > 864e5) pushOn().catch(function () {});
       return;
@@ -342,6 +360,26 @@ window.eiSplash = function () {
   }
 
   /* ---------- profile sheet: name, mobile, app info, log out ---------- */
+  function pushRow() {
+    var st = pushState();
+    if (st === 'on') return 'On ✓ <button class="lnk" id="eiPushOffBtn" type="button">Turn off</button>';
+    if (st === 'denied') return 'Blocked in phone settings';
+    if (st === 'unsupported') return 'Not available on this phone';
+    return (st === 'off' ? 'Off ' : '') + '<button class="lnk" id="eiPushBtn" type="button">Turn on</button>';
+  }
+  function wirePushRow() {
+    var box = document.getElementById('eiPushSt'); if (!box) return;
+    var redraw = function () { box.innerHTML = pushRow(); wirePushRow(); };
+    var on = document.getElementById('eiPushBtn'), off = document.getElementById('eiPushOffBtn');
+    if (on) on.onclick = function () { on.disabled = true; on.textContent = '…';
+      pushOn().then(function () { var c = document.getElementById('ei-push'); if (c) c.remove(); redraw(); })
+        .catch(function (e) { box.textContent = e.message; }); };
+    if (off) off.onclick = function () {
+      if (!confirm('Turn off target alerts on this phone?')) return;
+      off.disabled = true; off.textContent = '…';
+      pushOff().then(redraw, redraw);
+    };
+  }
   function showProfile() {
     var u = getUser(); if (!u) return showGate();
     var old = document.getElementById('ei-prof'); if (old) old.remove();
@@ -353,7 +391,7 @@ window.eiSplash = function () {
       '<div class="rows"><div><span>Registered</span><b>' + esc(reg) + '</b></div>' +
       '<div><span>App</span><b>' + APP + ' v' + VERSION + '</b></div>' +
       '<div><span>Data</span><b>Synced every 2 hours, 7 AM – 9 PM</b></div>' +
-      '<div><span>Target alerts</span><b id="eiPushSt">' + ({ granted: 'On ✓', denied: 'Blocked in phone settings', unsupported: 'Not available on this phone' }[pushState()] || '<button class="lnk" id="eiPushBtn" type="button">Turn on</button>') + '</b></div></div>' +
+      '<div><span>Target alerts</span><b id="eiPushSt">' + pushRow() + '</b></div></div>' +
       '<button class="pbtn" id="eiReload">⟳ Refresh data</button>' +
       '<button class="pbtn out" id="eiLogout">Log out</button>' +
       '<button class="pbtn ghost" id="eiClose">Close</button>' +
@@ -364,9 +402,7 @@ window.eiSplash = function () {
     p.addEventListener('click', function (e) { if (e.target === p) close(); });
     document.getElementById('eiClose').onclick = close;
     document.getElementById('eiReload').onclick = function () { location.reload(); };
-    var pb = document.getElementById('eiPushBtn');
-    if (pb) pb.onclick = function () { pb.disabled = true; pushOn().then(function () { document.getElementById('eiPushSt').textContent = 'On ✓'; var c = document.getElementById('ei-push'); if (c) c.remove(); })
-      .catch(function (e) { document.getElementById('eiPushSt').textContent = e.message; }); };
+    wirePushRow();
     document.getElementById('eiLogout').onclick = function () {
       if (!confirm('Log out of ' + APP + '? You will need an OTP to sign in again.')) return;
       api({ action: 'logout', mobile: u.mobile, token: u.token }).catch(function () {});
