@@ -139,6 +139,19 @@
   table.noa td:first-child, table.noa td:nth-child(2), table.noa td:nth-child(3){white-space:normal;min-width:120px;max-width:240px}
   table.noa a{color:var(--volt);font-weight:700;text-decoration:none}
   table.noa a:hover{text-decoration:underline}
+  .dd0{background:#eef3fb;color:#3b5384}
+  .unl{margin-top:12px}
+  .unlbtn{background:none;border:0;padding:6px 0;font:inherit;font-size:12.5px;color:var(--t2);cursor:pointer;text-align:left}
+  .unlbtn b{color:var(--t1)}
+  .ncards{display:flex;flex-direction:column;gap:8px}
+  .nc{border:1px solid var(--line);border-left:4px solid #e0504a;border-radius:12px;padding:10px 12px;background:#fff}
+  .nc.ul{border-left-color:#8ea4c8}
+  .nc .nt{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .nc .nt a{color:var(--volt);font-weight:700;text-decoration:none;font-size:14px;line-height:1.3}
+  .nc .nm{font-size:12.5px;color:var(--t2);margin:3px 0 6px}
+  .nc .nb{display:flex;gap:10px;align-items:baseline;font-size:12px;color:var(--t3);flex-wrap:wrap}
+  .nc .nb b{color:var(--t1);font-size:14px}
+  .ntot{font-size:12.5px;color:var(--t2);text-align:right;padding:4px 2px}
   .dd{display:inline-block;font-weight:700;font-size:11.5px;padding:2px 9px;border-radius:20px;white-space:nowrap}
   .dd1{background:#e8f6ee;color:#12804a} .dd2{background:#fff3df;color:#b4640a} .dd3{background:#fde7e6;color:#c0392b}
   .empty{color:var(--t3);font-size:13px;padding:14px 0}
@@ -548,7 +561,7 @@ async function loadNoa(r){
   const k = noaKey(r); if (S.noa[k]) return;
   S.noa[k] = { loading:true };
   try { const j = await rpc('rt_noa', { p_cy:S.cy, p_rg:r });
-        S.noa[k] = { rows:(j.rows || []).map(a => ({ id:a[0], name:a[1], proj:a[2], acc:a[3], owner:a[4], types:a[5], v:+a[6], cd:a[7] })) }; }
+        S.noa[k] = { rows:(j.rows || []).map(a => ({ id:a[0], name:a[1], proj:a[2], acc:a[3], owner:a[4], types:a[5], v:+a[6], cd:a[7], ul:a[8] === 1 })) }; }
   catch (e) { S.noa[k] = { err:e.message || String(e) }; }
   if (S.open === r) { const h = $('noaHost'); if (h) h.innerHTML = noaHtml(r); }
 }
@@ -557,24 +570,37 @@ function noaHtml(r){
   const d = S.noa[noaKey(r)];
   if (!d || d.loading) return head('Closed Won in Zoho, no OA yet') + '<div class="empty">Loading…</div>';
   if (d.err) return head('Closed Won in Zoho, no OA yet') + `<div class="empty">Could not load — ${esc(d.err)}${/rt_noa|PGRST202|404/.test(d.err) ? '<br>Run <b>supabase\\region_noa.sql</b> in Supabase once.' : ''}</div>`;
-  const sel = new Set(S.months);
-  const list = d.rows.filter(x => x.cd && sel.has(+x.cd.slice(5, 7)))
+  // 31-Oct-2026 (user): NOT limited to the selected months – every Closed Won potential of the FY still waiting for an OA
+  const all = d.rows.filter(x => x.cd)
     .map(x => ({ ...x, days:daysSince(x.cd) })).sort((a, b) => b.days - a.days || b.v - a.v);
-  const tot = list.reduce((s, x) => s + x.v, 0);
-  const sub = `Closed Won in Zoho (closing date in ${periodLabel()}) but no OA raised yet · ${list.length} potential${list.length === 1 ? '' : 's'} · ₹${fL(tot)} L · tap a potential to open it in Zoho CRM`;
-  if (!list.length) return head(sub) + '<div class="empty">✅ Every won potential in this period has an OA.</div>';
+  // ul = an OA exists for the same account but it is not linked to this potential in Zoho (31-Oct-2026)
+  const list = all.filter(x => !x.ul), unl = all.filter(x => x.ul);
+  const sum = l => l.reduce((s, x) => s + x.v, 0), tot = sum(list);
+  const sub = `Closed Won in Zoho (${fyLabel(S.cy)}, any month) but no OA processed yet · ${list.length} potential${list.length === 1 ? '' : 's'} · ₹${fL(tot)} L · oldest first · tap a potential to open it in Zoho CRM`;
   const dc = n => n > 30 ? 'dd3' : n > 7 ? 'dd2' : 'dd1';
-  return head(sub) + `<div class="tbl"><table class="noa"><thead><tr><th>Potential</th><th>Project</th><th>Account</th><th>Product basket</th><th>Value ₹ L</th><th>Closed on</th><th>Days without OA</th></tr></thead><tbody>` +
-    list.map(x => `<tr><td><a href="${ZOHO_POT(encodeURIComponent(x.id))}" target="_blank" rel="noopener" title="Open in Zoho CRM${x.owner ? ' · ' + esc(x.owner) : ''}">${esc(x.name || '(no name)')} ↗</a></td>
-      <td>${esc(x.proj || '—')}</td><td>${esc(x.acc || '—')}</td><td>${esc(basketOfTypes(x.types))}</td><td>${fL(x.v)}</td>
-      <td>${new Date(x.cd + 'T00:00:00').toLocaleDateString('en-IN', { day:'2-digit', month:'short' })}</td>
-      <td><span class="dd ${dc(x.days)}">${x.days} day${x.days === 1 ? '' : 's'}</span></td></tr>`).join('') +
-    `<tr class="tot"><td>Total</td><td></td><td></td><td></td><td>${fL(tot)}</td><td></td><td></td></tr></tbody></table></div>`;
+  const day = x => `<span class="dd ${dc(x.days)}">${x.days} day${x.days === 1 ? '' : 's'}</span>`;
+  const link = x => `<a href="${ZOHO_POT(encodeURIComponent(x.id))}" target="_blank" rel="noopener" title="Open in Zoho CRM${x.owner ? ' · ' + esc(x.owner) : ''}">${esc(x.name || '(no name)')} ↗</a>`;
+  const cd = x => new Date(x.cd + 'T00:00:00').toLocaleDateString('en-IN', { day:'2-digit', month:'short' });
+  const narrow = window.matchMedia('(max-width: 760px)').matches;
+  const render = (l, tag) => narrow
+    ? `<div class="ncards">${l.map(x => `<div class="nc${tag ? ' ul' : ''}"><div class="nt">${link(x)}${tag ? '<span class="dd dd0">OA not linked</span>' : day(x)}</div>
+         <div class="nm">${esc(x.acc || '—')}${x.proj ? ' · ' + esc(x.proj) : ''}</div>
+         <div class="nb"><span>${esc(basketOfTypes(x.types))}</span><b>₹${fL(x.v)} L</b><span>Closed ${cd(x)}${tag ? '' : ''}</span></div></div>`).join('')}
+       <div class="ntot">Total <b>₹${fL(sum(l))} L</b> · ${l.length} potential${l.length === 1 ? '' : 's'}</div></div>`
+    : `<div class="tbl"><table class="noa"><thead><tr><th>Potential</th><th>Project</th><th>Account</th><th>Product basket</th><th>Value ₹ L</th><th>Closed on</th><th>${tag ? 'OA' : 'Days without OA'}</th></tr></thead><tbody>` +
+      l.map(x => `<tr><td>${link(x)}</td><td>${esc(x.proj || '—')}</td><td>${esc(x.acc || '—')}</td><td>${esc(basketOfTypes(x.types))}</td><td>${fL(x.v)}</td><td>${cd(x)}</td>
+        <td>${tag ? '<span class="dd dd0">OA not linked</span>' : day(x)}</td></tr>`).join('') +
+      `<tr class="tot"><td>Total</td><td></td><td></td><td></td><td>${fL(sum(l))}</td><td></td><td></td></tr></tbody></table></div>`;
+  let h = head(sub) + (list.length ? render(list, false) : '<div class="empty">✅ Every Closed Won potential this FY has an OA.</div>');
+  if (unl.length) h += `<div class="unl"><button type="button" class="unlbtn" data-unl="1">${S.showUnl ? '▾' : '▸'} ${unl.length} more potential${unl.length === 1 ? '' : 's'} (₹${fL(sum(unl))} L) have an OA for the same account that is <b>not linked</b> to the potential in Zoho</button>
+      ${S.showUnl ? `<div class="sub" style="margin:6px 0 8px">Counted as having an OA (OA for the same account within 45 days before / 60 days after closing). Link the OA to the potential in Zoho to clear these.</div>` + render(unl, true) : ''}</div>`;
+  return h;
 }
 function closeDrawer(){ S.open = null; S.openBk = null; $('ov').classList.remove('on'); $('dr').classList.remove('on'); }
 $('dX').onclick = closeDrawer; $('ov').onclick = closeDrawer;
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 $('dBody').addEventListener('click', e => {
+  if (e.target.closest('[data-unl]')) { S.showUnl = !S.showUnl; const h = $('noaHost'); if (h && S.open) h.innerHTML = noaHtml(S.open); return; }
   const tr = e.target.closest('tr[data-b]'); if (!tr) return;
   const b = tr.dataset.b; S.openBk = S.openBk === b ? null : b; S.scrollSer = !!S.openBk; openRegion(S.open, true);
 });
