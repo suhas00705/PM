@@ -570,13 +570,15 @@ function noaHtml(r){
   const d = S.noa[noaKey(r)];
   if (!d || d.loading) return head('Closed Won in Zoho, no OA yet') + '<div class="empty">Loading…</div>';
   if (d.err) return head('Closed Won in Zoho, no OA yet') + `<div class="empty">Could not load — ${esc(d.err)}${/rt_noa|PGRST202|404/.test(d.err) ? '<br>Run <b>supabase\\region_noa.sql</b> in Supabase once.' : ''}</div>`;
-  // 31-Oct-2026 (user): NOT limited to the selected months – every Closed Won potential of the FY still waiting for an OA
-  const all = d.rows.filter(x => x.cd)
+  // 31-Oct-2026 (user): follows the month filter – current month = that month's closing dates only;
+  // Apr → latest (FY to date) = every Closed Won potential of the FY still waiting for an OA
+  const sel = new Set(S.months);
+  const all = d.rows.filter(x => x.cd && sel.has(+x.cd.slice(5, 7)))
     .map(x => ({ ...x, days:daysSince(x.cd) })).sort((a, b) => b.days - a.days || b.v - a.v);
   // ul = an OA exists for the same account but it is not linked to this potential in Zoho (31-Oct-2026)
   const list = all.filter(x => !x.ul), unl = all.filter(x => x.ul);
   const sum = l => l.reduce((s, x) => s + x.v, 0), tot = sum(list);
-  const sub = `Closed Won in Zoho (${fyLabel(S.cy)}, any month) but no OA processed yet · ${list.length} potential${list.length === 1 ? '' : 's'} · ₹${fL(tot)} L · oldest first · tap a potential to open it in Zoho CRM`;
+  const sub = `Closed Won in Zoho (closing date in ${periodLabel()} · ${fyLabel(S.cy)}) but no OA processed yet · ${list.length} potential${list.length === 1 ? '' : 's'} · ₹${fL(tot)} L · oldest first · tap a potential to open it in Zoho CRM`;
   const dc = n => n > 30 ? 'dd3' : n > 7 ? 'dd2' : 'dd1';
   const day = x => `<span class="dd ${dc(x.days)}">${x.days} day${x.days === 1 ? '' : 's'}</span>`;
   const link = x => `<a href="${ZOHO_POT(encodeURIComponent(x.id))}" target="_blank" rel="noopener" title="Open in Zoho CRM${x.owner ? ' · ' + esc(x.owner) : ''}">${esc(x.name || '(no name)')} ↗</a>`;
@@ -591,7 +593,7 @@ function noaHtml(r){
       l.map(x => `<tr><td>${link(x)}</td><td>${esc(x.proj || '—')}</td><td>${esc(x.acc || '—')}</td><td>${esc(basketOfTypes(x.types))}</td><td>${fL(x.v)}</td><td>${cd(x)}</td>
         <td>${tag ? '<span class="dd dd0">OA not linked</span>' : day(x)}</td></tr>`).join('') +
       `<tr class="tot"><td>Total</td><td></td><td></td><td></td><td>${fL(sum(l))}</td><td></td><td></td></tr></tbody></table></div>`;
-  let h = head(sub) + (list.length ? render(list, false) : '<div class="empty">✅ Every Closed Won potential this FY has an OA.</div>');
+  let h = head(sub) + (list.length ? render(list, false) : '<div class="empty">✅ Every Closed Won potential in this period has an OA.</div>');
   if (unl.length) h += `<div class="unl"><button type="button" class="unlbtn" data-unl="1">${S.showUnl ? '▾' : '▸'} ${unl.length} more potential${unl.length === 1 ? '' : 's'} (₹${fL(sum(unl))} L) have an OA for the same account that is <b>not linked</b> to the potential in Zoho</button>
       ${S.showUnl ? `<div class="sub" style="margin:6px 0 8px">Counted as having an OA (OA for the same account within 45 days before / 60 days after closing). Link the OA to the potential in Zoho to clear these.</div>` + render(unl, true) : ''}</div>`;
   return h;
