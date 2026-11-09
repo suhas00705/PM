@@ -503,8 +503,7 @@ function renderHero(){
       <div class="k"><div class="l">Regions on target</div><div class="v">${hasT ? on + ' / ' + withT : '—'}</div><div class="s">at or above 100% for the period</div></div>
       <div class="k" style="background:rgba(123,79,214,.22);border-color:rgba(190,160,255,.35)"><div class="l">Potentials won · period</div><div class="v">₹${fCr(tot.wv)}</div><div class="s">${tot.wn} deals closed won</div></div>
       <div class="k" style="background:rgba(123,79,214,.22);border-color:rgba(190,160,255,.35)"><div class="l">Potentials won · FY to date</div><div class="v">₹${fCr(tot.fv)}</div><div class="s">${tot.fn} deals since April</div></div>
-      ${OBK && S.doc === 'OB' ? `<div class="k pend" data-pend="1"><div class="l">Pending to bill</div><div class="v">₹${fCr(OBK.pv)}</div><div class="s">${OBK.oas.toLocaleString('en-IN')} OA lines in hand · as on ${OBK.asOn}</div><div class="go">Click for break-up ›</div></div>` : ''}
-    </div>${S.doc === 'INV' ? obBand(OBK, tot, cf, hasT) : ''}<div class="per">${docW} · <b>${esc(periodLabel())}</b> · ${fyLabel(S.cy)}${S.wonErr ? ' · potentials not loaded (run supabase\\region_tracking.sql)' : ''}</div>`;
+    </div>${S.doc === 'INV' ? obBand(OBK, tot, cf, hasT, FV, dl) : ''}<div class="per">${docW} · <b>${esc(periodLabel())}</b> · ${fyLabel(S.cy)}${S.wonErr ? ' · potentials not loaded (run supabase\\region_tracking.sql)' : ''}</div>`;
 }
 
 /* ---------- order book: carried-forward orders + pending to bill (09-Nov-2026) ----------
@@ -523,17 +522,21 @@ function orderBook(R){
   const asOn = at ? at.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
   return { pv, old, now:pv - old, oas, bf, bp, open1:bf + old, asOn, hasBl:!!S.bl };
 }
-function obBand(O, tot, cf, hasT){
+function obBand(O, tot, cf, hasT, FV, dl){
   if (!O) return S.cy === curFy() && S.pendErr ? `<div class="obband"><div class="t">Order book <span>pending to bill not loaded – run supabase\\pending_to_bill.sql and the pending sync</span></div></div>` : '';
   const need = hasT ? Math.max(0, (tot.pl || 0) - tot.a) + (cf || 0) : null;
   const pc = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
   const per = S.months.length === 1 ? MN[S.months[0]] : 'the period';
   return `<div class="obband">
-    <div class="t">Order book &amp; carried-forward orders<span>₹ incl. tax, same as all portal values · pending as on ${O.asOn}</span></div>
+    <div class="t">Order book &amp; carried-forward orders<span>₹ incl. tax, same as all portal values · pending to bill as on ${O.asOn} (refreshed daily at 9 pm)</span></div>
     <div class="ar"><div class="l">Orders carried into FY (open on 1 Apr)</div><div class="v">₹${fCr(O.open1)}</div><div class="s">FY ${S.cy - 1}-${String(S.cy).slice(2)} orders billed this year + still pending</div></div>
     <div class="ar"><div class="l">Billed this FY from them</div><div class="v">₹${fCr(O.bf)}</div><div class="s">${pc(O.bf, O.open1)} cleared · extra over this year's own orders${S.months.length && O.bp ? ` · ${per} ₹${fCr(O.bp)}` : ''}</div></div>
-    <div class="ar pendk" data-pend="1"><div class="l">Pending to bill today</div><div class="v">₹${fCr(O.pv)}</div><div class="s">₹${fCr(O.now)} from this FY's orders · ₹${fCr(O.old)} older</div><div class="go">Click for break-up by basket, series, OA ›</div></div>
-    <div class="ar"><div class="l">Cover for what is still needed</div><div class="v">${need == null ? '—' : need <= 0 ? 'Target met' : pc(O.pv, need)}</div><div class="s">${need == null ? 'targets set for FY 2026-27 only' : need <= 0 ? `pending ₹${fCr(O.pv)} is all upside` : `pending ₹${fCr(O.pv)} vs ₹${fCr(need)} still needed (gap ₹${fCr(Math.max(0, (tot.pl || 0) - tot.a))} + carried forward ₹${fCr(cf)})`}</div></div>
+    <div class="ar pendk" data-pend="1"><div class="l">Pending to bill</div><div class="v">₹${fCr(O.pv)}</div><div class="s">₹${fCr(O.now)} from this FY's orders · ₹${fCr(O.old)} older</div><div class="go">Click for break-up by basket, series, OA ›</div></div>
+    ${(() => { // 09-Nov-2026 (user): should be achieved till date vs invoicing achieved + pending to bill → excess / short with %
+      if (!hasT || !FV || !FV.plan) return `<div class="ar"><div class="l">Achieved + pending to bill</div><div class="v">₹${fCr(FV ? FV.done + O.pv : null)}</div><div class="s">targets set for FY 2026-27 only</div></div>`;
+      const tot2 = FV.done + O.pv, d = tot2 - FV.plan, p = tot2 / FV.plan * 100;
+      return `<div class="ar"><div class="l">Should be achieved till ${dl} vs achieved + pending</div><div class="v ${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? 'Excess' : 'Short'} ₹${fCr(Math.abs(d))} <span style="font-size:15px">(${p.toFixed(1)}%)</span></div>
+        <div class="s">Invoicing · achieved ₹${fCr(FV.done)} + Pending to bill ₹${fCr(O.pv)} = <b>₹${fCr(tot2)}</b> vs should be achieved ₹${fCr(FV.plan)}</div></div>`; })()}
   </div>`;
 }
 $('hero').addEventListener('click', e => { if (e.target.closest('[data-pend]')) openPend({}); });

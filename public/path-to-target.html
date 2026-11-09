@@ -50,6 +50,17 @@
   @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
   @media(max-width:600px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .kpi{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfcfe}
+  /* pending to bill (Invoicing) – 09-Nov-2026 */
+  .pband{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:10px;background:#fff8ec;border:1px solid #f5d59c;border-radius:12px;padding:10px 12px}
+  .pband .t{grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#a85f00;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .pband .t span{font-weight:600;letter-spacing:0;text-transform:none;color:var(--t3)}
+  .pband .k{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  .pband .v{font-size:22px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .pband .s{font-size:12px;color:var(--t2);margin-top:2px}
+  .pband .pv{color:#a85f00}
+  .pband a{color:var(--volt);font-weight:700;text-decoration:none}
+  @media(max-width:1100px){.pband{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:600px){.pband{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .kpi .k{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
   .kpi .v{font-size:24px;font-weight:700;margin-top:4px;font-variant-numeric:tabular-nums}
   .kpi .s{font-size:12px;color:var(--t2);margin-top:2px}
@@ -147,6 +158,7 @@
   <div class="card" id="secHead">
     <div class="card-h"><div><h2 id="headTitle">Headline</h2><div class="sub" id="headSub"></div></div></div>
     <div class="kpis" id="kpis"></div>
+    <div id="pendBand"></div>
     <div class="verdict" id="verdict"></div>
   </div>
 
@@ -468,6 +480,61 @@ function scopeTarget(){
 }
 </script>
 <script>
+/* ======================= pending to bill (Invoicing only) – 09-Nov-2026 =======================
+   Zoho "Pending Orders" (approved orders not yet invoiced, incl. tax like all portal values), copied daily at 9 pm
+   (rt_pend, supabase/pending_to_bill.sql). Follows the Region and Product filters; not split by customer type.
+   Prepaid/Smart – Govt = prepaid / smart meters pending in the Govt Projects region. */
+const PEND = { cache:{} };
+const pendFy = () => { const d = new Date(); return d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1; };
+const pendProd = b => ['Panel Meters', 'High End MFM', 'Nano VIP', 'Power Quality'].includes(b) ? 'Panel Meters' : b === 'ACCL' ? 'ACCL'
+  : b === 'Transfer Switch' ? 'ATES' : ['Prepaid & Smart Meters', 'Prepaid', 'Smart Meters'].includes(b) ? 'Prepaid/Smart' : b === 'SWITCHGEAR' ? 'LVS'
+  : b === 'FDP' ? 'FDP' : b === 'OEM' ? 'OEM' : b === 'Software' ? 'Software' : 'Others';
+const pendKey = () => JSON.stringify(S.reg.slice().sort());
+async function loadPend(){
+  if (S.doc !== 'INV' || S.cy !== pendFy()) return;
+  const key = pendKey(); if (PEND.cache[key]) return;
+  PEND.cache[key] = { loading:true };
+  try {
+    const regs = S.reg.length ? S.reg.slice() : null, wantG = !regs || regs.includes('Govt Projects');
+    const [a, g] = await Promise.all([rpc('rt_pend', { p_rgs:regs }), wantG ? rpc('rt_pend', { p_rgs:['Govt Projects'] }) : null]);
+    const by = {};
+    (a.bsk || []).forEach(x => { const p = pendProd(x[0]); by[p] = (by[p] || 0) + +x[3]; });
+    if (g) (g.bsk || []).forEach(x => { if (pendProd(x[0]) === 'Prepaid/Smart') { by['Prepaid/Smart'] -= +x[3]; by['Prepaid/Smart – Govt'] = (by['Prepaid/Smart – Govt'] || 0) + +x[3]; } });
+    PEND.cache[key] = { by, tot:+(a.tot || {}).v || 0, oas:+(a.tot || {}).oas || 0, old:+(a.tot || {}).old || 0, at:a.snap && a.snap.at };
+  } catch (e) { PEND.cache[key] = { err:e.message || String(e) }; }
+  if (S.doc === 'INV' && S.raw) renderHead(scopeTarget());
+}
+function pendNow(){
+  if (S.doc !== 'INV' || S.cy !== pendFy()) return null;
+  const P = PEND.cache[pendKey()]; if (!P || P.loading || P.err) return P || null;
+  return { ...P, v: S.prod.length ? S.prod.reduce((t, p) => t + (P.by[p] || 0), 0) : P.tot };
+}
+function pendBand(m, C){
+  const el = $('pendBand'); if (!el) return '';
+  const P = pendNow();
+  if (!P) { el.innerHTML = ''; return ''; }
+  if (P.loading) { el.innerHTML = '<div class="pband"><div class="t">Pending to bill<span>loading…</span></div></div>'; return ''; }
+  if (P.err) { el.innerHTML = `<div class="pband"><div class="t">Pending to bill<span>not loaded – ${esc(P.err).slice(0, 120)}</span></div></div>`; return ''; }
+  if (S.ch.length) { el.innerHTML = '<div class="pband"><div class="t">Pending to bill<span>not split by customer type – clear the Customer type filter to see it</span></div></div>'; return ''; }
+  const at = P.at ? new Date(P.at).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
+  const both = m.ytd + P.v, k = (t, v, s2, cls = '') => `<div><div class="k">${t}</div><div class="v ${cls}">${v}</div><div class="s">${s2}</div></div>`;
+  const cells = [k('Pending to bill', fCr(P.v), `orders in hand (break-up in Region Tracking)${S.prod.length ? '' : ` · ${P.oas.toLocaleString('en-IN')} OAs · ${fCr(P.old)} Cr from last FY orders`}`, 'pv'),
+                 k('Achieved + pending', fCr(both), m.T ? `${fCr(m.ytd)} + ${fCr(P.v)} · ${pct(both / m.T)} of FY target` : `${fCr(m.ytd)} + ${fCr(P.v)}`)];
+  let rem = null;
+  if (m.T) {
+    const d = both - m.planTD; rem = Math.max(0, m.T - both);
+    const needM = C.left > 0 ? rem / C.left : null;
+    cells.push(k(`Plan to date ${C.date.toLocaleDateString('en-IN', { day:'2-digit', month:'short' })} vs achieved + pending`,
+                 `<span class="${d >= 0 ? 'pos' : 'neg'}">${d >= 0 ? 'Excess' : 'Short'} ${fCr(Math.abs(d))}</span>`,
+                 `${fCr(both)} vs plan ${fCr(m.planTD)} · <b>${pct(both / m.planTD)}</b>`));
+    cells.push(k('Still to get after pending', fCr(rem), `FY target ${fCr(m.T)} − achieved ${fCr(m.ytd)} − pending ${fCr(P.v)} · was ${fCr(m.gap)}`));
+    cells.push(k('Needed / month after pending', needM != null ? fCr(needM) : '—', `${fL1(C.left)} months left · run-rate ${fCr(m.run)}${needM != null && m.run > 0 ? ` · <b>${(needM / m.run).toFixed(2)}×</b>` : ''}`));
+  }
+  el.innerHTML = `<div class="pband"><div class="t">Pending to bill — orders in hand, not yet invoiced<span>₹ Cr incl. tax · Zoho pending orders as on ${at} (refreshed daily at 9 pm)</span></div>${cells.join('')}</div>`;
+  return m.T ? ` <b>Pending to bill:</b> ${fCr(P.v)} Cr of approved orders are waiting to be invoiced — with them the year is at <b>${fCr(both)} Cr</b> (${pct(both / m.planTD)} of plan to date), leaving <b>${fCr(rem)} Cr</b> still to get${C.left > 0 ? ` (<b>${fCr(rem / C.left)} Cr a month</b>)` : ''}.`
+             : ` <b>Pending to bill:</b> ${fCr(P.v)} Cr of approved orders are waiting to be invoiced.`;
+}
+
 /* ======================= render ======================= */
 function renderAll(){
   if (!S.raw) return;
@@ -517,7 +584,9 @@ function renderHead(sc){
       + (m.T && m.gap > 0 ? ` — it covers <b>${(dm.D.ww / m.gap).toFixed(2)}×</b> of the ${fCr(m.gap)} Cr still needed, so <b>${fCr(Math.max(0, m.gap - dm.D.ww))} Cr</b> must come from deals not yet in Zoho${avg && C2.left > 0 ? ` (about ${Math.ceil(Math.max(0, m.gap - dm.D.ww) / avg / C2.left)} extra deals a month at an average ${fL1(avg)} L)` : ''}` : '')
       + `. <b>${dm.L.na.toLocaleString('en-IN')}</b> open leads have had no action for over ${DEM.na} days, <b>${dm.L.Q.toLocaleString('en-IN')}</b> qualified leads are not deals yet, and <b>${dm.D.ns}</b> deals are past their closing date. <a href="#secDem">See the demand engine ↓</a>`;
   }
+  const pb = pendBand(m, C); if (pb) v += '<br>' + pb.trim();
   $('verdict').innerHTML = v;
+  loadPend();
 }
 
 /* ---- month path ---- */

@@ -18,8 +18,9 @@
 // 30-Oct-2026: in the 07–21 IST slots it also runs the target-alert check (/api/app-otp?action=push_check), which
 // sends a phone notification when a region / product reaches 100% of its monthly target (lib/pushAlerts.js).
 // It reads the data synced up to the previous slot, so an alert comes at most about 2 hours after the order.
-// 09-Nov-2026: every slot also copies Zoho "Pending Orders" (pending to bill) – /api/sync-invoice?mode=pending.
-// Zoho rebuilds that module in the evening; an incomplete copy is ignored by the sync, so any slot is safe.
+// 09-Nov-2026 (user): "Pending to bill" is copied ONCE a day at 9 pm IST and stays frozen till the next 9 pm.
+// Zoho clears its Pending Orders list from ~3:30 pm and rebuilds it ~7:20–8:30 pm, so only the 21:00 slot copies it
+// (the 23:00 slot is a catch-up: it copies only if 21:00 found no finished new build – otherwise "no new Zoho build").
 
 const crypto = require('crypto');
 const OB_INV_FROM = 7, OB_INV_TO = 21;          // IST hours (inclusive) when orders / invoices are synced
@@ -49,7 +50,7 @@ async function call(base, path) {
     // keep the reply short: counts and errors only
     if (body && typeof body === 'object') {
       const keep = {};
-      ['ok', 'fetched', 'upserted', 'deleted', 'skipped', 'saved', 'count', 'hasMore', 'resumeWith', 'error', 'saveError', 'events', 'new', 'alerts', 'phones', 'sent', 'note', 'total', 'totalLakhs'].forEach(k => { if (body[k] !== undefined) keep[k] = body[k]; });
+      ['ok', 'fetched', 'upserted', 'deleted', 'skipped', 'saved', 'count', 'hasMore', 'resumeWith', 'error', 'saveError', 'events', 'new', 'alerts', 'phones', 'sent', 'note', 'total', 'totalLakhs', 'zohoBuild'].forEach(k => { if (body[k] !== undefined) keep[k] = body[k]; });
       body = keep;
     }
     return { path, status: r.status, ms: Date.now() - started, body };
@@ -66,7 +67,8 @@ module.exports = async (req, res) => {
   const base = PROD;
   const started = new Date().toISOString();
   const byCron = /vercel-cron/i.test(req.headers['user-agent'] || '');
-  const jobs = ['/api/lvs-stock?save=1', '/api/sync-invoice?mode=pending'];
+  const jobs = ['/api/lvs-stock?save=1'];
+  if (h === 21 || h === 23) jobs.push('/api/sync-invoice?mode=pending');   // pending to bill: once a day, frozen till next 9 pm
   const obInv = q.obinv === '1' || (q.obinv !== '0' && h >= OB_INV_FROM && h <= OB_INV_TO);
   if (obInv) {
     const days = h === OB_INV_FROM ? 10 : 2;    // first run of the day catches up 10 days (replaces the old daily job)
