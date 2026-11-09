@@ -92,6 +92,60 @@
   .fyband .l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;font-weight:700}
   .fyband .v{font-size:22px;font-weight:800;margin-top:2px}
   .fyband .s{font-size:12px;opacity:.85}
+  /* order book band + pending to bill (09-Nov-2026) */
+  .obband{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:rgba(255,190,90,.13);border:1px solid rgba(255,200,110,.38);border-radius:12px;padding:10px 12px}
+  .obband .t{grid-column:1/-1;font-size:11px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;opacity:.9;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .obband .t span{font-weight:600;letter-spacing:0;text-transform:none;opacity:.8}
+  .obband .l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;font-weight:700}
+  .obband .v{font-size:22px;font-weight:800;margin-top:2px}
+  .obband .s{font-size:12px;opacity:.85}
+  .obband .ar{position:relative}
+  .pendk{cursor:pointer;border-radius:10px;margin:-6px -8px;padding:6px 8px;background:rgba(255,190,90,.22);border:1px solid rgba(255,210,140,.55);transition:background .15s}
+  .pendk:hover{background:rgba(255,190,90,.34)}
+  .pendk .go{font-size:11px;font-weight:800;opacity:.9;margin-top:3px}
+  .hero .k.pend{background:rgba(255,190,90,.22);border-color:rgba(255,210,140,.55);cursor:pointer}
+  .hero .k.pend:hover{background:rgba(255,190,90,.32)}
+  .hero .k .go{font-size:11px;font-weight:800;opacity:.9;margin-top:3px}
+  .cover{display:inline-block;font-weight:800;font-size:11px;padding:1px 7px;border-radius:20px;background:rgba(255,255,255,.2)}
+  .dk .k.pendd{background:#fff6e8;border-color:#f5d59c;cursor:pointer}
+  .dk .k.pendd .v{color:#a85f00}
+  /* pending-to-bill pop-up */
+  .pp{position:fixed;inset:0;z-index:90;background:rgba(11,41,66,.45);display:none;align-items:center;justify-content:center;padding:12px}
+  .pp.on{display:flex}
+  .pp .box{background:#fff;border-radius:16px;width:min(1120px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden}
+  .pp .hd{background:linear-gradient(120deg,#7a4a00,#d98a12);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .pp .hd h3{margin:0;font-size:19px}.pp .hd .s{font-size:12.5px;opacity:.92;margin-top:3px}
+  .pp .x{background:rgba(255,255,255,.18);border:0;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;flex:0 0 auto}
+  .pp .kp2{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;padding:12px 18px 2px}
+  .pp .kk{border:1px solid var(--line);border-radius:12px;padding:9px 11px}
+  .pp .kk .l{font-size:10.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase}
+  .pp .kk .v{font-size:19px;font-weight:800;margin-top:2px}.pp .kk .n{font-size:11.5px;color:var(--t3)}
+  .pp .tabs{display:flex;gap:4px;padding:10px 18px 0;border-bottom:1px solid var(--line);align-items:flex-end;flex-wrap:wrap}
+  .pp .tabs button{font:inherit;font-weight:700;font-size:13px;border:0;background:none;padding:8px 12px;color:var(--t3);border-bottom:3px solid transparent;cursor:pointer}
+  .pp .tabs button.on{color:#b26d00;border-bottom-color:#d98a12}
+  .pp .tabs .sp{flex:1}
+  .pp .tabs .csv{font-size:12px;border:1px solid var(--volt);color:var(--volt);border-radius:8px;padding:5px 11px;margin-bottom:6px}
+  .pp .bd{padding:12px 18px 18px;overflow:auto}
+  .pp table{font-size:13px}
+  .pp th{position:sticky;top:0;cursor:default}
+  .pp td{padding:7px 10px}.pp th{padding:8px 10px}
+  .pp .l2{text-align:left!important}
+  .pp tbody tr{cursor:pointer}
+  .pp tr.sel td{background:#fff3df!important}
+  .pp tr.it td{background:#fffaf1;color:var(--t2);cursor:default;font-size:12.5px}
+  .pp tr.it td:first-child{padding-left:28px}
+  .pp tr.tot td{color:#b26d00;background:#fff8ec}
+  .pp .bar{display:inline-block;height:7px;border-radius:4px;background:#d98a12;opacity:.8;margin-left:8px;vertical-align:middle}
+  .pp a{color:var(--volt);font-weight:700;text-decoration:none}
+  .pp .cap{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.06em;margin:4px 0 6px;text-transform:uppercase}
+  .pp .fl{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+  .pp .srch{width:280px;max-width:100%;font:inherit;padding:7px 10px;border:1px solid #cfd6e3;border-radius:8px}
+  .pp .chipf{font-size:12px;font-weight:700;background:#fff1d9;color:#9a5b00;border-radius:20px;padding:3px 10px;cursor:pointer;border:0;font-family:inherit}
+  .pp .age{font-size:11px;font-weight:700;padding:1px 7px;border-radius:20px}
+  .pp .a1{background:#e3f4e8;color:#0f7a36}.pp .a2{background:#fff1d9;color:#9a5b00}.pp .a3{background:#fde8e8;color:#b42323}
+  .pp .old{font-size:10.5px;font-weight:800;color:#7b4fd6;background:#f1ebfd;border-radius:20px;padding:1px 6px;margin-left:4px}
+  .pp .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  html.app-mode .pp .hd{background:linear-gradient(120deg,#b9502a,#f08c5a)}
   /* table */
   .tbl{overflow:auto}
   table{border-collapse:collapse;width:100%;font-size:13px}
@@ -167,6 +221,17 @@
     .hero .gauge{margin:0 auto}
     .hero .kp{grid-template-columns:1fr 1fr;gap:8px}
     .fyband{grid-template-columns:1fr 1fr}
+    .obband{grid-template-columns:1fr 1fr}
+    .pp{padding:0;align-items:stretch}
+    .pp .box{max-height:100vh;height:100%;border-radius:0}
+    .pp .kp2{grid-template-columns:1fr 1fr;padding:10px 12px 2px}
+    .pp .kk .v{font-size:17px}
+    .pp .bd{padding:10px 12px 16px}
+    .pp .two{grid-template-columns:1fr}
+    .pp table{font-size:12px}.pp td,.pp th{padding:7px 6px}
+    .pp td.wr{white-space:normal;min-width:110px}
+    .pp .hide-s{display:none}
+    .pp .tabs{padding:8px 10px 0}.pp .tabs button{padding:7px 8px;font-size:12.5px}
     .hero .k{padding:9px 10px}
     .hero .k .v{font-size:19px}
     .split{grid-template-columns:1fr;justify-items:center}
@@ -229,6 +294,10 @@
 
 <div class="ov" id="ov"></div>
 <div class="dr" id="dr"><div class="dh"><div><h3 id="dTitle"></h3><div class="s" id="dSub"></div></div><button class="x" id="dX" title="Close">✕</button></div><div class="db" id="dBody"></div></div>
+<div class="pp dk-skip" id="pp"><div class="box"><div class="hd"><div><h3 id="ppT">Pending to bill</h3><div class="s" id="ppS"></div></div><button class="x" id="ppX" title="Close">✕</button></div>
+  <div class="kp2" id="ppK"></div>
+  <div class="tabs" id="ppTabs"><button data-t="bsk" class="on">Product basket</button><button data-t="ser">Product series</button><button data-t="reg">Region</button><button data-t="docs">OA details</button><span class="sp"></span><button class="csv" id="ppCsv">⬇ CSV</button></div>
+  <div class="bd" id="ppB"></div></div></div>
 <div class="loading" id="loading">Loading…</div>
 
 <script>
@@ -273,8 +342,10 @@ const IDX = m => MONTHS.indexOf(m);
 const fL = v => v == null ? '—' : (Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-IN') : v.toLocaleString('en-IN', {minimumFractionDigits:1, maximumFractionDigits:1}));
 const fCr = v => v == null ? '—' : (v / 100).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' Cr';
 const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
-const S = { cy:null, months:[], doc:'OB', view:'cards', gm:'',  sort:{k:'t', d:-1}, rows:[], won:[], dict:null, open:null, openBk:null, ser:{}, noa:{} };
+const S = { cy:null, months:[], doc:'OB', view:'cards', gm:'',  sort:{k:'t', d:-1}, rows:[], won:[], dict:null, open:null, openBk:null, ser:{}, noa:{}, pend:null, pendErr:null, bl:null, pp:null };
 
+const FOLD = { 'Others':['Others', 'Service Item', '(blank)'] };
+const foldBk = b => (b === 'Service Item' || b === '(blank)' || b == null) ? 'Others' : b;
 async function rpc(fn, body){
   const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer ' + KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
   if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0, 200)}`);
@@ -319,11 +390,15 @@ async function load(resetMonths){
   $('loading').classList.add('on');
   try {
     const first = !S.raw;
-    const [c, w] = await Promise.all([rpc('ptt_cube', { p_cy: S.cy }), rpc('rt_won', { p_cy: S.cy }).catch(e => ({ err: e.message }))]);
+    const [c, w, pd, bl] = await Promise.all([rpc('ptt_cube', { p_cy: S.cy }), rpc('rt_won', { p_cy: S.cy }).catch(e => ({ err: e.message })),
+      rpc('rt_pend', {}).catch(e => ({ err: e.message })), rpc('rt_backlog', { p_cy: S.cy }).catch(e => ({ err: e.message }))]);
+    S.pend = pd && !pd.err ? pd : null; S.pendErr = pd && pd.err ? pd.err : null;
+    S.bl = bl && !bl.err ? (bl.rows || []).map(a => ({ r:a[0], m:+a[1], v:+a[2] })) : null;
     const wasCur = S.raw && S.months.length === 1 && S.months[0] === curMonth();
     S.raw = c; S.dict = { rg:c.rg || [], bk:c.bk || [] };
     // cube row: [doc 0 OB / 1 INV, year 0 this FY / 1 last FY, month, region#, type#, product#, basket#, value ₹L, like-for-like value ₹L]
-    S.rows = (c.rows || []).map(a => ({ d:a[0] ? 'INV' : 'OB', y:a[1], m:a[2], r:S.dict.rg[a[3]], b:S.dict.bk[a[6]], v:+a[7], lv:+a[8] }));
+    // 09-Nov-2026 (user): Service Item and blank baskets are shown under Others
+    S.rows = (c.rows || []).map(a => ({ d:a[0] ? 'INV' : 'OB', y:a[1], m:a[2], r:S.dict.rg[a[3]], b:foldBk(S.dict.bk[a[6]]), v:+a[7], lv:+a[8] }));
     S.won = w && w.rows ? w.rows.map(a => ({ r:a[0], y:a[1], m:a[2], v:+a[3], n:+a[4] })) : [];
     S.wonErr = w && w.err ? w.err : null;
     if (first) {
@@ -412,6 +487,7 @@ function renderHero(){
   const on = R.filter(x => x.pct != null && x.pct >= 100).length, withT = R.filter(x => x.pct != null).length;
   const docW = S.doc === 'OB' ? 'Order booking' : 'Invoicing';
   const FV = fyView(R), dl = FV.date.toLocaleDateString('en-IN', {day:'2-digit', month:'short'});
+  const OBK = orderBook(R);
   const fyStrip = hasT ? `<div class="fyband">
       <div><div class="l">FY target${S.gm ? ' · ' + esc(S.gm) : ''}</div><div class="v">₹${fCr(FV.T)}</div><div class="s">${esc(fyLabel(S.cy))}</div></div>
       <div><div class="l">${docW} so far</div><div class="v">₹${fCr(FV.done)}</div><div class="s"><b>${(FV.done / FV.T * 100).toFixed(1)}%</b> of the FY target</div></div>
@@ -421,14 +497,130 @@ function renderHero(){
   $('hero').innerHTML = fyStrip + `<div class="gauge">${gauge(p)}<div class="pv">${p == null ? '—' : p.toFixed(1) + '%'}</div><div class="pl">of plain target</div></div>
     <div class="kp">
       <div class="k"><div class="l">${S.months.length === 1 ? 'Monthly target' : 'Target'} · plain</div><div class="v">₹${fCr(hasT ? tot.pl : null)}</div><div class="s">${hasT ? esc(periodLabel()) + ' · 520 Cr phased 20/25/25/30' : 'targets set for FY 2026-27 only'}</div></div>
-      <div class="k"><div class="l">Carried forward</div><div class="v">${hasT ? '₹' + fCr(cf) : '—'}</div><div class="s">${hasT ? 'shortfall from earlier months' : ''}</div></div>
+      <div class="k"><div class="l">Carried forward</div><div class="v">${hasT ? '₹' + fCr(cf) : '—'}</div><div class="s">${hasT ? 'shortfall from earlier months' : ''}${hasT && OBK && S.doc === 'INV' && cf > 0 ? `<br><span class="cover">order book covers it ${(OBK.pv / cf).toFixed(1)}×</span>` : ''}</div></div>
       <div class="k"><div class="l">${docW} · achieved</div><div class="v">₹${fCr(tot.a)}</div><div class="s">${hasT ? (tot.pl - tot.a > 0 ? 'gap to plain target ₹' + fCr(tot.pl - tot.a) : 'ahead of plain target by ₹' + fCr(tot.a - tot.pl)) : ''}</div></div>
       <div class="k"><div class="l">vs last year (same period)</div><div class="v ${tot.a >= tot.l ? 'up' : 'dn'}">${tot.l ? (tot.a >= tot.l ? '▲ ' : '▼ ') + Math.abs((tot.a - tot.l) / tot.l * 100).toFixed(1) + '%' : '—'}</div><div class="s">LY ₹${fCr(tot.l)}</div></div>
       <div class="k"><div class="l">Regions on target</div><div class="v">${hasT ? on + ' / ' + withT : '—'}</div><div class="s">at or above 100% for the period</div></div>
       <div class="k" style="background:rgba(123,79,214,.22);border-color:rgba(190,160,255,.35)"><div class="l">Potentials won · period</div><div class="v">₹${fCr(tot.wv)}</div><div class="s">${tot.wn} deals closed won</div></div>
       <div class="k" style="background:rgba(123,79,214,.22);border-color:rgba(190,160,255,.35)"><div class="l">Potentials won · FY to date</div><div class="v">₹${fCr(tot.fv)}</div><div class="s">${tot.fn} deals since April</div></div>
-    </div><div class="per">${docW} · <b>${esc(periodLabel())}</b> · ${fyLabel(S.cy)}${S.wonErr ? ' · potentials not loaded (run supabase\\region_tracking.sql)' : ''}</div>`;
+      ${OBK && S.doc === 'OB' ? `<div class="k pend" data-pend="1"><div class="l">Pending to bill</div><div class="v">₹${fCr(OBK.pv)}</div><div class="s">${OBK.oas.toLocaleString('en-IN')} OA lines in hand · as on ${OBK.asOn}</div><div class="go">Click for break-up ›</div></div>` : ''}
+    </div>${S.doc === 'INV' ? obBand(OBK, tot, cf, hasT) : ''}<div class="per">${docW} · <b>${esc(periodLabel())}</b> · ${fyLabel(S.cy)}${S.wonErr ? ' · potentials not loaded (run supabase\\region_tracking.sql)' : ''}</div>`;
 }
+
+/* ---------- order book: carried-forward orders + pending to bill (09-Nov-2026) ----------
+   Pending to bill = Zoho "Pending Orders" (approved orders not yet invoiced, balance amount with tax – the same
+   basis as every other portal number), copied every 2 hours. Carried-forward orders = OAs booked before 1 April
+   that were billed this FY (rt_backlog) + those still pending. Only for the current FY (pending is "today"). */
+function curFy(){ const d = new Date(); return d.getMonth() + 1 >= 4 ? d.getFullYear() : d.getFullYear() - 1; }
+function orderBook(R){
+  if (!S.pend || S.cy !== curFy()) return null;
+  const names = new Set(R.map(x => x.r)), reg = (S.pend.reg || []).filter(a => names.has(a[0]));
+  const pv = reg.reduce((s, a) => s + +a[3], 0), old = reg.reduce((s, a) => s + +a[4], 0), oas = reg.reduce((s, a) => s + +a[1], 0);
+  const sel = new Set(S.months), last = latestIdx();
+  let bf = 0, bp = 0;
+  (S.bl || []).forEach(x => { if (!names.has(x.r)) return; if (IDX(x.m) <= last) bf += x.v; if (sel.has(x.m)) bp += x.v; });
+  const at = S.pend.snap && S.pend.snap.at ? new Date(S.pend.snap.at) : null;
+  const asOn = at ? at.toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
+  return { pv, old, now:pv - old, oas, bf, bp, open1:bf + old, asOn, hasBl:!!S.bl };
+}
+function obBand(O, tot, cf, hasT){
+  if (!O) return S.cy === curFy() && S.pendErr ? `<div class="obband"><div class="t">Order book <span>pending to bill not loaded – run supabase\\pending_to_bill.sql and the pending sync</span></div></div>` : '';
+  const need = hasT ? Math.max(0, (tot.pl || 0) - tot.a) + (cf || 0) : null;
+  const pc = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+  const per = S.months.length === 1 ? MN[S.months[0]] : 'the period';
+  return `<div class="obband">
+    <div class="t">Order book &amp; carried-forward orders<span>₹ incl. tax, same as all portal values · pending as on ${O.asOn}</span></div>
+    <div class="ar"><div class="l">Orders carried into FY (open on 1 Apr)</div><div class="v">₹${fCr(O.open1)}</div><div class="s">FY ${S.cy - 1}-${String(S.cy).slice(2)} orders billed this year + still pending</div></div>
+    <div class="ar"><div class="l">Billed this FY from them</div><div class="v">₹${fCr(O.bf)}</div><div class="s">${pc(O.bf, O.open1)} cleared · extra over this year's own orders${S.months.length && O.bp ? ` · ${per} ₹${fCr(O.bp)}` : ''}</div></div>
+    <div class="ar pendk" data-pend="1"><div class="l">Pending to bill today</div><div class="v">₹${fCr(O.pv)}</div><div class="s">₹${fCr(O.now)} from this FY's orders · ₹${fCr(O.old)} older</div><div class="go">Click for break-up by basket, series, OA ›</div></div>
+    <div class="ar"><div class="l">Cover for what is still needed</div><div class="v">${need == null ? '—' : need <= 0 ? 'Target met' : pc(O.pv, need)}</div><div class="s">${need == null ? 'targets set for FY 2026-27 only' : need <= 0 ? `pending ₹${fCr(O.pv)} is all upside` : `pending ₹${fCr(O.pv)} vs ₹${fCr(need)} still needed (gap ₹${fCr(Math.max(0, (tot.pl || 0) - tot.a))} + carried forward ₹${fCr(cf)})`}</div></div>
+  </div>`;
+}
+$('hero').addEventListener('click', e => { if (e.target.closest('[data-pend]')) openPend({}); });
+
+/* ---------- pending-to-bill pop-up ---------- */
+function ppRegions(){ return S.gm ? allRegions().map(x => x.r) : null; }
+async function openPend(o){
+  S.pp = { tab:(o && o.rg) ? 'docs' : 'bsk', rg:(o && o.rg) || null, bk:null, sr:null, q:'', open:{}, items:{}, base:null, list:null };
+  $('pp').classList.add('on'); $('ppB').innerHTML = '<div class="empty">Loading…</div>'; $('ppK').innerHTML = '';
+  [...$('ppTabs').querySelectorAll('[data-t]')].forEach(b => b.classList.toggle('on', b.dataset.t === S.pp.tab));
+  try { S.pp.base = await rpc('rt_pend', { p_rgs:ppRegions() }); await ppList(); }
+  catch (e) { $('ppB').innerHTML = `<div class="empty">Could not load — ${esc(e.message || e)}</div>`; }
+}
+async function ppList(){
+  const P = S.pp; if (!P) return;
+  if (!P.rg && !P.bk && !P.sr) P.list = P.base;
+  else P.list = await rpc('rt_pend', { p_rgs:ppRegions(), p_rg:P.rg, p_bk:P.bk, p_sr:P.sr });
+  ppRender();
+}
+function closePend(){ $('pp').classList.remove('on'); S.pp = null; }
+const ppD = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+const ppAge = d => { const n = d ? Math.max(0, Math.floor((Date.now() - new Date(d + 'T00:00:00+05:30')) / 864e5)) : null;
+  return n == null ? '—' : `<span class="age ${n > 90 ? 'a3' : n > 30 ? 'a2' : 'a1'}">${n}</span>`; };
+function ppRender(){
+  const P = S.pp, B = P.base, t = B.tot || {}, fy0 = B.fy0;
+  const at = B.snap && B.snap.at ? new Date(B.snap.at).toLocaleString('en-IN', { day:'2-digit', month:'short', year:'numeric', hour:'numeric', minute:'2-digit' }) : '—';
+  $('ppT').textContent = `Pending to bill · ₹${fL(t.v)} L${S.gm ? ' · ' + S.gm : ''}`;
+  $('ppS').textContent = `Approved orders not yet invoiced · Zoho "Pending Orders" as on ${at} · balance amount incl. tax · click a basket / series / region to see its OAs`;
+  $('ppK').innerHTML = `<div class="kk"><div class="l">Value</div><div class="v">₹${fCr(t.v)}</div><div class="n">₹${fL(t.v)} L</div></div>
+    <div class="kk"><div class="l">Balance qty</div><div class="v">${(+t.q || 0).toLocaleString('en-IN')}</div><div class="n">${(+t.n || 0).toLocaleString('en-IN')} items</div></div>
+    <div class="kk"><div class="l">OAs</div><div class="v">${(+t.oas || 0).toLocaleString('en-IN')}</div><div class="n">${t.cust} customers · ${t.regions} regions</div></div>
+    <div class="kk"><div class="l">From last FY orders</div><div class="v" style="color:#7b4fd6">₹${fL(t.old)} L</div><div class="n">OA dated before ${ppD(fy0)}</div></div>
+    <div class="kk"><div class="l">Open &gt; 90 days</div><div class="v" style="color:#b42323">₹${fL(t.a90p)} L</div><div class="n">≤30 d ₹${fL(t.a30)} L · 31–90 d ₹${fL(t.a90)} L</div></div>`;
+  [...$('ppTabs').querySelectorAll('[data-t]')].forEach(b => b.classList.toggle('on', b.dataset.t === P.tab));
+  const mx = l => Math.max(1, ...l.map(a => +a[3]));
+  const sh = v => t.v ? (v / t.v * 100).toFixed(1) + '%' : '—';
+  let h = '';
+  if (P.tab === 'bsk') { const l = B.bsk || [], m = mx(l);
+    h = `<div class="cap">By product basket · click a basket for its OAs</div><table><thead><tr><th class="l2">Basket</th><th>OAs</th><th class="hide-s">Qty</th><th>₹ L</th><th class="l2">Share</th></tr></thead><tbody>` +
+      l.map(a => `<tr data-f="bk" data-v="${esc(a[0])}"><td class="l2 wr">${esc(a[0])}</td><td>${a[1]}</td><td class="hide-s">${(+a[2]).toLocaleString('en-IN')}</td><td>${fL(+a[3])}</td><td class="l2">${sh(+a[3])}<span class="bar" style="width:${Math.max(2, a[3] / m * 90)}px"></span></td></tr>`).join('') +
+      `<tr class="tot"><td class="l2">Total</td><td>${t.oas}</td><td class="hide-s">${(+t.q).toLocaleString('en-IN')}</td><td>${fL(t.v)}</td><td class="l2">100%</td></tr></tbody></table>`; }
+  if (P.tab === 'ser') { const l = B.ser || [], m = Math.max(1, ...l.map(a => +a[3]));
+    h = `<div class="cap">By product series · ${l.length} series · click a series for its OAs</div><table><thead><tr><th class="l2">Series</th><th class="l2 hide-s">Basket</th><th class="hide-s">Qty</th><th>₹ L</th><th class="l2">Share</th></tr></thead><tbody>` +
+      l.map(a => `<tr data-f="sr" data-v="${esc(a[0])}"><td class="l2 wr">${esc(a[0])}</td><td class="l2 hide-s">${esc(a[1])}</td><td class="hide-s">${(+a[2]).toLocaleString('en-IN')}</td><td>${fL(+a[3])}</td><td class="l2">${sh(+a[3])}<span class="bar" style="width:${Math.max(2, a[3] / m * 90)}px"></span></td></tr>`).join('') +
+      `<tr class="tot"><td class="l2">Total</td><td class="hide-s"></td><td class="hide-s">${(+t.q).toLocaleString('en-IN')}</td><td>${fL(t.v)}</td><td class="l2">100%</td></tr></tbody></table>`; }
+  if (P.tab === 'reg') { const l = B.reg || [], m = mx(l);
+    h = `<div class="cap">By region · click a region for its OAs</div><table><thead><tr><th class="l2">Region</th><th>OAs</th><th class="hide-s">Qty</th><th>₹ L</th><th class="hide-s">From last FY orders</th><th class="l2">Share</th></tr></thead><tbody>` +
+      l.map(a => `<tr data-f="rg" data-v="${esc(a[0])}"><td class="l2 wr">${esc(a[0])}</td><td>${a[1]}</td><td class="hide-s">${(+a[2]).toLocaleString('en-IN')}</td><td>${fL(+a[3])}</td><td class="hide-s">${+a[4] ? fL(+a[4]) : '—'}</td><td class="l2">${sh(+a[3])}<span class="bar" style="width:${Math.max(2, a[3] / m * 90)}px"></span></td></tr>`).join('') +
+      `<tr class="tot"><td class="l2">Total</td><td>${t.oas}</td><td class="hide-s">${(+t.q).toLocaleString('en-IN')}</td><td>${fL(t.v)}</td><td class="hide-s">${fL(t.old)}</td><td class="l2">100%</td></tr></tbody></table>`; }
+  if (P.tab === 'docs') {
+    const L = P.list || B, q = P.q.trim().toLowerCase();
+    const docs = (L.docs || []).filter(a => !q || [a[0], a[2], a[3], a[4], a[5]].some(x => String(x || '').toLowerCase().includes(q)));
+    const fl = [P.rg && ['rg', 'Region: ' + P.rg], P.bk && ['bk', 'Basket: ' + P.bk], P.sr && ['sr', 'Series: ' + P.sr]].filter(Boolean);
+    const sv = docs.reduce((s, a) => s + +a[10], 0), sq = docs.reduce((s, a) => s + +a[9], 0);
+    h = `<div class="fl"><input class="srch" id="ppQ" placeholder="Search OA no., customer, region, series…" value="${esc(P.q)}">` +
+      fl.map(f => `<button class="chipf" data-clr="${f[0]}">${esc(f[1])} ✕</button>`).join('') +
+      `<span class="sub">${(L.f && L.f.oas) || 0} OAs · ₹${fL(L.f && L.f.v)} L${(L.f && L.f.oas) > 500 ? ' · biggest 500 shown' : ''} · biggest first · ▸ shows the pending items</span></div>
+      <table><thead><tr><th class="l2">OA no.</th><th class="l2 hide-s">OA date</th><th class="l2">Customer</th><th class="l2 hide-s">Region</th><th class="l2 hide-s">Basket · series</th><th class="l2 hide-s">Delivery</th><th>Days open</th><th class="hide-s">Bal. qty</th><th>₹ L</th></tr></thead><tbody>` +
+      docs.map(a => { const op = P.open[a[0]], it = P.items[a[0]];
+        return `<tr data-oa="${esc(a[0])}" class="${op ? 'sel' : ''}"><td class="l2">${op ? '▾' : '▸'} <a>${esc(a[0])}</a>${a[1] && a[1] < fy0 ? '<span class="old">last FY</span>' : ''}</td><td class="l2 hide-s">${ppD(a[1])}</td><td class="l2 wr">${esc(a[2])}</td><td class="l2 hide-s">${esc(a[3])}</td><td class="l2 hide-s">${esc(a[4])} · ${esc(a[5])}${a[6] > 1 ? ' +' + (a[6] - 1) : ''}</td><td class="l2 hide-s">${ppD(a[7])}</td><td>${ppAge(a[1])}</td><td class="hide-s">${(+a[9]).toLocaleString('en-IN')}</td><td>${fL(+a[10])}</td></tr>` +
+          (op ? (it ? it.map(x => `<tr class="it"><td class="l2">${esc(x[0] || '')}</td><td class="hide-s"></td><td class="l2 wr">${esc(x[1] || '')}</td><td class="hide-s"></td><td class="l2 hide-s">${esc(x[2])} · ${esc(x[3])}</td><td class="l2 hide-s">${ppD(x[4])}</td><td></td><td class="hide-s">${(+x[5]).toLocaleString('en-IN')}</td><td>${fL(+x[6])}</td></tr>`).join('') : '<tr class="it"><td colspan="9">Loading items…</td></tr>') : ''); }).join('') +
+      `<tr class="tot"><td class="l2">Total (${docs.length} shown)</td><td class="hide-s"></td><td></td><td class="hide-s"></td><td class="hide-s"></td><td class="hide-s"></td><td></td><td class="hide-s">${sq.toLocaleString('en-IN')}</td><td>${fL(sv)}</td></tr></tbody></table>`;
+  }
+  $('ppB').innerHTML = h;
+  const qi = $('ppQ'); if (qi) { qi.oninput = () => { P.q = qi.value; const pos = qi.selectionStart; ppRender(); const n = $('ppQ'); n.focus(); n.setSelectionRange(pos, pos); }; }
+}
+$('ppX').onclick = closePend;
+$('pp').addEventListener('click', async e => {
+  if (e.target === $('pp')) return closePend();
+  const P = S.pp; if (!P) return;
+  const tb = e.target.closest('[data-t]'); if (tb) { P.tab = tb.dataset.t; return ppRender(); }
+  const cl = e.target.closest('[data-clr]'); if (cl) { P[cl.dataset.clr] = null; $('ppB').innerHTML = '<div class="empty">Loading…</div>'; return ppList(); }
+  const fr = e.target.closest('tr[data-f]'); if (fr) { P.rg = P.bk = P.sr = null; P[fr.dataset.f] = fr.dataset.v; P.tab = 'docs'; $('ppB').innerHTML = '<div class="empty">Loading…</div>'; return ppList(); }
+  const or = e.target.closest('tr[data-oa]'); if (or) { const oa = or.dataset.oa; P.open[oa] = !P.open[oa]; ppRender();
+    if (P.open[oa] && !P.items[oa]) { try { P.items[oa] = await rpc('rt_pend_doc', { p_oa:oa }); } catch (err) { P.items[oa] = [['', 'Could not load: ' + (err.message || err), '', '', null, 0, 0]]; } if (S.pp === P) ppRender(); } }
+});
+$('ppCsv').onclick = () => {
+  const P = S.pp; if (!P) return; const B = P.base, L = P.list || B, cell = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  let rows;
+  if (P.tab === 'bsk') rows = [['Basket', 'OAs', 'Qty', 'Value Rs L'], ...(B.bsk || [])];
+  else if (P.tab === 'ser') rows = [['Series', 'Basket', 'Qty', 'Value Rs L'], ...(B.ser || [])];
+  else if (P.tab === 'reg') rows = [['Region', 'OAs', 'Qty', 'Value Rs L', 'From last FY orders Rs L'], ...(B.reg || [])];
+  else rows = [['OA no', 'OA date', 'Customer', 'Region', 'Top basket', 'Top series', 'Series count', 'Delivery date', 'Items', 'Bal qty', 'Value Rs L'], ...(L.docs || [])];
+  const blob = new Blob(['﻿' + rows.map(r => r.map(cell).join(',')).join('\n')], { type:'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `pending-to-bill-${P.tab}.csv`; a.click();
+};
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.pp) closePend(); });
 
 function renderLeague(){
   const R = allRegions();
@@ -522,7 +714,9 @@ function openRegion(r, keep){
       <div class="k"><div class="l">${x.gap != null && x.gap < 0 ? 'Ahead by' : 'Gap'}</div><div class="v">${x.gap == null ? '—' : fL(Math.abs(x.gap))}</div><div class="s">${x.short > 0 ? '' : ''}₹ L</div></div>
       <div class="k"><div class="l">vs last year</div><div class="v">${grTxt(x.a, x.l)}</div><div class="s">LY ${fL(x.l)} L</div></div>
       <div class="k" style="background:var(--won-bg)"><div class="l">Potentials won</div><div class="v wonv">${fL(x.won.v)}</div><div class="s">${x.won.v == null ? 'not shown for OEM' : x.won.n + ' deals · period'}</div></div>
-      <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.v == null ? 'not shown for OEM' : x.wonFy.n + ' deals'}</div></div></div>
+      <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.v == null ? 'not shown for OEM' : x.wonFy.n + ' deals'}</div></div>
+      ${(() => { const pr = S.pend && S.cy === curFy() ? (S.pend.reg || []).find(a => a[0] === r) : null;
+        return S.pend && S.cy === curFy() ? `<div class="k pendd" data-pendr="${esc(r)}"><div class="l">Pending to bill</div><div class="v">${fL(pr ? +pr[3] : 0)}</div><div class="s">₹ L · ${pr ? pr[1] + ' OAs' : 'no open orders'}${pr && +pr[4] ? ' · ' + fL(+pr[4]) + ' last FY' : ''} · tap for OAs</div></div>` : ''; })()}</div>
     ${NO_WON.includes(r) ? '' : `<div class="card" id="noaCard"><div id="noaHost">${noaHtml(r)}</div></div>`}
     <div class="card"><div class="card-h"><div><h2>Product basket break-up</h2><div class="sub">Share of the region's ${S.doc === 'OB' ? 'order booking' : 'invoicing'} in the period · click a basket for its product series</div></div></div>
       ${list.length ? `<div class="split">${donut(list, tot)}<div class="tbl"><table class="bk"><thead><tr><th>Product basket</th><th>Value ₹ L</th><th>% contribution</th><th>LY same period</th><th>Growth</th></tr></thead><tbody>` +
@@ -602,6 +796,7 @@ function closeDrawer(){ S.open = null; S.openBk = null; $('ov').classList.remove
 $('dX').onclick = closeDrawer; $('ov').onclick = closeDrawer;
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 $('dBody').addEventListener('click', e => {
+  const pk = e.target.closest('[data-pendr]'); if (pk) { openPend({ rg:pk.dataset.pendr }); return; }
   if (e.target.closest('[data-unl]')) { S.showUnl = !S.showUnl; const h = $('noaHost'); if (h && S.open) h.innerHTML = noaHtml(S.open); return; }
   const tr = e.target.closest('tr[data-b]'); if (!tr) return;
   const b = tr.dataset.b; S.openBk = S.openBk === b ? null : b; S.scrollSer = !!S.openBk; openRegion(S.open, true);
@@ -610,7 +805,8 @@ function serKey(r, b){ return [S.cy, S.doc, r, b].join('|'); }
 async function loadSeries(r, b){
   const k = serKey(r, b); if (S.ser[k]) return;
   S.ser[k] = { loading:true };
-  try { const j = await rpc('rt_series', { p_cy:S.cy, p_doc:S.doc, p_rg:r, p_bk:b }); S.ser[k] = { rows:(j.rows || []).map(a => ({ y:a[0], m:a[1], s:a[2], v:+a[3], lv:+a[4] })) }; }
+  try { const js = await Promise.all((FOLD[b] || [b]).map(x => rpc('rt_series', { p_cy:S.cy, p_doc:S.doc, p_rg:r, p_bk:x })));
+        S.ser[k] = { rows:js.flatMap(j => (j.rows || []).map(a => ({ y:a[0], m:a[1], s:a[2], v:+a[3], lv:+a[4] }))) }; }
   catch (e) { S.ser[k] = { err:e.message || String(e) }; }
   if (S.open === r && S.openBk === b) { const h = $('serHost'); if (h) h.innerHTML = serHtml(r, b); }
 }
