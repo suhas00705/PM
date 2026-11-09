@@ -79,6 +79,43 @@
   .chart svg{display:block;width:100%;height:auto}
   .tip{position:fixed;pointer-events:none;background:#0f1f3a;color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:100;display:none;line-height:1.5}
   .gr-up{color:var(--good);font-weight:700} .gr-dn{color:var(--bad);font-weight:700}
+
+  /* ---- Order booked / Billed breakdown pop-up (09-Nov-2026) ---- */
+  a.dd{color:inherit;text-decoration:none;border-bottom:1px dashed #9db3d6;cursor:pointer}
+  a.dd:hover{color:var(--volt);border-bottom-color:var(--volt)}
+  .dd-ov{position:fixed;inset:0;background:rgba(11,41,66,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:12px}
+  .dd-box{background:#fff;border-radius:16px;width:min(1080px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden}
+  .dd-hd{background:linear-gradient(120deg,#0b2942,#0073c8);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .dd-hd h3{margin:0;font-size:18px}.dd-hd .s{font-size:12px;opacity:.85;margin-top:3px}
+  .dd-x{background:rgba(255,255,255,.15);border:0;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;flex:0 0 auto}
+  .dd-bd{overflow:auto;padding:12px 18px 18px}
+  .dd-kp{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+  .dd-k{border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+  .dd-k .l{font-size:10.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase}
+  .dd-k .v{font-size:19px;font-weight:800;margin-top:2px}.dd-k .n{font-size:11.5px;color:var(--t3)}
+  .dd-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .dd-cap{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.06em;margin:4px 0 6px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .dd-tb{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .dd-tb table th{position:sticky;top:0;z-index:2}
+  .dd-tb td.l,.dd-tb th.l{text-align:left}
+  .dd-tb tr.sel td{background:#e8f1ff}
+  .dd-tb tr.ck{cursor:pointer}.dd-tb tr.ck:hover td{background:#f3f7fd}
+  .dd-bar{display:inline-block;height:7px;border-radius:4px;background:var(--volt);opacity:.75;margin-left:8px;vertical-align:middle}
+  .dd-docs{max-height:420px}
+  .dd-docs tr.it td{background:#f7faff;color:var(--t2);font-size:12.5px}
+  .dd-docs tr.it td:first-child{padding-left:28px}
+  .dd-docs a.doc{color:var(--volt);font-weight:700;text-decoration:none;cursor:pointer}
+  .dd-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 8px}
+  .dd-tools input{font:inherit;padding:6px 10px;border:1px solid #cfd6e3;border-radius:8px;width:260px;max-width:100%}
+  .dd-flt{font-size:12px;background:#e8f1ff;color:var(--volt);border-radius:20px;padding:3px 10px;font-weight:700}
+  .dd-flt button{border:0;background:none;color:var(--volt);font-weight:800;cursor:pointer;padding:0 0 0 4px}
+  .dd-load{padding:30px;text-align:center;color:var(--t3)}
+  @media (max-width:760px){
+    .dd-ov{padding:0}.dd-box{max-height:100vh;height:100vh;border-radius:0}
+    .dd-kp{grid-template-columns:1fr 1fr}.dd-two{grid-template-columns:1fr}
+    .dd-hd h3{font-size:16px}.dd-tools input{width:100%}
+  }
+
 </style>
 </head>
 <body>
@@ -265,8 +302,6 @@ async function load(resetMonths, quiet){
       $('fySel').value = S.fy;
     }
     if (resetMonths) S.months = ytdMonths();
-    // 30-Oct-2026: opened from a target alert (pm-tracking.html?m=cur) → current month only, on the first load
-    if (resetMonths && !S.__mCurDone && new URLSearchParams(location.search).get('m') === 'cur') { S.__mCurDone = true; S.months = [MONTHS[latestMonthIdx()]]; }
     const ls = S.data.last_sync, md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
     $('syncInfo').innerHTML = `OB data till <b>${md(S.data.max_date_ob)}</b> · Invoices till <b>${md(S.data.max_date_inv)}</b>` +
       (ls ? `<br>Last Zoho sync <b>${new Date(ls.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</b>${ls.status === 'error' ? ' (failed)' : ''}` : '');
@@ -335,11 +370,12 @@ function render(){
   const sum = (list, k) => list.reduce((a,p) => p[k] == null ? a : a + p[k], 0);
   const core = prods.filter(p => p.group === 'core'), oem = prods.filter(p => p.group === 'oem');
   const totRow = (label, list, cls) => { const t = {}; ['fyT','obT','invT','ob','inv','obC','invC','obShort','invShort'].forEach(k => t[k] = sum(list, k));
-    return { html:`<tr class="tot ${cls||''}"><td>${label}</td><td></td><td>${f2(t.fyT)}</td><td>${f2(t.obT)}</td><td>${f2(t.ob)}</td><td>${chip(t.obC, t.obT, t.ob, t.obShort)}</td><td>${f2(t.invT)}</td><td>${f2(t.inv)}</td><td>${chip(t.invC, t.invT, t.inv, t.invShort)}</td></tr>`, t }; };
+    const key = cls === 'grand' ? '__all' : '__core';
+    return { html:`<tr class="tot ${cls||''}"><td>${label}</td><td></td><td>${f2(t.fyT)}</td><td>${f2(t.obT)}</td><td>${ddLink(t.ob, 'OB', key)}</td><td>${chip(t.obC, t.obT, t.ob, t.obShort)}</td><td>${f2(t.invT)}</td><td>${ddLink(t.inv, 'INV', key)}</td><td>${chip(t.invC, t.invT, t.inv, t.invShort)}</td></tr>`, t }; };
   const rowHtml = p => {
     const open = S.open.has(p.name);
     let h = `<tr class="prod" data-p="${esc(p.name)}"><td><span class="caret">${open ? '▾' : '▸'}</span>${esc(p.name)}</td><td class="pm">${esc(p.pm)}</td>
-      <td>${f2(p.fyT)}</td><td>${f2(p.obT)}</td><td>${f2(p.ob)}</td><td>${chip(p.obC, p.obT, p.ob, p.obShort)}</td><td>${f2(p.invT)}</td><td>${f2(p.inv)}</td><td>${chip(p.invC, p.invT, p.inv, p.invShort)}</td></tr>`;
+      <td>${f2(p.fyT)}</td><td>${f2(p.obT)}</td><td>${ddLink(p.ob, 'OB', p.name)}</td><td>${chip(p.obC, p.obT, p.ob, p.obShort)}</td><td>${f2(p.invT)}</td><td>${ddLink(p.inv, 'INV', p.name)}</td><td>${chip(p.invC, p.invT, p.inv, p.invShort)}</td></tr>`;
     if (open) h += `<tr class="det"><td colspan="9"><b>${esc(p.name)}</b> counts product basket${p.baskets.length > 1 ? 's' : ''}: ${p.baskets.map(esc).join(', ')}${p.exclGovt ? ' · <b>excludes Govt Projects (account type “Govt Projects” or region “GOVT PROJECTS”)</b>' : ''}
       <table class="mini"><thead><tr><th>Basket</th><th>Order booked</th><th>Billed</th>${p.exclGovt ? '<th>Govt OB (excluded)</th><th>Govt billed (excluded)</th>' : ''}</tr></thead><tbody>
       ${p.parts.map(x => `<tr><td>${esc(x.b)}</td><td>${f2(L(x.ob))}</td><td>${f2(L(x.inv))}</td>${p.exclGovt ? `<td>${f2(L(x.gob))}</td><td>${f2(L(x.ginv))}</td>` : ''}</tr>`).join('') || '<tr><td colspan="5">No sales in these months</td></tr>'}</tbody></table>
@@ -359,6 +395,7 @@ function render(){
       <th>${per} INV target</th><th>Billed</th><th>Billing % achieved</th></tr></thead>
     <tbody>${core.map(rowHtml).join('')}${T1.html}${oem.map(rowHtml).join('')}${T2.html}</tbody></table>`;
   $('mainTable').querySelectorAll('tr.prod').forEach(tr => tr.onclick = () => { const k = tr.dataset.p; S.open.has(k) ? S.open.delete(k) : S.open.add(k); render(); });
+  $('mainTable').querySelectorAll('a.dd').forEach(a => a.onclick = e => { e.preventDefault(); e.stopPropagation(); openDrill(a.dataset.k, a.dataset.d); });
 
   const md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : '—';
   const hasTargets = PRODUCTS.some(p => p.target[S.fy] != null);
@@ -524,6 +561,112 @@ function renderGrowth(){
 /* ================= Product series growth: this year vs last year (value + qty) ================= */
 const SG = { doc:'OB', metric:'v', months:null, regions:[], products:[...GROWTH_PRODUCTS], series:[], data:null, fy:null, all:false, draw:{} };
 const fq = v => Math.round(v).toLocaleString('en-IN');
+/* ---------- Order booked / Billed breakdown pop-up (09-Nov-2026) ----------
+   Click a product's (or a TOTAL's) Order booked / Billed value → regions, product series and OA (invoice) details
+   with qty and value, for the selected months. Same rules as the table (OEM accounts, Govt rule). Data: pm_drill. */
+const DD = { key:null, doc:'OB', rg:null, sr:null, data:null, q:'', open:new Set(), items:{} };
+function ddLink(v, d, k){ return v == null ? '—' : `<a class="dd" href="#" data-k="${esc(k)}" data-d="${d}" title="Click for the breakdown by region, product series and ${d === 'OB' ? 'OA' : 'invoice'}">${f2(v)}</a>`; }
+function ddItems(k){
+  const list = k === '__all' ? PRODUCTS : k === '__core' ? PRODUCTS.filter(p => p.group === 'core') : PRODUCTS.filter(p => p.name === k);
+  return list.map(p => ({ b:p.baskets, xg:!!p.exclGovt }));
+}
+function ddTitle(){ return DD.key === '__all' ? 'All products (grand total)' : DD.key === '__core' ? 'All products except OEM (total)' : DD.key; }
+async function openDrill(k, d){
+  Object.assign(DD, { key:k, doc:d, rg:null, sr:null, data:null, q:'', open:new Set(), items:{} });
+  let ov = $('ddOv');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'ddOv'; ov.className = 'dd-ov dk-skip'; document.body.appendChild(ov);
+    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); ddDocs(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ddOv')?.style.display !== 'none') ddClose(); }); }
+  ov.style.display = 'flex';
+  ov.innerHTML = `<div class="dd-box"><div class="dd-hd"><div><h3>${esc(ddTitle())} · ${d === 'OB' ? 'Order booked' : 'Billed'} · ${esc(periodLabel())}</h3>
+    <div class="s">${fyLabel(S.fy)} · baskets: ${esc([...new Set(ddItems(k).flatMap(x => x.b))].join(', '))}${ddItems(k).some(x => x.xg) ? ' · Govt Projects left out for Prepaid/Smart' : ''} · click a region or series to filter the list</div></div>
+    <button class="dd-x" data-a="close" title="Close">✕</button></div><div class="dd-bd" id="ddBd"><div class="dd-load">Loading breakdown…</div></div></div>`;
+  await ddLoad();
+}
+function ddClose(){ const ov = $('ddOv'); if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; } }
+async function ddLoad(){
+  try {
+    DD.data = await rpc('pm_drill', { p_fy:S.fy, p_doc:DD.doc, p_months:S.months, p_items:ddItems(DD.key), p_rg:DD.rg, p_sr:DD.sr });
+    ddRender();
+  } catch (e) {
+    $('ddBd').innerHTML = `<div class="dd-load">Could not load the breakdown — ${esc(e.message)}${/pm_drill|PGRST202|404/.test(e.message) ? '<br>Run <b>supabase\\pm_drill.sql</b> in Supabase once.' : ''}</div>`;
+  }
+}
+function ddRender(){
+  const D = DD.data, t = D.tot || {}, isOB = DD.doc === 'OB', W = isOB ? 'OA' : 'Invoice', Ws = isOB ? 'OAs' : 'invoices';
+  const tot = +t.v || 0, sh = v => tot ? v / tot * 100 : 0, mx = (l, i) => Math.max(1, ...l.map(x => +x[i] || 0));
+  const reg = D.reg || [], ser = D.ser || [], mr = mx(reg, 3), ms = mx(ser, 2);
+  const nf = v => (+v || 0).toLocaleString('en-IN');
+  $('ddBd').innerHTML = `
+    <div class="dd-kp">
+      <div class="dd-k"><div class="l">Value</div><div class="v">₹${f2(tot)} L</div><div class="n">${isOB ? 'order booked' : 'billed'} · ${esc(periodLabel())}</div></div>
+      <div class="dd-k"><div class="l">Quantity</div><div class="v">${nf(t.q)} pcs</div><div class="n">across ${nf(t.series)} series</div></div>
+      <div class="dd-k"><div class="l">${Ws}</div><div class="v">${nf(t.docs)}</div><div class="n">avg ₹${t.docs ? f2(tot / t.docs) : '—'} L per ${W}</div></div>
+      <div class="dd-k"><div class="l">Customers</div><div class="v">${nf(t.cust)}</div><div class="n">in ${nf(t.regions)} regions</div></div>
+    </div>
+    <div class="dd-two">
+      <div><div class="dd-cap"><span>BY REGION</span><button class="btn" data-a="csv" data-w="reg">⬇ CSV</button></div><div class="dd-tb"><table>
+        <thead><tr><th class="l">Region</th><th>${Ws}</th><th>Qty</th><th>Value ₹ L</th><th class="l">Share</th></tr></thead><tbody>
+        ${reg.map(r => `<tr class="ck${DD.rg === r[0] ? ' sel' : ''}" data-rg="${esc(r[0])}"><td class="l">${esc(r[0])}</td><td>${nf(r[1])}</td><td>${nf(r[2])}</td><td>${f2(+r[3])}</td><td class="l">${sh(+r[3]).toFixed(1)}%<span class="dd-bar" style="width:${Math.max(2, +r[3] / mr * 70)}px"></span></td></tr>`).join('') || '<tr><td colspan="5">No data</td></tr>'}
+        <tr class="tot"><td class="l">Total</td><td>${nf(t.docs)}</td><td>${nf(t.q)}</td><td>${f2(tot)}</td><td class="l">100%</td></tr></tbody></table></div></div>
+      <div><div class="dd-cap"><span>BY PRODUCT SERIES</span><button class="btn" data-a="csv" data-w="ser">⬇ CSV</button></div><div class="dd-tb"><table>
+        <thead><tr><th class="l">Product series</th><th>Qty</th><th>Value ₹ L</th><th class="l">Share</th></tr></thead><tbody>
+        ${ser.map(r => `<tr class="ck${DD.sr === r[0] ? ' sel' : ''}" data-sr="${esc(r[0])}"><td class="l">${esc(r[0])}</td><td>${nf(r[1])}</td><td>${f2(+r[2])}</td><td class="l">${sh(+r[2]).toFixed(1)}%<span class="dd-bar" style="width:${Math.max(2, +r[2] / ms * 70)}px"></span></td></tr>`).join('') || '<tr><td colspan="4">No data</td></tr>'}
+        <tr class="tot"><td class="l">Total</td><td>${nf(t.q)}</td><td>${f2(tot)}</td><td class="l">100%</td></tr></tbody></table></div></div>
+    </div>
+    <div class="dd-tools"><b style="font-size:12px;color:var(--t3);letter-spacing:.06em">${W.toUpperCase()} DETAILS</b>
+      ${DD.rg ? `<span class="dd-flt">Region: ${esc(DD.rg)}<button data-a="unrg" title="Remove">×</button></span>` : ''}
+      ${DD.sr ? `<span class="dd-flt">Series: ${esc(DD.sr)}<button data-a="unsr" title="Remove">×</button></span>` : ''}
+      <input id="ddQ" placeholder="Search ${W} no., customer, region, series…" value="${esc(DD.q)}">
+      <span style="flex:1"></span><button class="btn" data-a="csv" data-w="docs">⬇ CSV</button></div>
+    <div class="dd-tb dd-docs" id="ddDocs"></div>`;
+  ddDocs();
+}
+function ddDocs(){
+  const D = DD.data; if (!D || !$('ddDocs')) return;
+  const isOB = DD.doc === 'OB', W = isOB ? 'OA' : 'Invoice', q = DD.q;
+  const nf = v => (+v || 0).toLocaleString('en-IN');
+  const md = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) : '—';
+  const list = (D.docs || []).filter(r => !q || [r[0], r[2], r[3], r[4]].some(x => String(x || '').toLowerCase().includes(q)));
+  const sv = list.reduce((a, r) => a + (+r[7] || 0), 0), sq = list.reduce((a, r) => a + (+r[6] || 0), 0);
+  const more = (D.docs_n || 0) > (D.docs || []).length ? `<tr><td colspan="7" style="text-align:center;color:var(--t3)">Showing the biggest ${(D.docs || []).length} of ${nf(D.docs_n)} ${isOB ? 'OAs' : 'invoices'} — filter by region / series or search to narrow down</td></tr>` : '';
+  $('ddDocs').innerHTML = `<table><thead><tr><th class="l">${W} no.</th><th class="l">Date</th><th class="l">Customer</th><th class="l">Region</th><th class="l">Series</th><th>Qty</th><th>Value ₹ L</th></tr></thead><tbody>` +
+    list.map(r => { const o = DD.open.has(r[0]), it = DD.items[r[0]];
+      return `<tr><td class="l"><a class="doc" data-doc="${esc(r[0])}">${o ? '▾' : '▸'} ${esc(r[0])}</a></td><td class="l">${md(r[1])}</td><td class="l">${esc(r[2])}</td><td class="l">${esc(r[3])}</td><td class="l">${esc(r[4])}${r[5] > 1 ? ` <span style="color:var(--t3)">+${r[5] - 1}</span>` : ''}</td><td>${nf(r[6])}</td><td>${f2(+r[7])}</td></tr>` +
+        (o ? (it === 'loading' ? '<tr class="it"><td colspan="7">Loading items…</td></tr>' : Array.isArray(it) ? it.map(x => `<tr class="it"><td class="l">${esc(x[1] || x[0])}</td><td></td><td class="l" style="color:var(--t3)">${esc(x[0])}</td><td></td><td class="l">${esc(x[2])}</td><td>${nf(x[3])}</td><td>${f2(+x[4])}</td></tr>`).join('') : `<tr class="it"><td colspan="7">${esc(String(it))}</td></tr>`) : ''); }).join('') +
+    (list.length ? '' : `<tr><td colspan="7" style="text-align:center;color:var(--t3)">No ${isOB ? 'OAs' : 'invoices'} match</td></tr>`) + more +
+    `<tr class="tot"><td class="l">Total</td><td></td><td class="l">${nf(new Set(list.map(r => r[2])).size)} customers</td><td></td><td></td><td>${nf(sq)}</td><td>${f2(sv)}</td></tr></tbody></table>`;
+}
+async function ddClick(e){
+  const a = e.target.closest('[data-a]'), ov = $('ddOv');
+  if (e.target === ov) return ddClose();
+  if (a) {
+    if (a.dataset.a === 'close') return ddClose();
+    if (a.dataset.a === 'unrg') { DD.rg = null; return ddLoad(); }
+    if (a.dataset.a === 'unsr') { DD.sr = null; return ddLoad(); }
+    if (a.dataset.a === 'csv') return ddCsv(a.dataset.w);
+  }
+  const rg = e.target.closest('tr[data-rg]'); if (rg) { DD.rg = DD.rg === rg.dataset.rg ? null : rg.dataset.rg; DD.open.clear(); return ddLoad(); }
+  const sr = e.target.closest('tr[data-sr]'); if (sr) { DD.sr = DD.sr === sr.dataset.sr ? null : sr.dataset.sr; DD.open.clear(); return ddLoad(); }
+  const doc = e.target.closest('a.doc');
+  if (doc) { const n = doc.dataset.doc;
+    if (DD.open.has(n)) { DD.open.delete(n); return ddDocs(); }
+    DD.open.add(n);
+    if (!DD.items[n] || DD.items[n] === 'error') { DD.items[n] = 'loading'; ddDocs();
+      try { DD.items[n] = await rpc('pm_drill_doc', { p_fy:S.fy, p_doc:DD.doc, p_months:S.months, p_items:ddItems(DD.key), p_doc_num:n }); }
+      catch (err) { DD.items[n] = 'Could not load items — ' + err.message; } }
+    ddDocs(); }
+}
+function ddCsv(w){
+  const D = DD.data; if (!D) return;
+  const isOB = DD.doc === 'OB', rows = w === 'reg' ? [['Region', isOB ? 'OAs' : 'Invoices', 'Qty', 'Value Rs L'], ...(D.reg || [])]
+    : w === 'ser' ? [['Product series', 'Qty', 'Value Rs L'], ...(D.ser || [])]
+    : [[isOB ? 'OA no.' : 'Invoice no.', 'Date', 'Customer', 'Region', 'Main series', 'Series count', 'Qty', 'Value Rs L'], ...(D.docs || [])];
+  const csv = rows.map(r => r.map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  a.download = `${ddTitle().replace(/[^A-Za-z0-9]+/g, '_')}_${isOB ? 'OB' : 'Billed'}_${w}.csv`; a.click();
+}
+
 async function loadSeries(force){
   if (!force && SG.fy === S.fy && SG.data) return renderSeries();
   try {
@@ -536,7 +679,7 @@ async function loadSeries(force){
     const rkey = r => String(r).trim().replace(/\s*-\s*/g, '-').replace(/\s+/g, ' ').toUpperCase();
     const tot = {}; SG.data.rows.forEach(r => { const k = rkey(r.r); (tot[k] = tot[k] || {})[r.r] = (tot[k][r.r] || 0) + Math.abs(Number(r.v) || 0); });
     const canon = {}; Object.entries(tot).forEach(([k, vs]) => canon[k] = Object.entries(vs).sort((a,b) => b[1] - a[1])[0][0]);
-    SG.data.rows.forEach(r => { r.r = canon[rkey(r.r)]; r.p = BASKET_TO_PRODUCT[r.b]?.name; });
+    SG.data.rows.forEach(r => { r.r = canon[rkey(r.r)]; r.p = BASKET_TO_PRODUCT[r.b]?.name; if (r.s === 'MTS' || r.s === 'MCS') r.s = 'MTS/MCS'; });   // MTS + MCS = one series (user, 09-Nov-2026)
     const regions = [...new Set(SG.data.rows.map(r => r.r))].sort((a,b) => a.localeCompare(b));
     const seriesItems = () => { const ps = new Set(SG.products);
       return [...new Set(SG.data.rows.filter(r => !ps.size || ps.has(r.p)).map(r => r.s))].sort((a,b) => a.localeCompare(b)).map(x => ({value:x, label:x})); };
