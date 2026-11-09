@@ -32,7 +32,7 @@
     'frame-cpanalytics': { open: 2, tables: {
         basketTable: { keep: [0, 2, 3, 7, 8] }, regionTable: { keep: [0, 2, 3, 5, 6], rows: 15 }, partnerTable: { keep: [0, 1, 3, 4, 8], rows: 15 } } },
     'frame-pathtarget': { open: 2, order: ['secHead', 'secReg', 'secProd', 'secPath', 'secPipe', 'secDem', 'secAcc', 'secPro', 'secMx', 'secCh'], tables: {
-        monthTbl: { keep: [0, 3, 4, 5] }, prodTbl: { keep: [0, 1, 5, 7] }, regTbl: { keep: [0, 1, 5, 7], rows: 15 },
+        monthTbl: { keep: [0, 3, 4, 5] }, prodTbl: { keep: [0, 3, 4, 6] }, regTbl: { keep: [0, 3, 4, 6], rows: 15 },   // name, actual YTD, % of plan, still to get (Status column removed 09-Nov)
         mxTbl: { keep: [0, 11, 13], rows: 15 }, chTbl: { keep: [0, 1, 3, 4] }, proTbl: { keep: [0, 1, 2, 3, 10], rows: 15 },
         proMon: { rows: 15 }, demBody: { keep: [0, 1, 2, 5, 7], rows: 15 }, pipeTbl: { keep: [0, 2, 4, 5], rows: 15 },
         accTbl: { cards: true, title: 1, keep: [1, 2, 4, 5, 7, 8], rows: 12 } } },

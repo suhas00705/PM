@@ -96,7 +96,7 @@ window.eiSplash = function () {
   var twa = /^android-app:\/\//.test(document.referrer || '');
   if (!standalone && !stored && !twa) return;
 
-  var V = '13', APP = 'Elmeasure Insights', VERSION = '1.9';
+  var V = '14', APP = 'Elmeasure Insights', VERSION = '1.9';
   document.documentElement.classList.add('pm-app');
   var css = document.createElement('link');
   css.rel = 'stylesheet'; css.href = '/mobile-app.css?v=' + V;
