@@ -203,6 +203,11 @@ function ensureFrameLoaded(key){
   const iframe = document.getElementById('frame-' + key);
   if (!iframe || iframe.tagName !== 'IFRAME') return;
   __loadedFrames.add(key);
+  // 09-Nov-2026: every tab gets /table-scroll.js – tables scroll inside their own box with a frozen header row
+  iframe.addEventListener('load', () => { try {
+    const d = iframe.contentDocument; if (!d || d.getElementById('tbl-scroll-js')) return;
+    const s = d.createElement('script'); s.id = 'tbl-scroll-js'; s.src = '/table-scroll.js?v=1'; (d.body || d.head).appendChild(s);
+  } catch (e) { /* not same-site: leave it */ } });
   if (PAYLOADS[key]) iframe.srcdoc = b64ToUtf8(PAYLOADS[key]);
   else if (iframe.dataset.src) iframe.src = iframe.dataset.src;
 }
