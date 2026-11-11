@@ -60,7 +60,7 @@
 
   <div id="secPortal">
     <div class="bar" style="justify-content:space-between">
-      <div><h1>💻 Portal users – Google sign-in</h1><div class="sub">Everyone who uses the desktop portal signs in with their @elmeasure.com Google account. New people wait here as <b>Pending</b> until you approve them.</div></div>
+      <div><h1>💻 Portal users – Google sign-in</h1><div class="sub">Everyone who uses the desktop portal signs in with their @elmeasure.com or @elmeasure.in Google account. New people wait here as <b>Pending</b> until you approve them.</div></div>
       <div class="bar" id="pBtns" style="display:none"><button class="pri" id="pAdd">＋ Add user</button><button id="pRefresh">⟳ Refresh</button><button id="pCsv">⬇ CSV</button></div>
     </div>
     <div class="card" id="pMsg" style="display:none;text-align:center;color:var(--mut)"></div>
@@ -79,7 +79,7 @@
 
   <div class="modal" id="pModal"><div class="mbox">
     <h3 id="mTitle"></h3><div class="small" id="mSub"></div>
-    <div id="mEmailWrap"><div class="lbl">EMAIL</div><input id="mEmail" placeholder="name@elmeasure.com" style="width:100%"></div>
+    <div id="mEmailWrap"><div class="lbl">EMAIL</div><input id="mEmail" placeholder="name@elmeasure.com or name@elmeasure.in" style="width:100%"></div>
     <div class="lbl">TABS THIS PERSON CAN SEE <span><button type="button" data-all="t1">All</button> <button type="button" data-all="t0">None</button></span></div>
     <div class="grid" id="mTabs"></div>
     <div class="lbl">REGIONS <span style="font-weight:400;letter-spacing:0">&nbsp;(none ticked = all regions)</span><span><button type="button" data-all="r1">All</button> <button type="button" data-all="r0">None</button></span></div>
@@ -328,7 +328,7 @@ $('mSave').onclick = async () => {
     } catch (e) { $('mErr').textContent = e.message; } finally { $('mSave').disabled = false; }
     return;
   }
-  if (!/^[^\s@]+@elmeasure\.com$/.test(email)) return $('mErr').textContent = 'Enter a valid @elmeasure.com email.';
+  if (!/^[^\s@]+@elmeasure\.(com|in)$/.test(email)) return $('mErr').textContent = 'Enter a valid @elmeasure.com or @elmeasure.in email.';
   if (!tabs.length) return $('mErr').textContent = 'Tick at least one tab.';
   $('mSave').disabled = true;
   try {

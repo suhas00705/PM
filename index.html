@@ -160,7 +160,7 @@ setTimeout(function(){h.classList.remove('ei-boot');},6000);}catch(e){}})();</sc
       <div id="loginWait" class="login-wait"><span class="login-spin"></span><span id="loginWaitTxt">Checking sign-in…</span>
         <div><button id="loginRetry" class="login-link" style="display:none">⟳ Try again</button></div></div>
       <div id="gBtnWrap" style="display:none"><div id="gBtn" class="g-btn"></div>
-        <div class="login-note">Only @elmeasure.com accounts. First time? Your request goes to the admin for approval.</div></div>
+        <div class="login-note">Only @elmeasure.com or @elmeasure.in accounts. First time? Your request goes to the admin for approval.</div></div>
       <div id="loginPending" style="display:none">
         <div class="login-pend-ic">⏳</div>
         <div id="loginPendingMsg" class="login-pend"></div>
@@ -259,7 +259,7 @@ const initial = params.get('tab');
 
 // ============================================================
 //  PM PORTAL — GOOGLE SIGN-IN (desktop browser only, 26-Oct-2026)
-//  Everyone signs in with their @elmeasure.com Google account. New people are "pending" until the admin
+//  Everyone signs in with their @elmeasure.com or @elmeasure.in Google account (11-Nov-2026: .in added). New people are "pending" until the admin
 //  approves them in Control → Portal users. The sign-in is checked on the server (/api/user-permissions)
 //  and kept for 7 days. The mobile app (html.pm-app) is NOT affected – it keeps its SMS OTP login.
 // ============================================================
@@ -336,7 +336,7 @@ async function renderGoogleButton() {
   try {
     await loadGsi();
     if (!__gsiReady) {
-      google.accounts.id.initialize({ client_id: PM_GOOGLE_CLIENT, callback: onGoogleCredential, auto_select: false, cancel_on_tap_outside: true, hd: 'elmeasure.com' });
+      google.accounts.id.initialize({ client_id: PM_GOOGLE_CLIENT, callback: onGoogleCredential, auto_select: false, cancel_on_tap_outside: true });
       __gsiReady = true;
     }
     const box = document.getElementById('gBtn'); box.innerHTML = '';
