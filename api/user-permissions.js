@@ -14,7 +14,13 @@ const ADMIN_EMAIL = 'suhas.s@elmeasure.com';
 const CLIENT_ID   = '907018546073-cgdqmgd5ubs2o0aig3ioqh28qb2r5rhc.apps.googleusercontent.com';
 // 11-Nov-2026 (user): @elmeasure.com and @elmeasure.in accounts may sign in
 const DOMAINS     = ['@elmeasure.com', '@elmeasure.in'];
-const okDomain    = e => DOMAINS.some(d => String(e || '').endsWith(d)) && /^[^\s@]+@elmeasure\.(com|in)$/.test(String(e || ''));
+// Outside accounts allowed one by one (user, 11-Nov-2026). More can be added without a code change in
+// Vercel → Environment Variables → EXTRA_ALLOWED_EMAILS (comma-separated). They still need the admin's approval.
+const EXTRA_EMAILS = ['gvignesh247@gmail.com'];
+const extraEmails = () => [...EXTRA_EMAILS, ...String(process.env.EXTRA_ALLOWED_EMAILS || '').split(',')]
+  .map(x => x.trim().toLowerCase()).filter(Boolean);
+const okDomain    = e => (DOMAINS.some(d => String(e || '').endsWith(d)) && /^[^\s@]+@elmeasure\.(com|in)$/.test(String(e || '')))
+                         || extraEmails().includes(String(e || '').trim().toLowerCase());
 const TABS        = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs','createleads'];
 const ADMIN_TABS  = [...TABS.slice(0, 9), 'control', 'createleads'];
 const enc = encodeURIComponent;
@@ -54,7 +60,7 @@ module.exports = async (req, res) => {
   try {
     if (b.action === 'login') {
       const g = await verifyGoogle(b.credential);
-      if (!okDomain(g.email)) return res.status(403).json({ error: 'Only @elmeasure.com or @elmeasure.in Google accounts can sign in.' });
+      if (!okDomain(g.email)) return res.status(403).json({ error: 'Only @elmeasure.com or @elmeasure.in Google accounts (or accounts the admin has allowed) can sign in.' });
       let u = await getUser(g.email);
       const now = new Date().toISOString();
       if (!u) {
@@ -91,7 +97,7 @@ module.exports = async (req, res) => {
     }
 
     const email = String(b.email || '').trim().toLowerCase();
-    if (!okDomain(email)) return res.status(400).json({ error: 'Enter a valid @elmeasure.com or @elmeasure.in email.' });
+    if (!okDomain(email)) return res.status(400).json({ error: 'Enter a valid @elmeasure.com or @elmeasure.in email (other emails must be in the allowed list).' });
     if (email === ADMIN_EMAIL) return res.status(400).json({ error: 'The admin account always has full access.' });
 
     if (b.action === 'save') {

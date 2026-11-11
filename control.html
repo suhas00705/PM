@@ -328,7 +328,7 @@ $('mSave').onclick = async () => {
     } catch (e) { $('mErr').textContent = e.message; } finally { $('mSave').disabled = false; }
     return;
   }
-  if (!/^[^\s@]+@elmeasure\.(com|in)$/.test(email)) return $('mErr').textContent = 'Enter a valid @elmeasure.com or @elmeasure.in email.';
+  if (!/^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(email)) return $('mErr').textContent = 'Enter a valid email.';   // the server decides which emails are allowed
   if (!tabs.length) return $('mErr').textContent = 'Tick at least one tab.';
   $('mSave').disabled = true;
   try {
