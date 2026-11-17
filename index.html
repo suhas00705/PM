@@ -12,7 +12,7 @@ setTimeout(function(){h.classList.remove('ei-boot');},6000);}catch(e){}})();</sc
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#103a52">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
-<script src="/mobile-app.js?v=6" defer></script>
+<script src="/mobile-app.js?v=7" defer></script>
 <title>Product Management Portal — Elmeasure</title>
 <style>
   :root{
@@ -113,6 +113,7 @@ setTimeout(function(){h.classList.remove('ei-boot');},6000);}catch(e){}})();</sc
           <button class="tab-btn" data-target="potentials">📈 Potentials</button>
           <button class="tab-btn" data-target="cpanalytics">🤝 Channel Partner Analytics</button>
           <button class="tab-btn" data-target="pmtracking">🎯 PM Cumulative Tracking</button>
+          <button class="tab-btn" data-target="products">📦 Products</button>
           <button class="tab-btn" data-target="oemtracking">🏭 OEM Tracking</button>
           <button class="tab-btn" data-target="salestracking">💹 Sales Tracking</button>
           <button class="tab-btn" data-target="pathtarget">🏁 Path to Target</button>
@@ -136,6 +137,7 @@ setTimeout(function(){h.classList.remove('ei-boot');},6000);}catch(e){}})();</sc
     <iframe id="frame-potentials" title="Potentials Dashboard"></iframe>
     <iframe id="frame-cpanalytics" title="Channel Partner Analytics" data-src="/cp-analytics.html"></iframe>
     <iframe id="frame-pmtracking" title="PM Cumulative Tracking" data-src="/pm-tracking.html"></iframe>
+    <iframe id="frame-products" title="Products" data-src="/products.html"></iframe>
     <iframe id="frame-oemtracking" title="OEM Tracking" data-src="/oem-tracking.html"></iframe>
     <iframe id="frame-salestracking" title="Sales Tracking" data-src="/sales-tracking.html"></iframe>
     <iframe id="frame-pathtarget" title="Path to Target" data-src="/path-to-target.html"></iframe>
@@ -414,7 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
     email: 'portal@elmeasure.com',
     name: 'Elmeasure',
     picture: '',
-    allowedTabs:    ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs','control','createleads'],
+    allowedTabs:    ['leads','potentials','cpanalytics','pmtracking','products','oemtracking','salestracking','pathtarget','regiontrack','lvs','control','createleads'],
     allowedRegions: []
   };
   document.cookie = 'pm_regions=;path=/;SameSite=Lax;max-age=86400';

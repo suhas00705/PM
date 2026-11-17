@@ -26,6 +26,11 @@
     'frame-potentials': { open: 9, tables: { potentialsTable: { cards: true, title: 1, keep: [0, 1, 2, 3, 5, 6], rows: 15 } } },
     'frame-pmtracking': { open: 2, tables: {
         mainTable: { keep: [0, 4, 5, 8] }, sTable: { keep: [0, 2, 3, 4], rows: 15 }, gTable2: { rows: 15 } } },
+    'frame-products': { open: 3, tables: {
+        cumTable: { keep: [0, 4, 5, 8] }, cumQ: { keep: [0, 2, 3, 5, 6] }, obT: { keep: [0, 2, 3, 4] }, invT: { keep: [0, 2, 3, 4] },
+        serTable: { keep: [0, 2, 4, 6], rows: 15 }, regTable: { keep: [0, 3, 4], rows: 15 }, grTable: { keep: [0, 1, 2, 3] },
+        pipeMon: { keep: [0, 2, 3] }, leadTbl: { keep: [0, 1, 2] }, ovTable: { keep: [0, 1, 2, 3, 4] },
+        visTable: { cards: true, title: 0, keep: [0, 1, 4, 5, 6, 7], rows: 15 } } },
     'frame-oemtracking': { open: 2, tables: { gTable: { keep: [0, 1, 2, 3], rows: 15 }, cTable: { keep: [0, 3, 4, 5], rows: 15 } } },
     'frame-salestracking': { open: 2, tables: {
         rTable: { keep: [0, 1, 3, 5], rows: 15 }, eTable: { keep: [0, 2, 4, 6], rows: 15 }, fpTable: { keep: [0, 6, 7], rows: 15 } } },

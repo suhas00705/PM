@@ -17,7 +17,7 @@ const { sb, sha, cleanMobile, cleanName, body, sendSms, crypto } = require('../l
 const { sign, ADMIN_EMAIL } = require('../lib/portalSession');
 // 26-Oct-2026: tab / region access per app user (set in Control → App users). Empty tabs = all app tabs, empty regions = all.
 const ADMIN_MOBILE = '6366908219';                       // app admin: always approved, all tabs + Control
-const APP_TABS = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs'];
+const APP_TABS = ['leads','potentials','cpanalytics','pmtracking','products','oemtracking','salestracking','pathtarget','regiontrack','lvs'];
 const list = v => Array.isArray(v) ? v : [];
 function perms(u, mobile) {
   if (mobile === ADMIN_MOBILE) return { is_admin: true, allowed_tabs: [...APP_TABS, 'control'], allowed_regions: [], portal_token: sign(ADMIN_EMAIL) };

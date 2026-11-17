@@ -21,8 +21,8 @@ const extraEmails = () => [...EXTRA_EMAILS, ...String(process.env.EXTRA_ALLOWED_
   .map(x => x.trim().toLowerCase()).filter(Boolean);
 const okDomain    = e => (DOMAINS.some(d => String(e || '').endsWith(d)) && /^[^\s@]+@elmeasure\.(com|in)$/.test(String(e || '')))
                          || extraEmails().includes(String(e || '').trim().toLowerCase());
-const TABS        = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs','createleads'];
-const ADMIN_TABS  = [...TABS.slice(0, 9), 'control', 'createleads'];
+const TABS        = ['leads','potentials','cpanalytics','pmtracking','products','oemtracking','salestracking','pathtarget','regiontrack','lvs','createleads'];
+const ADMIN_TABS  = [...TABS.filter(t => t !== 'createleads'), 'control', 'createleads'];   // 17-Nov-2026: + products
 const enc = encodeURIComponent;
 
 async function verifyGoogle(credential) {

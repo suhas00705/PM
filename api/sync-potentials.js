@@ -1,5 +1,7 @@
 const zohoAuth = require('../lib/zohoAuth');
 const supabasePotentials = require('../lib/supabasePotentials');
+// 17-Nov-2026: product lines of each potential (Zoho sub-table "Products - Information") for the Products tab.
+const { sb } = require('../lib/appAuth');
 
 const POTENTIALS_FIELDS = [
   'Deal_Name', 'Account_Name', 'Owner', 'Stage', 'Amount',
@@ -38,12 +40,62 @@ function nextSecond(ts) {
   return t.toISOString().substring(0, 19) + '+05:30';
 }
 
+// ─── ?mode=lines (17-Nov-2026, Products tab) ────────────────────────────────────────────────────────
+// Copies the "Products - Information" sub-table of every potential (basket, series, model, qty, amount per
+// product) into Supabase pot_lines, so a deal that names 2 baskets shows each basket's own value.
+// It walks all lines by id, 2,000 per Zoho call, for ~40 s per run, and remembers where it stopped
+// (pot_lines_state). When a full pass ends, lines not seen in that pass (deleted in Zoho) are removed.
+// Called from /api/cron-2h every slot, so a full pass finishes every few hours. Writes need SUPABASE_SERVICE_KEY.
+async function syncLines(accessToken, req) {
+  const deadline = Date.now() + 40000;
+  const st = (await sb('pot_lines_state?id=eq.1&select=*'))[0] || {};
+  let cursor = req.query?.restart === '1' ? null : st.cursor_id || null;
+  let sweepStart = cursor && st.sweep_start ? st.sweep_start : new Date().toISOString();
+  const runAt = new Date().toISOString();
+  let fetched = 0, saved = 0, done = false, removed = 0;
+  while (Date.now() < deadline) {
+    const where = cursor ? `id > ${cursor}` : 'id is not null';
+    const q = `select id, Parent_Id, Product_Basket1, Product_Basket, Product_Series, Product_Name, Model_Name, Quantity, Amount, Modified_Time from Products_Information1 where ${where} order by id asc limit 2000`;
+    const { data, more } = await coql(accessToken, q);
+    fetched += data.length;
+    const rows = data
+      .filter(r => r.Parent_Id && r.Parent_Id.id && (r.Amount != null || r.Product_Basket1 || r.Product_Basket))
+      .map(r => ({
+        id: String(r.id), deal_id: String(r.Parent_Id.id),
+        basket: r.Product_Basket1 || r.Product_Basket || null,
+        series: r.Product_Series || r.Product_Name || null,
+        model: r.Model_Name || null,
+        qty: r.Quantity ?? null, amount: r.Amount ?? null,
+        modified: r.Modified_Time || null, seen_at: runAt
+      }));
+    for (let i = 0; i < rows.length; i += 1000) {
+      await sb('pot_lines', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+                              body: JSON.stringify(rows.slice(i, i + 1000)) });
+    }
+    saved += rows.length;
+    if (data.length) cursor = String(data[data.length - 1].id);
+    if (!more || data.length < 2000) { done = true; break; }
+  }
+  if (done) {
+    // lines not seen since this pass started were deleted in Zoho
+    const del = await sb(`pot_lines?seen_at=lt.${encodeURIComponent(sweepStart)}&select=id`,
+                         { method: 'DELETE', headers: { Prefer: 'return=representation' } });
+    removed = Array.isArray(del) ? del.length : 0;   // only ids come back, and only for deleted lines
+  }
+  await sb('pot_lines_state?id=eq.1', { method: 'PATCH', headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ cursor_id: done ? null : cursor, sweep_start: done ? null : sweepStart,
+                           last_run: runAt, ...(done ? { last_done: runAt } : {}),
+                           note: `fetched ${fetched}, saved ${saved}${done ? `, pass done, removed ${removed}` : ''}` }) });
+  return { ok: true, mode: 'lines', fetched, saved, done, removed, hasMore: !done };
+}
+
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   try {
     const ZOHO_API_DOMAIN = process.env.ZOHO_API_DOMAIN || 'https://www.zohoapis.com';
     const accessToken = await zohoAuth.getZohoAccessToken();
     const authHeader = { Authorization: `Zoho-oauthtoken ${accessToken}` };
+    if (req.query?.mode === 'lines') return res.status(200).json(await syncLines(accessToken, req));
 
     // ─── MODE SELECTION ───────────────────────────────────────────────────────
     // ?mode=full   → Full FY scan sorted by Created_Time ASC (no time cutoff).

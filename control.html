@@ -118,7 +118,7 @@
 </div>
 <script>
 const $ = id => document.getElementById(id);
-let PIN = '', USERS = [], APP_TABS = ['leads','potentials','cpanalytics','pmtracking','oemtracking','salestracking','pathtarget','regiontrack','lvs'], APP_ADMIN = '6366908219';
+let PIN = '', USERS = [], APP_TABS = ['leads','potentials','cpanalytics','pmtracking','products','oemtracking','salestracking','pathtarget','regiontrack','lvs'], APP_ADMIN = '6366908219';
 try { PIN = sessionStorage.getItem('ctlPin') || ''; } catch (e) {}
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function appTabsCell(u) {
@@ -212,7 +212,7 @@ function showSec(k) {
 $('seg2').addEventListener('click', e => { const b = e.target.closest('button'); if (b) showSec(b.dataset.s); });
 
 // ── Portal users (Google sign-in) ──
-const TAB_NAMES = {leads:'📊 Leads', potentials:'📈 Potentials', cpanalytics:'🤝 CP Analytics', pmtracking:'🎯 PM Cumulative Tracking', oemtracking:'🏭 OEM Tracking',
+const TAB_NAMES = {leads:'📊 Leads', potentials:'📈 Potentials', cpanalytics:'🤝 CP Analytics', pmtracking:'🎯 PM Cumulative Tracking', products:'📦 Products', oemtracking:'🏭 OEM Tracking',
   salestracking:'💹 Sales Tracking', pathtarget:'🏁 Path to Target', regiontrack:'📍 Region Tracking', lvs:'🔌 LVS', createleads:'➕ Create Lead'};
 const DEFAULT_TABS = ['leads', 'potentials'];
 let PU = [], PTABS = Object.keys(TAB_NAMES), REGIONS = null, editing = null;

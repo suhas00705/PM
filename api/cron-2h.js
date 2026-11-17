@@ -21,6 +21,8 @@
 // 09-Nov-2026 (user): "Pending to bill" is copied ONCE a day at 9 pm IST and stays frozen till the next 9 pm.
 // Zoho clears its Pending Orders list from ~3:30 pm and rebuilds it ~7:20–8:30 pm, so only the 21:00 slot copies it
 // (the 23:00 slot is a catch-up: it copies only if 21:00 found no finished new build – otherwise "no new Zoho build").
+// 17-Nov-2026: every slot also continues the copy of potential product lines (/api/sync-potentials?mode=lines,
+// ~40 s per run) used by the Products tab; a full pass over all lines finishes every few hours.
 
 const crypto = require('crypto');
 const OB_INV_FROM = 7, OB_INV_TO = 21;          // IST hours (inclusive) when orders / invoices are synced
@@ -50,7 +52,7 @@ async function call(base, path) {
     // keep the reply short: counts and errors only
     if (body && typeof body === 'object') {
       const keep = {};
-      ['ok', 'fetched', 'upserted', 'deleted', 'skipped', 'saved', 'count', 'hasMore', 'resumeWith', 'error', 'saveError', 'events', 'new', 'alerts', 'phones', 'sent', 'note', 'total', 'totalLakhs', 'zohoBuild'].forEach(k => { if (body[k] !== undefined) keep[k] = body[k]; });
+      ['ok', 'fetched', 'upserted', 'deleted', 'skipped', 'saved', 'count', 'hasMore', 'resumeWith', 'error', 'saveError', 'events', 'new', 'alerts', 'phones', 'sent', 'note', 'total', 'totalLakhs', 'zohoBuild', 'done', 'removed'].forEach(k => { if (body[k] !== undefined) keep[k] = body[k]; });
       body = keep;
     }
     return { path, status: r.status, ms: Date.now() - started, body };
@@ -67,7 +69,7 @@ module.exports = async (req, res) => {
   const base = PROD;
   const started = new Date().toISOString();
   const byCron = /vercel-cron/i.test(req.headers['user-agent'] || '');
-  const jobs = ['/api/lvs-stock?save=1'];
+  const jobs = ['/api/lvs-stock?save=1', '/api/sync-potentials?mode=lines'];
   if (h === 21 || h === 23) jobs.push('/api/sync-invoice?mode=pending');   // pending to bill: once a day, frozen till next 9 pm
   const obInv = q.obinv === '1' || (q.obinv !== '0' && h >= OB_INV_FROM && h <= OB_INV_TO);
   if (obInv) {

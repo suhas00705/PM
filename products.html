@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Products</title>
+<!-- Products tab (17-Nov-2026). Product families with the same targets and rules as PM Cumulative Tracking
+     (quarter split 20/25/25/30 %, shortfall carried to the next month, Prepaid/Smart without Govt Projects,
+     OEM accounts moved to OEM). Data: prd_cube (OB + invoices), rt_pend (pending to bill, frozen daily at 9 pm),
+     prd_pipe (potentials, valued from their product lines), prd_leads (leads by week) – supabase/products.sql. -->
+<style>
+  :root{
+    --navy:#0B2942; --head:#1a5f9e; --volt:#0073C8; --bg:#eef2f8; --panel:#fff; --line:#e3e7ef;
+    --t1:#16264d; --t2:#3b5384; --t3:#7a8fb8; --pm:#8a7a9c;
+    --good:#0f7a36; --good-bg:#e3f4e8; --warn:#9a5b00; --warn-bg:#fff1d9; --bad:#b42323; --bad-bg:#fde8e8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--t1);font-family:'Calibri','Carlito','Segoe UI',sans-serif;font-size:14px}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px 16px 40px}
+  .bar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;justify-content:space-between;margin-bottom:12px}
+  .ctrls{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+  .f{display:flex;flex-direction:column;gap:3px;position:relative}
+  .f label{font-size:10.5px;font-weight:700;letter-spacing:.06em;color:var(--t3);text-transform:uppercase}
+  select{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 10px;font:inherit;color:var(--t1);cursor:pointer}
+  input[type=search],input[type=date]{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:6px 10px;font:inherit;color:var(--t1)}
+  .sync{font-size:12px;color:var(--t3);text-align:right;line-height:1.5}
+  .sync b{color:var(--t2)}
+  .btn{font:inherit;font-size:12.5px;border:1px solid var(--volt);color:var(--volt);background:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-bottom:14px}
+  .card-h{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  h2{font-size:15px;margin:0}
+  .sub{font-size:12px;color:var(--t3)}
+  .err{background:var(--bad-bg);color:var(--bad);border-radius:10px;padding:12px 14px;margin-bottom:12px;display:none}
+  .loading{position:fixed;inset:0;background:rgba(238,242,248,.6);display:none;align-items:center;justify-content:center;z-index:150;font-weight:700;color:var(--t2)}
+  .loading.on{display:flex}
+
+  /* product chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+  .chips button{font:inherit;font-weight:700;font-size:13.5px;border:1px solid #cfd6e3;background:#fff;color:var(--t2);border-radius:22px;padding:8px 16px;cursor:pointer}
+  .chips button:hover{border-color:var(--volt);color:var(--volt)}
+  .chips button.on{background:var(--volt);border-color:var(--volt);color:#fff;box-shadow:0 3px 10px rgba(0,115,200,.25)}
+  .chips .sep{width:1px;background:#cfd6e3;margin:4px 2px}
+
+  /* F: hero strip */
+  .hero{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--navy);border-radius:14px;overflow:hidden;margin-bottom:14px}
+  .hero>div{padding:14px 16px;border-right:1px solid rgba(255,255,255,.12);color:#fff;min-width:0}
+  .hero>div:last-child{border-right:0}
+  .hero .l{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9fc0e6}
+  .hero .v{font-size:24px;font-weight:800;margin-top:4px;white-space:nowrap}
+  .hero .v small{font-size:12px;color:#9fc0e6;font-weight:700}
+  .hero .s{font-size:12px;color:#c9d8ee;margin-top:3px}
+  .hero .up{color:#6fe39b}.hero .dn{color:#ff9a9a}
+  @media(max-width:1000px){.hero{grid-template-columns:repeat(3,minmax(0,1fr))}.hero>div{border-bottom:1px solid rgba(255,255,255,.12)}}
+  @media(max-width:560px){.hero{grid-template-columns:repeat(2,minmax(0,1fr))}.hero .v{font-size:20px}}
+
+  /* B / D: tiles with bars */
+  .tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
+  @media(max-width:1000px){.tiles{grid-template-columns:minmax(0,1fr)}}
+  .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .tile .l{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t2)}
+  .tile .v{font-size:24px;font-weight:800;color:var(--navy);margin-top:4px}
+  .tile .v small{font-size:13px;color:var(--t3);font-weight:700}
+  .tile .s{font-size:12.5px;color:var(--t2);margin-top:6px;line-height:1.45}
+  .pbar{position:relative;height:12px;background:#e6ecf5;border-radius:8px;margin:22px 0 6px}
+  .pbar i{position:absolute;left:0;top:0;bottom:0;border-radius:8px;max-width:100%}
+  .pbar em{position:absolute;top:-5px;bottom:-5px;width:3px;background:var(--navy);border-radius:2px;margin-left:-1px}
+  .pbar em:after{content:attr(data-l);position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:10.5px;font-style:normal;color:var(--navy);font-weight:700;white-space:nowrap}
+  .pbar em.r:after{left:auto;right:0;transform:none}
+  .pbar em.lft:after{left:0;transform:none}
+  .chip{display:inline-block;text-align:center;font-weight:700;font-size:11.5px;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .c-good{color:var(--good);background:var(--good-bg)} .c-warn{color:var(--warn);background:var(--warn-bg)} .c-bad{color:var(--bad);background:var(--bad-bg)} .c-na{color:var(--t3);background:#eceff4}
+  .secttl{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--t3);text-transform:uppercase;margin:4px 2px 8px}
+
+  /* tables */
+  .tbl{overflow:auto}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th{background:var(--head);color:#fff;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:700;text-align:right;padding:9px 12px;white-space:nowrap}
+  th.l,td.l{text-align:left}
+  td{padding:8px 12px;border-bottom:1px solid #edf0f5;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  td.pm{color:var(--pm);font-size:12px}
+  tr.q td{background:#f3f7fd;font-weight:700;color:var(--navy)}
+  tr.tot td{color:var(--volt);font-weight:700;background:#f7faff;border-top:2px solid #cfe0f5}
+  tr.fut td{color:#a9b6cf}
+  tr.ck{cursor:pointer} tr.ck:hover td{background:#f7f9fd}
+  tr.sub td{background:#fafbfd;color:var(--t2);font-size:12.5px}
+  tr.sub td:first-child{padding-left:30px}
+  .caret{display:inline-block;width:14px;color:var(--t3);font-size:11px}
+  .hb{display:inline-block;height:7px;border-radius:4px;background:var(--volt);opacity:.7;margin-left:8px;vertical-align:middle}
+  .h-good{background:#d9f0e0!important;color:var(--good)!important;font-weight:700}
+  .h-ok{background:#eaf6d9!important;color:#4d7a0a!important;font-weight:700}
+  .h-warn{background:#fff1d9!important;color:var(--warn)!important;font-weight:700}
+  .h-bad{background:#fde8e8!important;color:var(--bad)!important;font-weight:700}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--t3);margin-top:8px;align-items:center}
+  .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
+  @media(max-width:1000px){.two{grid-template-columns:minmax(0,1fr)}}
+  .toggle{display:inline-flex;background:#dfe6f1;border-radius:10px;padding:3px}
+  .toggle button{border:0;background:transparent;padding:6px 14px;border-radius:8px;font:inherit;font-weight:700;color:var(--t2);cursor:pointer}
+  .toggle button.on{background:#fff;color:var(--volt);box-shadow:0 1px 4px rgba(11,41,66,.15)}
+  .fl{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:12px}
+  .kp{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+  @media(max-width:760px){.kp{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .k{border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+  .k .l{font-size:10.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase}
+  .k .v{font-size:19px;font-weight:800;margin-top:2px}.k .n{font-size:11.5px;color:var(--t3)}
+  .chart svg{display:block;width:100%;height:auto}
+  .tip{position:fixed;pointer-events:none;background:#0f1f3a;color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:100;display:none;line-height:1.5}
+  .gr-up{color:var(--good);font-weight:700} .gr-dn{color:var(--bad);font-weight:700}
+  .est{color:var(--warn);font-weight:700;cursor:help}
+  .st-Open{color:var(--volt);font-weight:700}.st-Won{color:var(--good);font-weight:700}.st-Lost{color:var(--bad);font-weight:700}
+  .acct{font-weight:700;color:var(--t1)} .acct small{display:block;font-weight:400;color:var(--t3);font-size:11.5px}
+  td.wrapc{white-space:normal;min-width:200px;text-align:left}
+  .more{text-align:center;margin-top:8px}
+  .note{font-size:12px;color:var(--t2);line-height:1.55;margin-top:10px}
+  /* overview bars */
+  .ob-row{display:grid;grid-template-columns:130px minmax(0,1fr) 70px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #f0f3f8}
+  .ob-row .n{font-weight:700}
+  .ob-row .p{font-weight:800;text-align:right}
+  .ob-row .pbar{margin:8px 0}
+  @media(max-width:560px){.ob-row{grid-template-columns:90px minmax(0,1fr) 54px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <div class="ctrls">
+      <div class="f"><label>Financial year</label><select id="fySel"></select></div>
+      <button class="btn" id="refreshBtn" title="Fetch the latest synced data">⟳ Refresh</button>
+    </div>
+    <div class="sync" id="syncInfo"></div>
+  </div>
+  <div class="err" id="errBox"></div>
+  <div class="chips" id="chips"></div>
+  <div id="view"></div>
+</div>
+<div class="loading" id="loading">Loading…</div>
+<div class="tip" id="tip"></div>
+
+<script>
+/* ================= CONFIG — same as PM Cumulative Tracking ================= */
+const SUPA = 'https://xfdfbrfudsaxqgpsdboa.supabase.co/rest/v1';
+const KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmZGZicmZ1ZHNheHFncHNkYm9hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3OTA1MzgsImV4cCI6MjA5NzM2NjUzOH0.sfUC5Mn_d7-FGkvQHyD01kdGM81TjG4VWzXoFv43n94';
+// target = FY target in Rs Lakhs (null = no target). Keep in step with pm-tracking.html PRODUCTS.
+const FAMS = [
+  { name:'Panel Meters',  pm:'Manikanda S', target:{2026:8960},  core:true },
+  { name:'ACCL',          pm:'Gurubaran N', target:{2026:2680},  core:true },
+  { name:'ATES',          pm:'Gurubaran N', target:{2026:9550},  core:true },
+  { name:'Prepaid/Smart', pm:'Suhas G',     target:{2026:5150},  core:true, note:'Govt Projects orders are left out (same rule as PM Cumulative) and shown separately.' },
+  { name:'LVS',           pm:'Nirmal B',    target:{2026:7610},  core:true },
+  { name:'FDP',           pm:'Nirmal B',    target:{2026:3000},  core:true },
+  { name:'OEM',           pm:'Krishna KN',  target:{2026:10000}, core:false },
+  { name:'Other',         pm:'—',           target:{},           core:false, note:'All other product baskets (Software, EV charger, Power conditioner, Others …). No target.' }
+];
+const GOVT = 'Prepaid/Smart – Govt';
+const QUARTER_SHARE = { 1:0.20, 2:0.25, 3:0.25, 4:0.30 };
+// GM -> regions (same as Region Tracking)
+const GMS = [
+  { gm:'Nitin Agarwal', regions:['Hyderabad', 'Vijayawada', 'Vizag', 'East India'] },
+  { gm:'Anwar',         regions:['Delhi NCR', 'MP', 'Eastern UP', 'Punjab', 'Rajasthan'] },
+  { gm:'Joseph',        regions:['Chennai', 'Coimbatore', 'Madurai & Salem', 'North Kerala', 'South Kerala'] },
+  { gm:'Vaibhav',       regions:['Mumbai', 'Pune', 'Goa'] },
+  { gm:'Vivek',         regions:['Gujarat', 'Nagpur & CG'] },
+  { gm:'Vinod Kumar',   regions:['Karnataka'] },
+  { gm:'Dileep A K',    regions:['Data Centre'] },
+  { gm:'Sam J',         regions:['Export'] }
+];
+const NOGM = 'Other business (no GM)';
+/* ========================================================================== */
+
+const MONTHS = [4,5,6,7,8,9,10,11,12,1,2,3];
+const MNAME = {1:'Jan',2:'Feb',3:'Mar',4:'Apr',5:'May',6:'Jun',7:'Jul',8:'Aug',9:'Sep',10:'Oct',11:'Nov',12:'Dec'};
+const QOF = m => m >= 4 && m <= 6 ? 1 : m >= 7 && m <= 9 ? 2 : m >= 10 ? 3 : 4;
+const QM = {1:[4,5,6], 2:[7,8,9], 3:[10,11,12], 4:[1,2,3]};
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const f2 = v => v == null || !isFinite(v) ? '—' : (+v).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
+const f0 = v => v == null || !isFinite(v) ? '—' : Math.round(+v).toLocaleString('en-IN');
+const f1 = v => v == null || !isFinite(v) ? '—' : (+v).toLocaleString('en-IN', {minimumFractionDigits:1, maximumFractionDigits:1});
+const pc = (a, b) => b ? a / b * 100 : null;
+const fp = v => v == null || !isFinite(v) ? '—' : v.toFixed(1) + '%';
+const fyLabel = f => `FY ${f}-${String(f + 1).slice(2)}`;
+const gmOf = r => { const g = GMS.find(x => x.regions.includes(r)); return g ? g.gm : NOGM; };
+const famOf = n => FAMS.find(f => f.name === n);
+const tgtOf = (fam, fy) => (famOf(fam)?.target || {})[fy] ?? null;
+
+const S = { fy:null, view:'cum', cube:null, rows:[], pend:null, pipe:null, list:{}, leads:null, loadedAt:0,
+            ov:{doc:'OB', per:'q'}, ser:{gm:'', rg:'', per:'all', open:null}, reg:{doc:'OB', per:'cur', open:null},
+            vis:{st:'Open', q:'', n:40, from:'', to:''}, gr:{doc:'OB'} };
+
+async function rpc(fn, body){
+  const r = await fetch(`${SUPA}/rpc/${fn}`, { method:'POST', headers:{ apikey:KEY, Authorization:'Bearer '+KEY, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  if (!r.ok) throw new Error(`${fn}: ${r.status} ${(await r.text()).slice(0,200)}`);
+  return r.json();
+}
+function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').textContent = e ? 'Could not load data — ' + e : ''; }
+const tip = $('tip');
+function showTip(e, h){ tip.innerHTML = h; tip.style.display = 'block';
+  const x = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8), y = Math.min(e.clientY + 14, innerHeight - tip.offsetHeight - 8);
+  tip.style.left = x + 'px'; tip.style.top = y + 'px'; }
+function hideTip(){ tip.style.display = 'none'; }
+
+/* ---------------- product family of a basket (same as prd_fam in SQL) ---------------- */
+function famOfBasket(b, gov){
+  b = String(b || '').trim().replace(/\s+/g, ' ');
+  if (['Panel Meters','High End MFM','Nano VIP','Power Quality'].includes(b)) return 'Panel Meters';
+  if (b === 'ACCL') return 'ACCL';
+  if (b === 'Transfer Switch') return 'ATES';
+  if (['Prepaid & Smart Meters','Prepaid','Smart Meters'].includes(b)) return gov ? GOVT : 'Prepaid/Smart';
+  if (b === 'SWITCHGEAR') return 'LVS';
+  if (b === 'FDP') return 'FDP';
+  if (b === 'OEM') return 'OEM';
+  return 'Other';
+}
+// Product / Solution type -> family (same groups as the Potentials and Leads tabs)
+const PTYPE_FAM = {
+  'Panel Meters': ['Basic Meters','Multi-Function Meters','Dual Source Meter','PQ Analyzer','Power Analyzer','Transducers','Transducers / Isolators',"CT's",
+    'Demand Controller','Demand Monitors and Controllers','Load Manager','iPFC','EL-Tag','GMD','GD','EDC','iELR','iPFC / iELR','BM/PDU','NanoVIP','Nano VIP'],
+  'ATES': ['ATeS','ATeS - Solenoid','MTS'],
+  'ACCL': ['ACCL'],
+  'LVS': ['LV SwitchGear','Breaker Status Management System','EL-Guard'],
+  'Prepaid/Smart': ['Prepaid Meter','Prepaid Meters','Postpaid Meter','Prepaid Metering Solution','Smart Meter']
+};
+const P2F = {}; Object.entries(PTYPE_FAM).forEach(([f, l]) => l.forEach(t => P2F[t] = f));
+const pfam = t => P2F[String(t || '').trim()] || 'Other';
+
+/* ---------------- time helpers ---------------- */
+function curMonth(){ const md = S.cube?.max_date; if (!md) return MONTHS[MONTHS.length - 1]; return new Date(md).getMonth() + 1; }
+function curIdx(){ return MONTHS.indexOf(curMonth()); }
+const pastMonths = () => MONTHS.slice(0, curIdx() + 1);
+function planShareTo(m){ // share of the FY target planned up to the end of month m
+  let s = 0; for (const x of MONTHS) { s += QUARTER_SHARE[QOF(x)] / 3; if (x === m) break; } return s; }
+function monthDays(){ // day of the latest month and days in it (calendar)
+  const md = S.cube?.max_date ? new Date(S.cube.max_date) : new Date();
+  const y = md.getFullYear(), m = md.getMonth();
+  const dim = new Date(y, m + 1, 0).getDate();
+  const now = new Date(); const sameMonth = now.getFullYear() === y && now.getMonth() === m;
+  return { day: sameMonth ? now.getDate() : dim, dim };
+}
+
+/* ---------------- data ---------------- */
+async function loadCube(){
+  const c = await rpc('prd_cube', { p_cy:S.fy });
+  const D = c.dict || {};
+  S.cube = c;
+  S.rows = (c.rows || []).map(a => ({ d:a[0] ? 'INV' : 'OB', y:a[1], m:a[2], f:D.f[a[3]], r:D.r[a[4]], s:D.s[a[5]], v:+a[6], q:+a[7], lv:+a[8] }));
+  // fast lookups: family|doc|year -> month -> value
+  const M = {}; S.rows.forEach(x => { const k = x.f + '|' + x.d + '|' + x.y; const o = (M[k] = M[k] || {});
+    o[x.m] = (o[x.m] || 0) + x.v; const kl = k + '|lv'; const ol = (M[kl] = M[kl] || {}); ol[x.m] = (ol[x.m] || 0) + x.lv; });
+  S.M = M;
+  if (!$('fySel').options.length) { $('fySel').innerHTML = (c.fys || []).map(f => `<option value="${f}">${fyLabel(f)}</option>`).join(''); $('fySel').value = S.fy; }
+  const ls = c.last_sync, md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'numeric'}) : '—';
+  $('syncInfo').innerHTML = `OB data till <b>${md(c.max_date_ob)}</b> · Invoices till <b>${md(c.max_date_inv)}</b>` +
+    (ls ? `<br>Last Zoho sync <b>${new Date(ls.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}</b>${ls.status === 'error' ? ' (failed)' : ''}` : '');
+}
+async function loadPend(){
+  try {
+    const [a, g] = await Promise.all([rpc('rt_pend', {}), rpc('rt_pend', { p_rgs:['Govt Projects'] })]);
+    const by = {};
+    (a.bsk || []).forEach(x => { const f = famOfBasket(x[0], false); by[f] = (by[f] || 0) + +x[3]; });
+    (g.bsk || []).forEach(x => { if (famOfBasket(x[0], false) === 'Prepaid/Smart') { by['Prepaid/Smart'] -= +x[3]; by[GOVT] = (by[GOVT] || 0) + +x[3]; } });
+    S.pend = { by, tot:+(a.tot || {}).v || 0, at:a.snap && a.snap.at };
+  } catch (e) { S.pend = { err:e.message || String(e), by:{} }; }
+}
+async function loadPipe(fam){
+  try {
+    if (!S.pipe || S.pipe.cy !== S.fy) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:null }); S.pipe = { cy:S.fy, sum:p.sum || [], lines:p.lines_synced, asof:p.asof }; S.list = {}; }
+    if (fam && !S.list[fam]) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:fam }); S.list[fam] = p.list || []; }
+  } catch (e) { S.pipe = { cy:S.fy, err:e.message || String(e), sum:[] }; }
+}
+async function loadLeads(){
+  try { const l = await rpc('prd_leads', { p_cy:S.fy }); S.leads = { cy:S.fy, rows:l.rows || [] }; }
+  catch (e) { S.leads = { cy:S.fy, err:e.message || String(e), rows:[] }; }
+}
+
+/* ---------------- calculations ---------------- */
+const mv = (fam, doc, y, m, lv) => ((S.M || {})[fam + '|' + doc + '|' + y + (lv ? '|lv' : '')] || {})[m] || 0;
+// Month-by-month plan with the shortfall carried forward (same as PM Cumulative):
+// month target = plan share + net shortfall still pending; extra above target is kept as a balance.
+function runOf(fam, doc){
+  const T = tgtOf(fam, S.fy); let net = 0;
+  return MONTHS.map(m => {
+    const a = mv(fam, doc, 0, m);
+    if (T == null) return { m, plan:null, cin:0, tgt:null, a, cout:0 };
+    const plan = T * QUARTER_SHARE[QOF(m)] / 3, cin = Math.max(0, net), tgt = plan + cin;
+    net = net + plan - a;
+    return { m, plan, cin, tgt, a, cout:Math.max(0, net) };
+  });
+}
+function famStats(fam){
+  const T = tgtOf(fam, S.fy), cm = curMonth(), past = pastMonths();
+  const sum = (doc, y, lv) => MONTHS.reduce((t, m) => t + mv(fam, doc, y, m, lv), 0);
+  const ytd = (doc, y, lv) => past.reduce((t, m) => t + mv(fam, doc, y, m, lv), 0);
+  const ob = sum('OB', 0), inv = sum('INV', 0);
+  const lyOb = ytd('OB', 1, true), lyInv = ytd('INV', 1, true);
+  const share = planShareTo(cm), plan = T == null ? null : T * share;
+  const rOb = runOf(fam, 'OB'), rInv = runOf(fam, 'INV');
+  const ci = curIdx();
+  const pend = S.pend && !S.pend.err ? (S.pend.by[fam] || 0) : null;
+  return { fam, T, ob, inv, lyOb, lyInv, share, plan, rOb, rInv, cur:{ ob:rOb[ci], inv:rInv[ci] },
+           carriedOb: ci > 0 ? rOb[ci - 1].cout : 0, carriedInv: ci > 0 ? rInv[ci - 1].cout : 0, pend };
+}
+function pipeOf(fam){
+  if (!S.pipe || S.pipe.err) return null;
+  const ym = monthKey(curMonth());
+  let open = 0, w = 0, n = 0, openAll = 0, wAll = 0, won = 0;
+  S.pipe.sum.forEach(a => { if (fam && a[0] !== fam) return; if (!fam && a[0] === GOVT) return;
+    if (a[1] === 'Open') { openAll += +a[5]; wAll += +a[6]; if (a[2] === ym) { open += +a[5]; w += +a[6]; n += +a[4]; } }
+    if (a[1] === 'Won') won += +a[5]; });
+  return { open, w, n, openAll, wAll, won };
+}
+function monthKey(m){ const y = m >= 4 ? S.fy : S.fy + 1; return y + '-' + String(m).padStart(2, '0'); }
+function heat(p){ return p == null ? '' : p >= 100 ? 'h-good' : p >= 90 ? 'h-ok' : p >= 75 ? 'h-warn' : 'h-bad'; }
+function chipFor(p){ return p == null ? '<span class="chip c-na">—</span>' : `<span class="chip ${p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad'}">${fp(p)}</span>`; }
+function grTxt(cy, ly){ if (!ly) return cy ? '<span class="gr-up">new</span>' : '—'; const g = (cy - ly) / ly * 100; return `<span class="${g >= 0 ? 'gr-up' : 'gr-dn'}">${g >= 0 ? '▲' : '▼'} ${Math.abs(g).toFixed(1)}%</span>`; }
+function barColor(p, plan){ return p == null ? '#9fb3d1' : p >= plan ? '#16a34a' : p >= plan * 0.85 ? '#e08a00' : '#b42323'; }
+function pbar(pct, planPct, color, label){
+  const w = Math.max(0, Math.min(100, pct || 0)), pl = Math.max(0, Math.min(100, planPct));
+  return `<div class="pbar"><i style="width:${w}%;background:${color}"></i><em class="${pl > 80 ? 'r' : pl < 15 ? 'lft' : ''}" style="left:${pl}%" data-l="${esc(label)}"></em></div>`;
+}
+
+/* ---------------- chips ---------------- */
+function drawChips(){
+  const items = [['cum', '📈 Cumulative'], ...FAMS.map(f => [f.name, f.name]), ['ov', '📊 Overview']];
+  $('chips').innerHTML = items.map(([k, t], i) => (i === items.length - 1 ? '<span class="sep"></span>' : '') +
+    `<button data-k="${esc(k)}" class="${S.view === k ? 'on' : ''}">${esc(t)}</button>` + (i === 0 ? '<span class="sep"></span>' : '')).join('');
+}
+$('chips').onclick = async e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.k;
+  S.ser.open = null; S.reg.open = null; S.vis.n = 40; drawChips(); render();
+  if (famOf(S.view) && (!S.list[S.view])) { await loadPipe(S.view); if (S.view === b.dataset.k) render(); } };
+
+/* ---------------- render ---------------- */
+function render(){
+  if (!S.cube) return;
+  if (S.view === 'cum') return renderCum();
+  if (S.view === 'ov') return renderOv();
+  return renderFam(S.view);
+}
+
+/* ===== Cumulative (all products) ===== */
+function renderCum(){
+  const cm = curMonth(), share = planShareTo(cm), stats = FAMS.map(f => famStats(f.name)), g = famStats(GOVT);
+  const per = `Apr–${MNAME[cm]}`;
+  const tgtRows = stats.filter(s => s.T != null);
+  const tot = list => list.reduce((a, s) => ({ T:a.T + (s.T || 0), plan:a.plan + (s.plan || 0), ob:a.ob + s.ob, inv:a.inv + s.inv,
+    pend:a.pend + (s.pend || 0), lyOb:a.lyOb + s.lyOb }), { T:0, plan:0, ob:0, inv:0, pend:0, lyOb:0 });
+  const core = tot(stats.filter(s => famOf(s.fam).core)), grand = tot(tgtRows), all = tot(stats);
+  const P = pipeOf(null);
+  let h = heroHtml({ ob:all.ob, inv:all.inv, T:grand.T, plan:grand.plan, obT:tot(tgtRows).ob, pend:S.pend && !S.pend.err ? all.pend : null,
+                     pipe:P, lyOb:all.lyOb, share, label:'All products' });
+  const row = (s, cls) => {
+    const tp = s.T != null ? s.plan : null;
+    return `<tr class="${cls || 'ck'}" ${cls ? '' : `data-go="${esc(s.fam)}"`}><td class="l"><b>${esc(s.fam)}</b></td><td class="l pm">${esc(s.pm || '')}</td>
+      <td>${s.T != null ? f2(s.T) : '—'}</td><td>${tp != null ? f2(tp) : '—'}</td>
+      <td>${f2(s.ob)}</td><td>${s.T != null ? chipFor(pc(s.ob, tp)) : '—'}</td>
+      <td>${f2(s.inv)}</td><td>${s.T != null ? chipFor(pc(s.inv, tp)) : '—'}</td>
+      <td>${s.pend != null ? f2(s.pend) : '—'}</td><td>${s.T != null && s.pend != null ? chipFor(pc(s.inv + s.pend, tp)) : '—'}</td>
+      <td>${grTxt(s.ob, s.lyOb)}</td></tr>`; };
+  const rowsH = stats.map(s => row({ ...s, pm:famOf(s.fam).pm })).join('') +
+    row({ fam:'Total (excl. OEM)', pm:'', ...core }, 'tot') + row({ fam:'Grand total (with targets)', pm:'', ...grand }, 'tot') +
+    ((g.ob || g.inv) ? `<tr class="sub"><td class="l" colspan="4">${esc(GOVT)} — left out by rule</td><td>${f2(g.ob)}</td><td></td><td>${f2(g.inv)}</td><td></td><td>${g.pend != null ? f2(g.pend) : '—'}</td><td colspan="2"></td></tr>` : '');
+  h += `<div class="card"><div class="card-h"><div><h2>${per} cumulative performance (₹ L) — product management tracking</h2>
+      <div class="sub">Plan to date = ${(share * 100).toFixed(1)}% of the FY target (quarters 20 / 25 / 25 / 30 %). Click a product to open it.</div></div><div class="sub">${fyLabel(S.fy)}</div></div>
+    <div class="tbl"><table id="cumTable"><thead><tr><th class="l">Product</th><th class="l">PM</th><th>FY target</th><th>Plan to date</th><th>Order booked</th><th>OB % of plan</th><th>Billed</th><th>Billing % of plan</th><th>Pending to bill</th><th>Billed + pending %</th><th>OB vs LY</th></tr></thead>
+    <tbody>${rowsH}</tbody></table></div>
+    <div class="note">Pending to bill = approved orders not yet invoiced (Zoho Pending Orders, copied daily at 9 pm${S.pend?.at ? ', last copy ' + new Date(S.pend.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : ''}). OB vs LY compares the same period last year.</div></div>`;
+  // quarter table + chart
+  const qRows = [1,2,3,4].map(q => { let ot = 0, oa = 0, it = 0, ia = 0;
+    tgtRows.forEach(s => { const T = s.T; QM[q].forEach(m => { ot += T * QUARTER_SHARE[q] / 3; it += T * QUARTER_SHARE[q] / 3;
+      oa += mv(s.fam, 'OB', 0, m); ia += mv(s.fam, 'INV', 0, m); }); });
+    return { q, ot, oa, it, ia }; });
+  h += `<div class="two"><div class="card"><div class="card-h"><h2>Cumulative performance — products with targets, by quarter</h2></div>
+    <div class="tbl"><table id="cumQ"><thead><tr><th class="l">Quarter</th><th>OB target</th><th>OB achieved</th><th>OB %</th><th>Inv target</th><th>Inv achieved</th><th>Inv %</th></tr></thead><tbody>
+    ${qRows.map(r => `<tr><td class="l"><b>Q${r.q}</b></td><td>${f2(r.ot)}</td><td>${f2(r.oa)}</td><td class="${heat(r.oa ? pc(r.oa, r.ot) : null)}">${r.oa ? fp(pc(r.oa, r.ot)) : '—'}</td><td>${f2(r.it)}</td><td>${f2(r.ia)}</td><td class="${heat(r.ia ? pc(r.ia, r.it) : null)}">${r.ia ? fp(pc(r.ia, r.it)) : '—'}</td></tr>`).join('')}
+    ${(() => { const t = qRows.reduce((a, r) => ({ ot:a.ot + r.ot, oa:a.oa + r.oa, it:a.it + r.it, ia:a.ia + r.ia }), {ot:0, oa:0, it:0, ia:0});
+      return `<tr class="tot"><td class="l">FY</td><td>${f2(t.ot)}</td><td>${f2(t.oa)}</td><td>${fp(pc(t.oa, t.ot))}</td><td>${f2(t.it)}</td><td>${f2(t.ia)}</td><td>${fp(pc(t.ia, t.it))}</td></tr>`; })()}
+    </tbody></table></div></div>
+    <div class="card"><div class="card-h"><h2>OB and invoicing by quarter vs target</h2><div class="legend"><span><i class="sw" style="background:#cfdcef"></i>Target</span><span><i class="sw" style="background:#0073C8"></i>OB</span><span><i class="sw" style="background:#16a34a"></i>Invoice</span></div></div>
+    <div class="chart">${groupBars(qRows.map(r => ({ k:'Q' + r.q, vals:[r.ot, r.oa, r.ia] })), ['#cfdcef', '#0073C8', '#16a34a'], ['Target', 'OB', 'Invoice'])}</div></div></div>`;
+  $('view').innerHTML = h;
+  $('cumTable').onclick = e => { const tr = e.target.closest('tr[data-go]'); if (tr) { S.view = tr.dataset.go; drawChips(); render(); loadPipe(S.view).then(() => { if (S.view === tr.dataset.go) render(); }); } };
+  bindTips();
+}
+
+/* hero strip (F) */
+function heroHtml(o){
+  const planPct = o.share * 100, obP = pc(o.obT ?? o.ob, o.T), gap = o.plan != null ? (o.obT ?? o.ob) - o.plan : null;
+  const gr = o.lyOb ? (o.ob - o.lyOb) / o.lyOb * 100 : null;
+  const cov = o.pend != null && o.inv ? o.pend / (o.inv / Math.max(1, curIdx() + 1)) : null;
+  return `<div class="hero">
+    <div><div class="l">Order booking · FY</div><div class="v">${f2(o.ob)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.obT ?? o.ob, o.T)) + ' of ' + f0(o.T) + ' target' : 'no target'}</div></div>
+    <div><div class="l">Invoicing · FY</div><div class="v">${f2(o.inv)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.inv, o.T)) + ' of ' + f0(o.T) : 'no target'}</div></div>
+    <div><div class="l">OB vs plan to date</div><div class="v ${gap == null ? '' : gap >= 0 ? 'up' : 'dn'}">${gap == null ? '—' : (gap >= 0 ? '+' : '−') + f2(Math.abs(gap))}</div><div class="s">${gap == null ? 'no target' : (gap >= 0 ? 'ahead of ' : 'short of ') + planPct.toFixed(1) + '% plan'}</div></div>
+    <div><div class="l">Pending to bill</div><div class="v">${o.pend == null ? '—' : f2(o.pend)}</div><div class="s">${cov != null ? cov.toFixed(1) + ' months of billing' : S.pend?.err ? 'not loaded' : 'daily 9 pm copy'}</div></div>
+    <div><div class="l">Pipeline · ${MNAME[curMonth()]}</div><div class="v">${o.pipe ? f2(o.pipe.open) : '—'}</div><div class="s">${o.pipe ? f2(o.pipe.w) + ' L weighted' : S.pipe?.err ? 'not loaded' : 'loading…'}</div></div>
+    <div><div class="l">OB vs last year</div><div class="v ${gr == null ? '' : gr >= 0 ? 'up' : 'dn'}">${gr == null ? '—' : (gr >= 0 ? '▲ ' : '▼ ') + Math.abs(gr).toFixed(1) + '%'}</div><div class="s">${o.lyOb ? f2(o.lyOb) + ' L same period LY' : 'no LY data'}</div></div>
+  </div>`;
+}
+
+/* ===== One product family ===== */
+function renderFam(fam){
+  const s = famStats(fam), F = famOf(fam), cm = curMonth(), planPct = s.share * 100, P = pipeOf(fam);
+  let h = heroHtml({ ob:s.ob, inv:s.inv, T:s.T, plan:s.plan, pend:s.pend, pipe:P, lyOb:s.lyOb, share:s.share });
+  if (F.note) h += `<div class="note" style="margin:-6px 2px 12px">${esc(F.note)}${fam === 'Prepaid/Smart' ? ' ' + govtLine() : ''}</div>`;
+  // B: pace bars
+  if (s.T != null) {
+    const obP = pc(s.ob, s.T), invP = pc(s.inv, s.T), ipP = s.pend != null ? pc(s.inv + s.pend, s.T) : null;
+    const gapTxt = (a) => { const g = a - s.plan; return `<span class="chip ${g >= 0 ? 'c-good' : 'c-warn'}">${g >= 0 ? 'Ahead' : 'Short'} ₹${f2(Math.abs(g))} L vs plan</span>`; };
+    h += `<div class="secttl">Pace vs plan to date (${planPct.toFixed(1)}% by end of ${MNAME[cm]})</div><div class="tiles">
+      <div class="tile"><div class="l">Order booking vs FY target</div><div class="v">${fp(obP)} <small>${f2(s.ob)} / ${f0(s.T)} L</small></div>
+        ${pbar(obP, planPct, barColor(obP, planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${gapTxt(s.ob)}</div></div>
+      <div class="tile"><div class="l">Invoicing vs FY target</div><div class="v">${fp(invP)} <small>${f2(s.inv)} / ${f0(s.T)} L</small></div>
+        ${pbar(invP, planPct, barColor(invP, planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${gapTxt(s.inv)}</div></div>
+      <div class="tile"><div class="l">Invoicing + pending to bill</div><div class="v">${fp(ipP)} <small>incl. ${s.pend != null ? f2(s.pend) : '—'} L pending</small></div>
+        ${pbar(ipP, planPct, '#0073C8', 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${s.pend != null ? gapTxt(s.inv + s.pend) + ' once pending orders are billed' : 'Pending to bill not loaded'}</div></div>
+    </div>`;
+    // D: run-rate
+    const { day, dim } = monthDays(), left = Math.max(1, dim - day);
+    const rr = (r, lbl) => { const need = Math.max(0, r.tgt - r.a), p = pc(r.a, r.tgt);
+      return `<div class="tile"><div class="l">${MNAME[cm]} · ${lbl}</div><div class="v">${f2(r.a)} <small>/ ${f2(r.tgt)} L</small></div>
+        ${pbar(p, day / dim * 100, barColor(p, day / dim * 100), 'day ' + day + ' of ' + dim)}
+        <div class="s">${need > 0 ? `Need <b>₹${f2(need / left)} L/day</b> for the remaining ${left} day${left > 1 ? 's' : ''} · pace so far ₹${f2(r.a / Math.max(1, day))} L/day` : '<span class="chip c-good">Month target reached</span>'}
+        ${r.cin > 0.005 ? `<br>Target includes ₹${f2(r.cin)} L carried from earlier months` : ''}</div></div>`; };
+    h += `<div class="secttl">This month run-rate (revised target = plan + carried shortfall)</div><div class="tiles">
+      ${rr(s.cur.ob, 'order booking')}${rr(s.cur.inv, 'invoicing')}
+      <div class="tile"><div class="l">Carried shortfall (Apr – ${MNAME[MONTHS[Math.max(0, curIdx() - 1)]]})</div><div class="v">${f2(s.carriedOb)} <small>L OB · ${f2(s.carriedInv)} L inv</small></div>
+        <div class="s">Targets of past months not yet met; they are added to this month's target (same rule as PM Cumulative).${s.pend != null ? `<br>Pending to bill ₹${f2(s.pend)} L can cover ${s.carriedInv + s.cur.inv.tgt - s.cur.inv.a > 0 ? fp(pc(s.pend, s.carriedInv + Math.max(0, s.cur.inv.tgt - s.cur.inv.a))) + ' of the invoicing still due' : 'all invoicing due'}.` : ''}</div></div>
+    </div>`;
+    h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
+  } else {
+    h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
+  }
+  h += seriesCard(fam) + regionCard(fam) + growthCard(fam) + pipeCard(fam) + leadsCard(fam);
+  $('view').innerHTML = h;
+  bindFam(fam); bindTips();
+}
+function govtLine(){ const g = famStats(GOVT); return (g.ob || g.inv) ? `Govt Projects this FY: OB ₹${f2(g.ob)} L · billed ₹${f2(g.inv)} L${g.pend ? ' · pending ₹' + f2(g.pend) + ' L' : ''}.` : ''; }
+
+function monthTable(run, title, id){
+  const ci = curIdx(); const hasT = run.some(r => r.tgt != null);
+  let rows = '';
+  [1,2,3,4].forEach(q => {
+    const ms = run.filter(r => QOF(r.m) === q), qt = hasT ? ms.reduce((t, r) => t + r.plan, 0) : null, qa = ms.reduce((t, r) => t + r.a, 0);
+    const started = MONTHS.indexOf(ms[0].m) <= ci, qp = hasT && started ? pc(qa, qt) : null;
+    rows += `<tr class="q"><td class="l">Q${q}</td><td>${hasT ? f2(qt) : '—'}</td><td></td><td>${f2(qa)}</td><td class="${heat(qp)}">${qp == null ? '—' : fp(qp)}</td><td>${hasT ? (qa >= qt ? '+' + f2(qa - qt) + ' over' : f2(qt - qa)) : '—'}</td></tr>`;
+    ms.forEach(r => { const i = MONTHS.indexOf(r.m), fut = i > ci, p = hasT && !fut ? pc(r.a, r.tgt) : null;
+      rows += `<tr class="${fut ? 'fut' : ''}"><td class="l" style="padding-left:24px">${MNAME[r.m]}</td><td>${hasT ? f2(r.plan) : '—'}</td>
+        <td ${r.cin > 0.005 ? `data-tip="Plan ${f2(r.plan)} + ${f2(r.cin)} carried from earlier months"` : ''}>${hasT ? f2(r.tgt) : '—'}${r.cin > 0.005 ? ' <span class="sub">↻</span>' : ''}</td>
+        <td>${fut && !r.a ? '—' : f2(r.a)}</td><td class="${heat(p)}">${p == null ? '—' : fp(p)}</td><td>${hasT && !fut ? (r.a >= r.tgt ? '<span class="gr-up">done</span>' : f2(r.tgt - r.a)) : ''}</td></tr>`; });
+  });
+  const T = hasT ? run.reduce((t, r) => t + r.plan, 0) : null, A = run.reduce((t, r) => t + r.a, 0);
+  rows += `<tr class="tot"><td class="l">FY total</td><td>${hasT ? f2(T) : '—'}</td><td></td><td>${f2(A)}</td><td>${hasT ? fp(pc(A, T)) : '—'}</td><td>${hasT ? f2(Math.max(0, T - A)) : '—'}</td></tr>`;
+  return `<div class="card"><div class="card-h"><h2>${title}</h2><div class="sub">₹ Lakhs</div></div>
+    <div class="tbl"><table id="${id}"><thead><tr><th class="l">Quarter / month</th><th>Plan</th><th>Revised target</th><th>Achieved</th><th>% ach.</th><th>Pending / carried</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="legend"><span><i class="sw" style="background:#d9f0e0"></i>&gt;100%</span><span><i class="sw" style="background:#eaf6d9"></i>90–100%</span><span><i class="sw" style="background:#fff1d9"></i>75–90%</span><span><i class="sw" style="background:#fde8e8"></i>&lt;75%</span><span>↻ = includes shortfall carried from earlier months</span></div></div>`;
+}
+
+/* --- period / region filters shared by series + region blocks --- */
+function perMonths(per){ if (per === 'all') return MONTHS; if (per === 'ytd') return pastMonths(); if (per === 'cur') return [curMonth()];
+  if (/^q\d$/.test(per)) return QM[+per[1]]; return [+per]; }
+function perLabel(per){ return per === 'all' ? 'Full FY' : per === 'ytd' ? `Apr–${MNAME[curMonth()]}` : per === 'cur' ? MNAME[curMonth()] : /^q\d$/.test(per) ? per.toUpperCase() : MNAME[+per]; }
+function perOptions(sel){ const o = [['all', 'Full FY'], ['ytd', 'Apr → latest'], ['cur', 'Latest month'], ['q1', 'Q1'], ['q2', 'Q2'], ['q3', 'Q3'], ['q4', 'Q4'], ...MONTHS.map(m => [String(m), MNAME[m]])];
+  return o.map(([k, t]) => `<option value="${k}" ${String(sel) === k ? 'selected' : ''}>${t}</option>`).join(''); }
+function regionsOf(fam){ return [...new Set(S.rows.filter(x => x.f === fam && x.y === 0).map(x => x.r))].sort(); }
+
+/* --- product series --- */
+function seriesCard(fam){
+  const F = S.ser, ms = new Set(perMonths(F.per)), regs = regionsOf(fam);
+  const okR = r => (!F.rg || r === F.rg) && (!F.gm || gmOf(r) === F.gm);
+  const by = {}, lyBy = {};
+  S.rows.forEach(x => { if (x.f !== fam || !ms.has(x.m) || !okR(x.r)) return;
+    if (x.y === 0) { const o = (by[x.s] = by[x.s] || { oq:0, ov:0, iq:0, iv:0 }); if (x.d === 'OB') { o.oq += x.q; o.ov += x.v; } else { o.iq += x.q; o.iv += x.v; } }
+    else if (x.d === 'OB') lyBy[x.s] = (lyBy[x.s] || 0) + x.lv; });   // last year cut at the same day (like for like)
+  const list = Object.entries(by).map(([s, o]) => ({ s, ...o, ly:lyBy[s] || 0 })).sort((a, b) => b.ov - a.ov || b.iv - a.iv);
+  const t = list.reduce((a, o) => ({ oq:a.oq + o.oq, ov:a.ov + o.ov, iq:a.iq + o.iq, iv:a.iv + o.iv, ly:a.ly + o.ly }), { oq:0, ov:0, iq:0, iv:0, ly:0 });
+  const mx = Math.max(1, ...list.map(o => o.ov));
+  let rows = list.map(o => {
+    let r = `<tr class="ck" data-ser="${esc(o.s)}"><td class="l"><span class="caret">${F.open === o.s ? '▾' : '▸'}</span>${esc(o.s)}<span class="hb" style="width:${Math.round(o.ov / mx * 70)}px"></span></td>
+      <td>${f0(o.oq)}</td><td>${f2(o.ov)}</td><td>${f0(o.iq)}</td><td>${f2(o.iv)}</td><td>${f2(o.ly)}</td><td>${grTxt(o.ov, o.ly)}</td><td>${fp(pc(o.ov, t.ov))}</td></tr>`;
+    if (F.open === o.s) {
+      const rb = {}; S.rows.forEach(x => { if (x.f !== fam || x.s !== o.s || x.y !== 0 || !ms.has(x.m) || !okR(x.r)) return;
+        const z = (rb[x.r] = rb[x.r] || { oq:0, ov:0, iq:0, iv:0 }); if (x.d === 'OB') { z.oq += x.q; z.ov += x.v; } else { z.iq += x.q; z.iv += x.v; } });
+      r += Object.entries(rb).sort((a, b) => b[1].ov - a[1].ov).map(([rg, z]) => `<tr class="sub"><td class="l">${esc(rg)} <span class="sub">· ${esc(gmOf(rg))}</span></td><td>${f0(z.oq)}</td><td>${f2(z.ov)}</td><td>${f0(z.iq)}</td><td>${f2(z.iv)}</td><td></td><td></td><td>${fp(pc(z.ov, o.ov))}</td></tr>`).join('');
+    }
+    return r; }).join('');
+  rows += `<tr class="tot"><td class="l">Total · ${list.length} series</td><td>${f0(t.oq)}</td><td>${f2(t.ov)}</td><td>${f0(t.iq)}</td><td>${f2(t.iv)}</td><td>${f2(t.ly)}</td><td>${grTxt(t.ov, t.ly)}</td><td>100%</td></tr>`;
+  return `<div class="card" id="serCard"><div class="card-h"><div><h2>Product series — ${esc(fam)}</h2><div class="sub">${esc(F.gm || 'All GMs')} · ${esc(F.rg || 'All regions')} · ${perLabel(F.per)} · ${fyLabel(S.fy)} · click a series for its regions</div></div></div>
+    <div class="fl">
+      <div class="f"><label>GM</label><select id="serGm"><option value="">All GMs</option>${GMS.map(g => `<option ${F.gm === g.gm ? 'selected' : ''}>${esc(g.gm)}</option>`).join('')}<option ${F.gm === NOGM ? 'selected' : ''}>${NOGM}</option></select></div>
+      <div class="f"><label>Region</label><select id="serRg"><option value="">All regions</option>${regs.map(r => `<option ${F.rg === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
+      <div class="f"><label>Period</label><select id="serPer">${perOptions(F.per)}</select></div>
+    </div>
+    <div class="kp"><div class="k"><div class="l">OB value</div><div class="v">₹${f2(t.ov)} L</div><div class="n">${f0(t.oq)} units</div></div>
+      <div class="k"><div class="l">Invoice value</div><div class="v">₹${f2(t.iv)} L</div><div class="n">${f0(t.iq)} units</div></div>
+      <div class="k"><div class="l">OB last year</div><div class="v">₹${f2(t.ly)} L</div><div class="n">${grTxt(t.ov, t.ly)}</div></div>
+      <div class="k"><div class="l">Series</div><div class="v">${list.length}</div><div class="n">top: ${esc(list[0]?.s || '—')}</div></div></div>
+    <div class="tbl"><table id="serTable"><thead><tr><th class="l">Series</th><th>OB qty</th><th>OB value (₹ L)</th><th>Inv qty</th><th>Invoice value (₹ L)</th><th>OB last year</th><th>OB growth</th><th>Share</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="note">OB and invoice values incl. GST, from Zoho orders and invoices (same as PM Cumulative). Last year = same months, the latest month cut at the same day.</div></div>`;
+}
+
+/* --- region-wise booking --- */
+function regionCard(fam){
+  const F = S.reg, ms = new Set(perMonths(F.per)), by = {};
+  S.rows.forEach(x => { if (x.f !== fam || x.y !== 0 || x.d !== F.doc || !ms.has(x.m)) return;
+    const o = (by[x.r] = by[x.r] || { q:0, v:0, s:{} }); o.q += x.q; o.v += x.v; const z = (o.s[x.s] = o.s[x.s] || { q:0, v:0 }); z.q += x.q; z.v += x.v; });
+  const list = Object.entries(by).map(([r, o]) => ({ r, ...o })).sort((a, b) => b.v - a.v), tot = list.reduce((t, o) => t + o.v, 0), totQ = list.reduce((t, o) => t + o.q, 0);
+  const mx = Math.max(1, ...list.map(o => o.v));
+  let rows = list.map(o => { let r = `<tr class="ck" data-rg="${esc(o.r)}"><td class="l"><span class="caret">${F.open === o.r ? '▾' : '▸'}</span><b>${esc(o.r)}</b> <span class="sub">(${Object.keys(o.s).length} series)</span></td><td class="l pm">${esc(gmOf(o.r))}</td>
+      <td>${f0(o.q)}</td><td>${f2(o.v)}<span class="hb" style="width:${Math.round(o.v / mx * 70)}px"></span></td><td>${fp(pc(o.v, tot))}</td></tr>`;
+    if (F.open === o.r) r += Object.entries(o.s).sort((a, b) => b[1].v - a[1].v).map(([s, z]) => `<tr class="sub"><td class="l">${esc(s)}</td><td></td><td>${f0(z.q)}</td><td>${f2(z.v)}</td><td>${fp(pc(z.v, o.v))}</td></tr>`).join('');
+    return r; }).join('');
+  rows += `<tr class="tot"><td class="l">Total · ${list.length} regions</td><td></td><td>${f0(totQ)}</td><td>${f2(tot)}</td><td>100%</td></tr>`;
+  return `<div class="card" id="regCard"><div class="card-h"><div><h2>Region-wise ${F.doc === 'OB' ? 'booking' : 'billing'} — ${esc(fam)} · ${perLabel(F.per)}</h2><div class="sub">Click a region for its product series</div></div>
+    <div class="fl" style="margin:0"><div class="toggle" id="regDoc"><button data-d="OB" class="${F.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${F.doc === 'INV' ? 'on' : ''}">Invoicing</button></div>
+    <div class="f"><select id="regPer">${perOptions(F.per)}</select></div></div></div>
+    <div class="tbl"><table id="regTable"><thead><tr><th class="l">Region / series</th><th class="l">GM</th><th>Qty</th><th>Value (₹ L)</th><th>Share</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+}
+
+/* --- last-year growth by month --- */
+function growthCard(fam){
+  const d = S.gr.doc, ci = curIdx();
+  const pts = MONTHS.map((m, i) => ({ m, cy:i <= ci ? mv(fam, d, 0, m) : null, ly:mv(fam, d, 1, m, i === ci), lyFull:mv(fam, d, 1, m) }));
+  const cyT = pts.reduce((t, p) => t + (p.cy || 0), 0), lyT = pts.slice(0, ci + 1).reduce((t, p) => t + p.ly, 0);
+  const rows = pts.map((p, i) => `<tr class="${i > ci ? 'fut' : ''}"><td class="l">${MNAME[p.m]}${i === ci ? ' <span class="sub">(to date)</span>' : ''}</td><td>${p.cy == null ? '—' : f2(p.cy)}</td><td>${f2(i > ci ? p.lyFull : p.ly)}</td><td>${p.cy == null ? '—' : grTxt(p.cy, p.ly)}</td></tr>`).join('') +
+    `<tr class="tot"><td class="l">Apr–${MNAME[curMonth()]}</td><td>${f2(cyT)}</td><td>${f2(lyT)}</td><td>${grTxt(cyT, lyT)}</td></tr>`;
+  return `<div class="card" id="grCard"><div class="card-h"><div><h2>Last-year growth comparison — ${esc(fam)}</h2><div class="sub">${fyLabel(S.fy)} vs ${fyLabel(S.fy - 1)} · ₹ Lakhs · latest month compared up to the same day</div></div>
+    <div class="toggle" id="grDoc"><button data-d="OB" class="${d === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${d === 'INV' ? 'on' : ''}">Invoicing</button></div></div>
+    <div class="two"><div class="chart">${lineChart(pts, ci)}</div>
+    <div class="tbl"><table id="grTable"><thead><tr><th class="l">Month</th><th>This year</th><th>Last year</th><th>Growth</th></tr></thead><tbody>${rows}</tbody></table></div></div></div>`;
+}
+
+/* --- potentials (visibility) + open pipeline by month --- */
+function pipeCard(fam){
+  if (!S.pipe) return `<div class="card"><div class="card-h"><h2>Visibility of orders — potentials</h2></div><div class="note">Loading potentials…</div></div>`;
+  if (S.pipe.err) return `<div class="card"><div class="card-h"><h2>Visibility of orders — potentials</h2></div><div class="note">Potentials not available yet (${esc(S.pipe.err)}). Run <b>supabase/products.sql</b> in Supabase.</div></div>`;
+  const P = pipeOf(fam);
+  // open pipeline by closing month
+  const byM = {}; S.pipe.sum.forEach(a => { if (a[0] !== fam || a[1] !== 'Open') return; const o = (byM[a[2]] = byM[a[2]] || { a:0, w:0, n:0 }); o.a += +a[5]; o.w += +a[6]; o.n += +a[4]; });
+  const ms = MONTHS.map(m => monthKey(m)), cmk = monthKey(curMonth());
+  const overdue = Object.entries(byM).filter(([k]) => k < cmk).reduce((t, [, o]) => ({ a:t.a + o.a, w:t.w + o.w, n:t.n + o.n }), { a:0, w:0, n:0 });
+  const mRows = ms.filter(k => k >= cmk).map(k => ({ k, ...(byM[k] || { a:0, w:0, n:0 }) }));
+  const list = S.list[fam];
+  const V = S.vis;
+  let body = '';
+  if (!list) body = '<div class="note">Loading the deal list…</div>';
+  else {
+    const q = V.q.trim().toLowerCase();
+    const f = list.filter(a => (V.st === 'All' || a[6] === V.st) && (!q || [a[1], a[2], a[3], a[4], a[5], (a[12] || []).map(x => x[0]).join(' ')].join(' ').toLowerCase().includes(q))
+      && (!V.from || (a[9] || '') >= V.from) && (!V.to || (a[9] || '9999') <= V.to));
+    const tv = f.reduce((t, a) => t + +a[10], 0);
+    body = `<div class="fl"><div class="toggle" id="visSt">${['Open', 'Won', 'Lost', 'All'].map(s => `<button data-s="${s}" class="${V.st === s ? 'on' : ''}">${s}</button>`).join('')}</div>
+      <div class="f"><label>Closing from</label><input type="date" id="visFrom" value="${esc(V.from)}"></div><div class="f"><label>to</label><input type="date" id="visTo" value="${esc(V.to)}"></div>
+      <div class="f"><label>Search</label><input type="search" id="visQ" placeholder="Account, project, owner, series…" value="${esc(V.q)}"></div>
+      <div class="sub" style="padding-bottom:7px">${f.length} deals · ₹${f2(tv)} L</div></div>
+      <div class="tbl"><table id="visTable"><thead><tr><th class="l">Account / project</th><th class="l">Product series (this product)</th><th class="l">Owner</th><th class="l">Region</th><th>Closing</th><th>Value (₹ L)</th><th class="l">Status</th><th>Probability</th></tr></thead><tbody>
+      ${f.slice(0, V.n).map(a => `<tr><td class="l wrapc"><span class="acct">${esc(a[2] || a[1] || '—')}${a[3] || a[1] ? `<small>${esc(a[3] || a[1])}</small>` : ''}</span></td>
+        <td class="l wrapc">${(a[12] || []).map(x => `${esc(x[0])}${x[1] ? ` <span class="sub">×${f0(x[1])}</span>` : ''}${(a[12] || []).length > 1 ? ` <span class="sub">₹${f2(x[2])}</span>` : ''}`).join('<br>')}</td>
+        <td class="l">${esc(a[4] || '—')}</td><td class="l">${esc(a[5] || '—')}</td><td>${a[9] ? new Date(a[9]).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'}) : '—'}</td>
+        <td>${a[11] ? `<span class="est" data-tip="Deal has no product lines in Zoho: value split equally between the products named in Product / Solution type">≈ ${f2(a[10])}</span>` : f2(a[10])}</td>
+        <td class="l"><span class="st-${esc(a[6])}">${esc(a[6])}</span> <span class="sub">${esc(a[7] || '')}</span></td><td>${a[8] != null ? f0(a[8]) + '%' : '—'}</td></tr>`).join('')}
+      </tbody></table></div>${f.length > V.n ? `<div class="more"><button class="btn" id="visMore">Show ${Math.min(40, f.length - V.n)} more of ${f.length - V.n}</button></div>` : ''}`;
+  }
+  const mxA = Math.max(1, ...mRows.map(r => r.a));
+  return `<div class="card" id="pipeCard"><div class="card-h"><div><h2>Visibility of orders — potentials · ${esc(fam)}</h2>
+      <div class="sub">Synced from Zoho. Value = this product's lines of the deal (₹ L)${S.pipe.lines ? '; product lines last fully synced ' + new Date(S.pipe.lines).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '; product lines still syncing – deals without lines use an equal split (≈)'}</div></div></div>
+    <div class="kp"><div class="k"><div class="l">Open · closing ${MNAME[curMonth()]}</div><div class="v">₹${f2(P.open)} L</div><div class="n">${P.n} deals · ₹${f2(P.w)} L weighted</div></div>
+      <div class="k"><div class="l">Open · rest of FY</div><div class="v">₹${f2(P.openAll)} L</div><div class="n">₹${f2(P.wAll)} L weighted by probability</div></div>
+      <div class="k"><div class="l">Overdue (closing date passed)</div><div class="v">₹${f2(overdue.a)} L</div><div class="n">${overdue.n} open deals to update</div></div>
+      <div class="k"><div class="l">Won this FY</div><div class="v">₹${f2(P.won)} L</div><div class="n">closing date in ${fyLabel(S.fy)}</div></div></div>
+    <div class="two" style="margin-bottom:14px"><div><div class="secttl">Open pipeline by closing month</div>
+      <div class="tbl"><table id="pipeMon"><thead><tr><th class="l">Month</th><th>Deals</th><th>Open pipeline (₹ L)</th><th>Weighted (₹ L)</th></tr></thead><tbody>
+      ${mRows.map(r => `<tr><td class="l">${MNAME[+r.k.slice(5)]} ${r.k.slice(2, 4)}</td><td>${r.n || '—'}</td><td>${f2(r.a)}<span class="hb" style="width:${Math.round(r.a / mxA * 60)}px"></span></td><td>${f2(r.w)}</td></tr>`).join('')}
+      </tbody></table></div></div><div><div class="secttl">Weekly leads created — ${esc(fam)}</div>${leadsTable(fam)}</div></div>
+    ${body}</div>`;
+}
+function leadsCard(){ return ''; }
+function leadsAgg(fam){
+  if (!S.leads || S.leads.err) return null;
+  const fy0 = `${S.fy}-04-01`, ly0 = `${S.fy - 1}-04-01`;
+  const W = {}; let cyN = 0, cyV = 0, lyN = 0, lyV = 0;
+  const today = new Date(), lyCut = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()).toISOString().slice(0, 10);
+  S.leads.rows.forEach(a => { const toks = String(a[1] || '').split(',').map(t => t.trim()).filter(Boolean);
+    const fams = [...new Set(toks.map(pfam))]; if (!fams.includes(fam)) return;
+    const n = +a[3], v = +a[4] / fams.length;
+    if (a[0] >= fy0) { const o = (W[a[0]] = W[a[0]] || { n:0, v:0 }); o.n += n; o.v += v; cyN += n; cyV += v; }
+    else if (a[0] >= ly0 && a[0] <= lyCut) { lyN += n; lyV += v; } });
+  return { W, cyN, cyV, lyN, lyV };
+}
+function leadsTable(fam){
+  if (!S.leads) return '<div class="note">Loading leads…</div>';
+  if (S.leads.err) return `<div class="note">Leads not available yet (${esc(S.leads.err)}).</div>`;
+  const L = leadsAgg(fam), wks = Object.keys(L.W).sort().reverse().slice(0, 8);
+  const avg4 = wks.slice(1, 5).reduce((t, w) => t + L.W[w].n, 0) / Math.max(1, Math.min(4, wks.length - 1));
+  const mx = Math.max(1, ...wks.map(w => L.W[w].n));
+  return `<div class="tbl"><table id="leadTbl"><thead><tr><th class="l">Week of</th><th>Leads</th><th>Value (₹ L)</th></tr></thead><tbody>
+    ${wks.map((w, i) => `<tr><td class="l">${new Date(w).toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}${i === 0 ? ' <span class="sub">(this week)</span>' : ''}</td><td>${L.W[w].n}<span class="hb" style="width:${Math.round(L.W[w].n / mx * 50)}px;background:#16a34a"></span></td><td>${f2(L.W[w].v)}</td></tr>`).join('')}
+    <tr class="tot"><td class="l">FY so far</td><td>${f0(L.cyN)}</td><td>${f2(L.cyV)}</td></tr></tbody></table></div>
+    <div class="note">Last year same period: ${f0(L.lyN)} leads ${grTxt(L.cyN, L.lyN)} · 4-week average ${avg4.toFixed(1)} a week. A lead naming 2 products counts in each; its value is split equally.</div>`;
+}
+
+/* ===== Overview ===== */
+function renderOv(){
+  const O = S.ov, cm = curMonth(), planPct = planShareTo(cm) * 100, stats = FAMS.map(f => famStats(f.name));
+  const tg = stats.filter(s => s.T != null);
+  const totT = tg.reduce((t, s) => t + s.T, 0), totOb = tg.reduce((t, s) => t + s.ob, 0), totInv = tg.reduce((t, s) => t + s.inv, 0);
+  let h = `<div class="tiles"><div class="tile"><div class="l">Combined OB achieved / target</div><div class="v">${f2(totOb)} <small>/ ${f0(totT)} L</small></div>
+      ${pbar(pc(totOb, totT), planPct, barColor(pc(totOb, totT), planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${fp(pc(totOb, totT))} · ${tg.length} of ${FAMS.length} products have targets</div></div>
+    <div class="tile"><div class="l">Combined invoice achieved / target</div><div class="v">${f2(totInv)} <small>/ ${f0(totT)} L</small></div>
+      ${pbar(pc(totInv, totT), planPct, barColor(pc(totInv, totT), planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${fp(pc(totInv, totT))} of the combined FY target</div></div>
+    <div class="tile"><div class="l">Pending to bill · all products</div><div class="v">${S.pend && !S.pend.err ? f2(S.pend.tot) : '—'} <small>L</small></div>
+      ${S.pend && !S.pend.err ? pbar(pc(totInv + stats.reduce((t, s) => t + (s.T != null ? (s.pend || 0) : 0), 0), totT), planPct, '#0073C8', 'plan ' + planPct.toFixed(1) + '%') : ''}<div class="s">Bar = invoiced + pending to bill vs combined target</div></div></div>`;
+  h += `<div class="card"><div class="card-h"><div><h2>${O.doc === 'OB' ? 'OB' : 'Invoicing'} % of FY target — by product</h2><div class="sub">Bar = achieved so far · marker = where the bar must reach by month-end (${planPct.toFixed(1)}%)</div></div>
+    <div class="toggle" id="ovDoc"><button data-d="OB" class="${O.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${O.doc === 'INV' ? 'on' : ''}">Invoicing</button></div></div>
+    ${stats.map(s => { const a = O.doc === 'OB' ? s.ob : s.inv, p = s.T != null ? pc(a, s.T) : null;
+      return `<div class="ob-row ck" data-go="${esc(s.fam)}" style="cursor:pointer"><div class="n">${esc(s.fam)}<div class="sub">${p != null && p < planPct ? (planPct - p).toFixed(1) + '% pending' : p != null ? 'on track' : '₹' + f2(a) + ' L'}</div></div>
+        <div>${p != null ? pbar(p, planPct, barColor(p, planPct), planPct.toFixed(1) + '%') : '<div class="sub">No target set</div>'}</div><div class="p">${p != null ? fp(p) : '—'}</div></div>`; }).join('')}</div>`;
+  // product x quarter / month table
+  const cols = O.per === 'q' ? [1,2,3,4].map(q => ({ k:'Q' + q, ms:QM[q] })) : MONTHS.map(m => ({ k:MNAME[m], ms:[m] }));
+  const ci = curIdx();
+  const cell = (s, c) => { const ob = c.ms.reduce((t, m) => t + mv(s.fam, 'OB', 0, m), 0), inv = c.ms.reduce((t, m) => t + mv(s.fam, 'INV', 0, m), 0);
+    const tg = s.T != null ? c.ms.reduce((t, m) => t + s.T * QUARTER_SHARE[QOF(m)] / 3, 0) : null, started = MONTHS.indexOf(c.ms[0]) <= ci, p = tg && started ? pc(ob, tg) : null;
+    return `<td>${f2(ob)}</td><td>${f2(inv)}</td><td class="${heat(p)}">${p == null ? '—' : fp(p)}</td>`; };
+  const totRow = () => { const z = { fam:'__', T:totT };
+    return `<tr class="tot"><td class="l">Combined (with targets)</td><td>${f0(totT)}</td>${cols.map(c => { const ob = tg.reduce((t, s) => t + c.ms.reduce((u, m) => u + mv(s.fam, 'OB', 0, m), 0), 0), inv = tg.reduce((t, s) => t + c.ms.reduce((u, m) => u + mv(s.fam, 'INV', 0, m), 0), 0);
+      const tt = c.ms.reduce((t, m) => t + totT * QUARTER_SHARE[QOF(m)] / 3, 0), p = MONTHS.indexOf(c.ms[0]) <= ci ? pc(ob, tt) : null;
+      return `<td>${f2(ob)}</td><td>${f2(inv)}</td><td>${p == null ? '—' : fp(p)}</td>`; }).join('')}</tr>`; };
+  h += `<div class="card"><div class="card-h"><div><h2>Product-wise performance</h2><div class="sub">₹ Lakhs · OB % = OB ÷ plan of the period</div></div>
+    <div class="toggle" id="ovPer"><button data-p="q" class="${O.per === 'q' ? 'on' : ''}">Quarter-wise</button><button data-p="m" class="${O.per === 'm' ? 'on' : ''}">Month-wise</button></div></div>
+    <div class="tbl"><table id="ovTable"><thead><tr><th class="l" rowspan="2">Product</th><th rowspan="2">FY target</th>${cols.map(c => `<th colspan="3" style="text-align:center;border-left:1px solid rgba(255,255,255,.25)">${c.k}</th>`).join('')}</tr>
+      <tr>${cols.map(() => '<th>OB</th><th>Inv</th><th>OB%</th>').join('')}</tr></thead><tbody>
+      ${stats.map(s => `<tr class="ck" data-go="${esc(s.fam)}"><td class="l"><b>${esc(s.fam)}</b></td><td>${s.T != null ? f0(s.T) : '—'}</td>${cols.map(c => cell(s, c)).join('')}</tr>`).join('')}${totRow()}</tbody></table></div></div>`;
+  $('view').innerHTML = h;
+  $('ovDoc').onclick = e => { const b = e.target.closest('button'); if (b) { O.doc = b.dataset.d; renderOv(); } };
+  $('ovPer').onclick = e => { const b = e.target.closest('button'); if (b) { O.per = b.dataset.p; renderOv(); } };
+  $('view').querySelectorAll('[data-go]').forEach(el => el.onclick = () => { S.view = el.dataset.go; drawChips(); render(); loadPipe(S.view).then(() => { if (famOf(S.view)) render(); }); });
+  bindTips();
+}
+
+/* ---------------- small charts ---------------- */
+function groupBars(groups, colors, names){
+  const W = 560, H = 240, pl = 44, pb = 26, pt = 10, n = groups.length, k = colors.length;
+  const mx = Math.max(1, ...groups.flatMap(g => g.vals)) * 1.1, gw = (W - pl - 10) / n, bw = Math.min(30, (gw - 18) / k);
+  const y = v => pt + (H - pt - pb) * (1 - v / mx);
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let i = 0; i <= 4; i++) { const v = mx / 4 * i; s += `<line x1="${pl}" x2="${W - 6}" y1="${y(v)}" y2="${y(v)}" stroke="#eef1f6"/><text x="${pl - 6}" y="${y(v) + 4}" font-size="10" text-anchor="end" fill="#7a8fb8">${f0(v)}</text>`; }
+  groups.forEach((g, i) => { const x0 = pl + gw * i + (gw - bw * k) / 2;
+    g.vals.forEach((v, j) => { s += `<rect x="${x0 + j * bw}" y="${y(v)}" width="${bw - 3}" height="${Math.max(0, H - pb - y(v))}" rx="3" fill="${colors[j]}" data-tip="${esc(g.k + ' · ' + names[j] + ': ₹' + f2(v) + ' L')}"/>`; });
+    s += `<text x="${pl + gw * i + gw / 2}" y="${H - 8}" font-size="11" text-anchor="middle" fill="#3b5384" font-weight="700">${g.k}</text>`; });
+  return s + '</svg>';
+}
+function lineChart(pts, ci){
+  const W = 560, H = 240, pl = 44, pb = 26, pt = 12, n = pts.length;
+  const mx = Math.max(1, ...pts.map(p => Math.max(p.cy || 0, p.lyFull || 0, p.ly || 0))) * 1.12;
+  const x = i => pl + (W - pl - 16) * i / (n - 1), y = v => pt + (H - pt - pb) * (1 - v / mx);
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let i = 0; i <= 4; i++) { const v = mx / 4 * i; s += `<line x1="${pl}" x2="${W - 6}" y1="${y(v)}" y2="${y(v)}" stroke="#eef1f6"/><text x="${pl - 6}" y="${y(v) + 4}" font-size="10" text-anchor="end" fill="#7a8fb8">${f0(v)}</text>`; }
+  const ly = pts.map((p, i) => `${x(i)},${y(i > ci ? p.lyFull : p.ly)}`).join(' ');
+  const cy = pts.filter(p => p.cy != null).map((p, i) => `${x(i)},${y(p.cy)}`).join(' ');
+  s += `<polyline points="${ly}" fill="none" stroke="#9fb3d1" stroke-width="2.5" stroke-dasharray="5 4"/>`;
+  s += `<polyline points="${cy}" fill="none" stroke="#0073C8" stroke-width="3"/>`;
+  pts.forEach((p, i) => { s += `<text x="${x(i)}" y="${H - 8}" font-size="10.5" text-anchor="middle" fill="#3b5384">${MNAME[p.m]}</text>`;
+    if (p.cy != null) s += `<circle cx="${x(i)}" cy="${y(p.cy)}" r="4" fill="#0073C8" data-tip="${esc(MNAME[p.m] + ': this year ₹' + f2(p.cy) + ' L · last year ₹' + f2(p.ly) + ' L')}"/>`; });
+  s += `<g font-size="11" font-weight="700"><rect x="${pl + 6}" y="4" width="10" height="10" fill="#0073C8" rx="2"/><text x="${pl + 20}" y="13" fill="#3b5384">${fyLabel(S.fy)}</text>
+    <rect x="${pl + 106}" y="4" width="10" height="10" fill="#9fb3d1" rx="2"/><text x="${pl + 120}" y="13" fill="#3b5384">${fyLabel(S.fy - 1)}</text></g>`;
+  return s + '</svg>';
+}
+function bindTips(){
+  $('view').querySelectorAll('[data-tip]').forEach(el => { el.onmousemove = e => showTip(e, esc(el.dataset.tip)); el.onmouseleave = hideTip; });
+}
+
+/* ---------------- events of a family view ---------------- */
+function bindFam(fam){
+  const rer = () => { const y = scrollY; renderFam(fam); scrollTo(0, y); };
+  const on = (id, ev, fn) => { const el = $(id); if (el) el[ev] = fn; };
+  on('serGm', 'onchange', e => { S.ser.gm = e.target.value; if (S.ser.gm && S.ser.rg && gmOf(S.ser.rg) !== S.ser.gm) S.ser.rg = ''; rer(); });
+  on('serRg', 'onchange', e => { S.ser.rg = e.target.value; rer(); });
+  on('serPer', 'onchange', e => { S.ser.per = e.target.value; rer(); });
+  on('serTable', 'onclick', e => { const tr = e.target.closest('tr[data-ser]'); if (tr) { S.ser.open = S.ser.open === tr.dataset.ser ? null : tr.dataset.ser; rer(); } });
+  on('regDoc', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.reg.doc = b.dataset.d; rer(); } });
+  on('regPer', 'onchange', e => { S.reg.per = e.target.value; rer(); });
+  on('regTable', 'onclick', e => { const tr = e.target.closest('tr[data-rg]'); if (tr) { S.reg.open = S.reg.open === tr.dataset.rg ? null : tr.dataset.rg; rer(); } });
+  on('grDoc', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.gr.doc = b.dataset.d; rer(); } });
+  on('visSt', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.vis.st = b.dataset.s; S.vis.n = 40; rer(); } });
+  on('visMore', 'onclick', () => { S.vis.n += 40; rer(); });
+  on('visFrom', 'onchange', e => { S.vis.from = e.target.value; rer(); });
+  on('visTo', 'onchange', e => { S.vis.to = e.target.value; rer(); });
+  let t; on('visQ', 'oninput', e => { clearTimeout(t); t = setTimeout(() => { S.vis.q = e.target.value; S.vis.n = 40; rer(); const q = $('visQ'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 300); });
+}
+
+/* ---------------- load / refresh ---------------- */
+async function loadAll(quiet){
+  if (!quiet) $('loading').classList.add('on');
+  try {
+    await Promise.all([loadCube(), loadPend()]); S.loadedAt = Date.now(); showErr(null); drawChips(); render();
+    loadLeads().then(render);
+    await loadPipe(famOf(S.view) ? S.view : null); render();
+  } catch (e) { showErr(e.message); }
+  finally { $('loading').classList.remove('on'); }
+}
+$('fySel').onchange = async e => { S.fy = +e.target.value; S.pipe = null; S.list = {}; S.leads = null; await loadAll(); };
+
+const AUTO = { ver:null, pending:false, busy:false };
+function isShown(){ try { return !document.hidden && (!window.frameElement || window.frameElement.classList.contains('active')); } catch (e) { return !document.hidden; } }
+async function dataVersion(){ try { const v = await rpc('pm_data_version', {}); return v == null ? null : String(v); } catch (e) { return null; } }
+async function refreshAll(){ S.pipe = null; S.list = {}; await loadAll(true); }
+async function autoRefresh(){
+  if (!isShown()) { AUTO.pending = true; return; }
+  if (AUTO.busy) return; AUTO.busy = true; AUTO.pending = false;
+  try { const v = await dataVersion(); if (v !== null && AUTO.ver !== null && v === AUTO.ver) return; await refreshAll(); if (v !== null) AUTO.ver = v; }
+  finally { AUTO.busy = false; }
+}
+$('refreshBtn').onclick = async () => { $('loading').classList.add('on'); try { await refreshAll(); const v = await dataVersion(); if (v !== null) AUTO.ver = v; } finally { $('loading').classList.remove('on'); } };
+setInterval(autoRefresh, 30 * 60 * 1000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && Date.now() - (S.loadedAt || 0) > 10 * 60 * 1000) autoRefresh(); });
+window.addEventListener('message', e => { if (e.data && e.data.type === 'pm-tab-shown' && (AUTO.pending || Date.now() - (S.loadedAt || 0) > 10 * 60 * 1000)) autoRefresh(); });
+
+(async () => {
+  const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
+  const q = new URLSearchParams(location.search).get('f'); if (q && (famOf(q) || q === 'ov')) S.view = q;
+  drawChips();
+  await loadAll();
+  dataVersion().then(v => { if (v !== null) AUTO.ver = v; });
+})();
+</script>
+<script src="/gesture-control.js" defer></script>
+</body>
+</html>

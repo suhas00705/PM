@@ -5,6 +5,9 @@
     },
     "api/app-otp.js": {
       "maxDuration": 60
+    },
+    "api/sync-potentials.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
