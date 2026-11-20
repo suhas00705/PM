@@ -630,7 +630,8 @@ function axisY(F, max, fmt){
 function drawMonth(el, s, plan, C){
   const F = svgFrame(620, 250), iw = F.W - F.l - F.r, ih = F.H - F.t - F.b, bw = iw / 12;
   const lyShow = s.ly.map((v, i) => i === C.K ? s.ll[i] : v);
-  const max = niceMax(Math.max(...s.a, ...plan.map(x => x || 0), ...lyShow));
+  const lyFullK = s.ly[C.K] > lyShow[C.K] + 0.005 ? s.ly[C.K] : null;   // 20-Nov-2026: full last-year month for the running month
+  const max = niceMax(Math.max(...s.a, ...plan.map(x => x || 0), ...lyShow, lyFullK || 0));
   const Y = v => F.H - F.b - ih * (v / max);
   let g = axisY(F, max, v => fL(v));
   for (let i = 0; i < 12; i++) {
@@ -642,9 +643,14 @@ function drawMonth(el, s, plan, C){
   }
   g += `<polyline fill="none" stroke="var(--ly)" stroke-width="2" points="${lyShow.map((v, i) => `${F.l + i * bw + bw / 2},${Y(v)}`).join(' ')}"/>`;
   lyShow.forEach((v, i) => g += `<circle cx="${F.l + i * bw + bw / 2}" cy="${Y(v)}" r="3" fill="var(--ly)" stroke="#fff" stroke-width="1.5"/>`);
+  if (lyFullK != null) { const cx = F.l + C.K * bw + bw / 2, yy = Y(lyShow[C.K]), yf = Y(lyFullK);
+    g += `<line x1="${cx}" x2="${cx}" y1="${yy}" y2="${yf}" stroke="#7f93b5" stroke-width="1.5" stroke-dasharray="4 3"/>` +
+      `<line x1="${cx - 9}" x2="${cx + 9}" y1="${yf}" y2="${yf}" stroke="#5b6f93" stroke-width="2"/>` +
+      `<text x="${cx}" y="${yf - 16}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#5b6f93">${fL(lyFullK)}</text>` +
+      `<text x="${cx}" y="${yf - 6}" text-anchor="middle" font-size="8.5" fill="#5b6f93">full ${MN[C.K]} LY</text>`; }
   el.innerHTML = `<svg viewBox="0 0 ${F.W} ${F.H}" role="img" aria-label="Monthly actual vs plan">${g}</svg>`;
   el.querySelectorAll('.hit').forEach(h => { h.onmousemove = e => { const i = +h.dataset.i;
-      showTip(e, `<b>${MN[i]}</b><br>Actual: ${i <= C.K ? fL(s.a[i]) + ' L' : '—'}${i === C.K && C.frac < 1 ? ' (to date)' : ''}<br>Plan: ${fL(plan[i])} L<br>Last year${i === C.K ? ' (same dates)' : ''}: ${fL(lyShow[i])} L`); };
+      showTip(e, `<b>${MN[i]}</b><br>Actual: ${i <= C.K ? fL(s.a[i]) + ' L' : '—'}${i === C.K && C.frac < 1 ? ' (to date)' : ''}<br>Plan: ${fL(plan[i])} L<br>Last year${i === C.K ? ' (same dates)' : ''}: ${fL(lyShow[i])} L${i === C.K && lyFullK != null ? ` · full month ${fL(lyFullK)} L` : ''}`); };
     h.onmouseleave = hideTip; });
 }
 function drawCum(el, s, plan, m, C){

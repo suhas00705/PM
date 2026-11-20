@@ -520,7 +520,7 @@ function growthCard(fam){
   const d = S.gr.doc, ci = curIdx();
   const pts = MONTHS.map((m, i) => ({ m, cy:i <= ci ? mv(fam, d, 0, m) : null, ly:mv(fam, d, 1, m, i === ci), lyFull:mv(fam, d, 1, m) }));
   const cyT = pts.reduce((t, p) => t + (p.cy || 0), 0), lyT = pts.slice(0, ci + 1).reduce((t, p) => t + p.ly, 0);
-  const rows = pts.map((p, i) => `<tr class="${i > ci ? 'fut' : ''}"><td class="l">${MNAME[p.m]}${i === ci ? ' <span class="sub">(to date)</span>' : ''}</td><td>${p.cy == null ? '—' : f2(p.cy)}</td><td>${f2(i > ci ? p.lyFull : p.ly)}</td><td>${p.cy == null ? '—' : grTxt(p.cy, p.ly)}</td></tr>`).join('') +
+  const rows = pts.map((p, i) => `<tr class="${i > ci ? 'fut' : ''}"><td class="l">${MNAME[p.m]}${i === ci ? ' <span class="sub">(to date)</span>' : ''}</td><td>${p.cy == null ? '—' : f2(p.cy)}</td><td>${f2(i > ci ? p.lyFull : p.ly)}${i === ci && p.lyFull > p.ly + 0.005 ? ` <span class="sub">(full ${f2(p.lyFull)})</span>` : ''}</td><td>${p.cy == null ? '—' : grTxt(p.cy, p.ly)}</td></tr>`).join('') +
     `<tr class="tot"><td class="l">Apr–${MNAME[curMonth()]}</td><td>${f2(cyT)}</td><td>${f2(lyT)}</td><td>${grTxt(cyT, lyT)}</td></tr>`;
   return `<div class="card" id="grCard"><div class="card-h"><div><h2>Last-year growth comparison — ${esc(fam)}</h2><div class="sub">${fyLabel(S.fy)} vs ${fyLabel(S.fy - 1)} · ₹ Lakhs · latest month compared up to the same day</div></div>
     <div class="toggle" id="grDoc"><button data-d="OB" class="${d === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${d === 'INV' ? 'on' : ''}">Invoicing</button></div></div>
@@ -657,6 +657,10 @@ function lineChart(pts, ci){
   const cy = pts.filter(p => p.cy != null).map((p, i) => `${x(i)},${y(p.cy)}`).join(' ');
   s += `<polyline points="${ly}" fill="none" stroke="#9fb3d1" stroke-width="2.5" stroke-dasharray="5 4"/>`;
   s += `<polyline points="${cy}" fill="none" stroke="#0073C8" stroke-width="3"/>`;
+  // running month: last year's full month as a dashed marker above the same-day point (growth stays same-day)
+  const pk = pts[ci]; if (pk && pk.lyFull > pk.ly + 0.005) { const yy = y(pk.ly), yf = y(pk.lyFull), cx = x(ci);
+    s += `<line x1="${cx}" x2="${cx}" y1="${yy}" y2="${yf}" stroke="#7f93b5" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="${cx - 9}" x2="${cx + 9}" y1="${yf}" y2="${yf}" stroke="#5b6f93" stroke-width="2"/>` +
+      `<text x="${cx}" y="${yf - 16}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#5b6f93">${f0(pk.lyFull)}</text><text x="${cx}" y="${yf - 6}" text-anchor="middle" font-size="8.5" fill="#5b6f93">full ${MNAME[pk.m]} LY</text>`; }
   pts.forEach((p, i) => { s += `<text x="${x(i)}" y="${H - 8}" font-size="10.5" text-anchor="middle" fill="#3b5384">${MNAME[p.m]}</text>`;
     if (p.cy != null) s += `<circle cx="${x(i)}" cy="${y(p.cy)}" r="4" fill="#0073C8" data-tip="${esc(MNAME[p.m] + ': this year ₹' + f2(p.cy) + ' L · last year ₹' + f2(p.ly) + ' L')}"/>`; });
   s += `<g font-size="11" font-weight="700"><rect x="${pl + 6}" y="4" width="10" height="10" fill="#0073C8" rx="2"/><text x="${pl + 20}" y="13" fill="#3b5384">${fyLabel(S.fy)}</text>

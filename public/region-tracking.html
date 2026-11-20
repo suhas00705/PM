@@ -664,7 +664,7 @@ $('league').addEventListener('click', e => {
 
 /* ---------- month chart (SVG) ---------- */
 function monthChart(r){
-  const act = monthly(r, S.doc, 0), lyF = monthlyLyFull(r, S.doc), sel = new Set(S.months), li = latestIdx();
+  const act = monthly(r, S.doc, 0), lyF = monthlyLyFull(r, S.doc), lyS = monthly(r, S.doc, 1), sel = new Set(S.months), li = latestIdx();
   let T = null;
   if (S.cy === TARGET_FY) T = r ? targetOf(r) : REGIONS.reduce((s, o) => s + o.t, 0);
   const plans = MONTHS.map(m => T == null ? null : plan(T, m));
@@ -676,7 +676,10 @@ function monthChart(r){
   MONTHS.forEach((m, i) => {
     const x = pl + i * cw, bw = cw * .32, on = sel.has(m), fut = i > li;
     if (on) s += `<rect x="${x + 2}" y="${pt - 6}" width="${cw - 4}" height="${H - pt - pb + 8}" rx="6" fill="#eaf3fd"/>`;
-    s += `<rect x="${x + cw * .16}" y="${y(lyF[m])}" width="${bw}" height="${Math.max(0, H - pb - y(lyF[m]))}" rx="3" fill="#cdd7e6"><title>${MN[m]} last year: ${fL(lyF[m])} L</title></rect>`;
+    // 20-Nov-2026 (user): running month – bar = last year up to the same day, dashed outline up to the full month
+    const cut = i === li && lyF[m] > lyS[m] + 0.005, lyb = cut ? lyS[m] : lyF[m], lx = x + cw * .16;
+    s += `<rect x="${lx}" y="${y(lyb)}" width="${bw}" height="${Math.max(0, H - pb - y(lyb))}" rx="3" fill="#cdd7e6"><title>${MN[m]} last year${cut ? ' (same days)' : ''}: ${fL(lyb)} L${cut ? ' · full month ' + fL(lyF[m]) + ' L' : ''}</title></rect>`;
+    if (cut) { const yy = y(lyb), yf = y(lyF[m]); s += `<rect x="${lx + 0.75}" y="${yf}" width="${bw - 1.5}" height="${Math.max(0, yy - yf)}" rx="3" fill="#b9c7dc" fill-opacity=".18" stroke="#7f93b5" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="${lx - 4}" x2="${lx + bw + 4}" y1="${yf}" y2="${yf}" stroke="#5b6f93" stroke-width="2"/><text x="${lx + bw/2}" y="${yf - 18}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#5b6f93">${fL(lyF[m])}</text><text x="${lx + bw/2}" y="${yf - 7}" text-anchor="middle" font-size="8.5" fill="#5b6f93">full ${MN[m]} LY</text>`; }
     if (!fut) s += `<rect x="${x + cw * .5}" y="${y(act[m])}" width="${bw}" height="${Math.max(0, H - pb - y(act[m]))}" rx="3" fill="${plans[i] ? colOf(act[m] / plans[i] * 100) : '#0073c8'}"><title>${MN[m]} this year: ${fL(act[m])} L${plans[i] ? ' · plan ' + fL(plans[i]) + ' L (' + (act[m] / plans[i] * 100).toFixed(0) + '%)' : ''}</title></rect>`;
     if (plans[i] != null) s += `<line x1="${x + cw * .1}" x2="${x + cw * .9}" y1="${y(plans[i])}" y2="${y(plans[i])}" stroke="#16264d" stroke-width="2" stroke-dasharray="4 3"><title>${MN[m]} plan ${fL(plans[i])} L</title></line>`;
     s += `<text x="${x + cw / 2}" y="${H - pb + 16}" font-size="11.5" text-anchor="middle" fill="${on ? '#0073c8' : '#7a8fb8'}" font-weight="${on ? 700 : 400}">${MN[m]}</text>`;

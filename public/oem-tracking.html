@@ -224,6 +224,8 @@ async function load(resetFilters, quiet){
   try {
     const oldYtd = S.data ? ytd().join() : null;
     S.data = await rpc('pm_oem', { p_cy: S.fy }); S.loadedAt = Date.now();
+    // 20-Nov-2026: full last-year month for the running month (dashed outline in the month chart); never breaks the page
+    try { S.lyf = await rpc('pm_oem_lyfull', { p_cy: S.fy }); } catch (e) { S.lyf = null; }
     // merge customer names that differ only in capitals / spacing — most-used spelling wins
     const ck = c => String(c).trim().replace(/\s+/g, ' ').replace(/[.,]+$/,'').toUpperCase();
     const tot = {}; S.data.rows.forEach(r => { const k = ck(r.c); (tot[k] = tot[k] || {})[r.c] = (tot[k][r.c] || 0) + Math.abs(+r.v || 0); });
@@ -258,13 +260,14 @@ function niceStep(max0){ const p10 = Math.pow(10, Math.floor(Math.log10(max0)));
 const axisFmt = (v, k) => k === 'v' ? (v >= 100 ? Math.round(v).toLocaleString('en-IN') : v.toFixed(v < 10 ? 1 : 0)) : fq(v);
 function vbar(host, cats, labelOf, vals, k){
   const W = 620, H = 290, Lm = 60, R = 10, T = 26, B = 46, ly = k + 'ly', cyk = k + 'cy';
-  const max0 = Math.max(1, ...cats.flatMap(c => [vals[c][ly], vals[c][cyk]])), step = niceStep(max0), max = Math.ceil(max0 / step) * step;
+  const max0 = Math.max(1, ...cats.flatMap(c => [vals[c][ly], vals[c][cyk], vals[c][ly + 'Full'] || 0])), step = niceStep(max0), max = Math.ceil(max0 / step) * step;
   const band = (W - Lm - R) / Math.max(cats.length, 1), bw = Math.min(26, band * 0.32), y = v => T + (H - T - B) * (1 - v / max);
   let svg = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
   for (let v = 0; v <= max + 1e-9; v += step) svg += `<line x1="${Lm}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="#eceff4"/><text x="${Lm-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="#7a8fb8">${axisFmt(v, k)}</text>`;
   cats.forEach((c, i) => { const cx = Lm + band * i + band / 2, d = vals[c];
     [[d[ly], C_LY, cx - 1 - bw], [d[cyk], C_CY, cx + 1]].forEach(([v, col, x0]) => { const yy = y(v), h = H - B - yy;
-      if (h > 0.5) svg += `<path d="M${x0},${H-B} V${yy + Math.min(4, h)} Q${x0},${yy} ${x0 + 4},${yy} H${x0 + bw - 4} Q${x0 + bw},${yy} ${x0 + bw},${yy + Math.min(4, h)} V${H-B} Z" fill="${col}"/>`; });
+      if (h > 0.5) svg += `<path d="M${x0},${H-B} V${yy + Math.min(4, h)} Q${x0},${yy} ${x0 + 4},${yy} H${x0 + bw - 4} Q${x0 + bw},${yy} ${x0 + bw},${yy + Math.min(4, h)} V${H-B} Z" fill="${col}"/>`;
+      const full = d[ly + 'Full']; if (col === C_LY && full) { const yf = y(full); svg += `<rect x="${x0 + 0.75}" y="${yf}" width="${bw - 1.5}" height="${Math.max(0, yy - yf)}" rx="3" fill="#b9c7dc" fill-opacity=".18" stroke="#7f93b5" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="${x0 - 4}" x2="${x0 + bw + 4}" y1="${yf}" y2="${yf}" stroke="#5b6f93" stroke-width="2"/><text x="${x0 + bw/2}" y="${yf - 18}" text-anchor="middle" font-size="9.5" font-weight="700" fill="#5b6f93">${axisFmt(full, k)}</text><text x="${x0 + bw/2}" y="${yf - 7}" text-anchor="middle" font-size="8.5" fill="#5b6f93">full ${esc(labelOf(c))} LY</text>`; } });
     const g = d[ly] ? (d[cyk] - d[ly]) / d[ly] * 100 : null;
     svg += `<text x="${cx}" y="${H - B + 16}" text-anchor="middle" font-size="11" fill="#16264d">${esc(labelOf(c))}</text>`;
     svg += `<text x="${cx}" y="${H - B + 32}" text-anchor="middle" font-size="11" font-weight="700" fill="${g === null ? '#7a8fb8' : g >= 0 ? '#0f7a36' : '#b42323'}">${g === null ? (d[cyk] ? 'new' : '—') : (g >= 0 ? '▲ ' : '▼ ') + Math.abs(g).toFixed(1) + '%'}</text>`;
@@ -288,7 +291,7 @@ function hbar(host, list, k){
   host.querySelectorAll('.hit').forEach(h => { const d = list[+h.dataset.i]; h.onmousemove = e => showTip(e, tipHtml(d.s, d)); h.onmouseleave = hideTip; });
 }
 function tipHtml(title, d){ const cy = S.data.cy, base = S.data.base;
-  return `<b>${esc(title)}</b><br><span class="sw" style="background:${C_CY}"></span>${fyLabel(cy)}: <b>${f2(d.vcy)} L</b> · ${fq(d.qcy)} pcs<br><span class="sw" style="background:${C_LY}"></span>${fyLabel(base)}: ${f2(d.vly)} L · ${fq(d.qly)} pcs<br>Value growth <b>${grPlain(d.vcy, d.vly)}</b> · Qty growth <b>${grPlain(d.qcy, d.qly)}</b>`; }
+  return `<b>${esc(title)}</b><br><span class="sw" style="background:${C_CY}"></span>${fyLabel(cy)}: <b>${f2(d.vcy)} L</b> · ${fq(d.qcy)} pcs<br><span class="sw" style="background:${C_LY}"></span>${fyLabel(base)}: ${f2(d.vly)} L · ${fq(d.qly)} pcs${d.vlyFull ? ` (same days) · full month ${f2(d.vlyFull)} L · ${fq(d.qlyFull || d.qly)} pcs` : ''}<br>Value growth <b>${grPlain(d.vcy, d.vly)}</b> · Qty growth <b>${grPlain(d.qcy, d.qly)}</b>`; }
 const blank = () => ({vly:0, vcy:0, qly:0, qcy:0});
 const itemOf = k => S.data.items?.[k] || {};
 // model rows under an open series row (used in both tables)
@@ -305,6 +308,9 @@ function renderGrowth(){
   const rows = filtered(G.doc, G.months, G.series), byS = {}, byM = {}, T = blank();
   const mSel = MONTHS.filter(m => G.months.includes(m)); mSel.forEach(m => byM[m] = blank());
   rows.forEach(r => { const o = byS[r.s] = byS[r.s] || {s:r.s, mod:{}, ...blank()}; add(o, r, cy); add(o.mod[r.k] = o.mod[r.k] || {k:r.k, ...blank()}, r, cy); add(byM[r.m], r, cy); add(T, r, cy); });
+  const lm = S.lyf && S.lyf.m, ssel = new Set(G.series);
+  if (lm && byM[lm] && S.lyf.rows) { let fv = 0, fq_ = 0; S.lyf.rows.forEach(a => { if (a[0] !== G.doc || (ssel.size && !ssel.has(a[1]))) return; fv += L(+a[2] || 0); fq_ += +a[3] || 0; });
+    if (fv > byM[lm].vly + 0.005) byM[lm].vlyFull = fv; if (fq_ > byM[lm].qly + 0.005) byM[lm].qlyFull = fq_; }
   const per = perLabel(G.months), md = d => d ? new Date(d).toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : '—';
   $('gTitle').textContent = `OEM growth — ${docName}, ${fyLabel(cy)} vs ${fyLabel(base)}`;
   $('gSub').innerHTML = `${per} · ${G.series.length ? G.series.length + ' product series' : 'all product series'} · OEM product basket. Value = DocTotalFC in Rs Lakhs, Qty in pcs.` + (S.data.base_cut ? ` Last year's latest month is cut at ${md(S.data.base_cut)} (like-for-like).` : '');
