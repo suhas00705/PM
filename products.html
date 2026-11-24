@@ -401,18 +401,8 @@ function renderFam(fam){
   const s = famStats(fam), F = famOf(fam), cm = curMonth(), planPct = s.share * 100, P = pipeOf(fam);
   let h = heroHtml({ ob:s.ob, inv:s.inv, T:s.T, plan:s.plan, pend:s.pend, pipe:P, lyOb:s.lyOb, share:s.share });
   if (F.note) h += `<div class="note" style="margin:-6px 2px 12px">${esc(F.note)}${fam === 'Prepaid/Smart' ? ' ' + govtLine() : ''}</div>`;
-  // B: pace bars
+  // B: pace bars – removed 24-Nov-2026 (user): the hero strip above already shows OB / invoicing vs plan and pending to bill
   if (s.T != null) {
-    const obP = pc(s.ob, s.T), invP = pc(s.inv, s.T), ipP = s.pend != null ? pc(s.inv + s.pend, s.T) : null;
-    const gapTxt = (a) => { const g = a - s.plan; return `<span class="chip ${g >= 0 ? 'c-good' : 'c-warn'}">${g >= 0 ? 'Ahead' : 'Short'} ₹${f2(Math.abs(g))} L vs plan</span>`; };
-    h += `<div class="secttl">Pace vs plan to date (${planPct.toFixed(1)}% by end of ${MNAME[cm]})</div><div class="tiles">
-      <div class="tile"><div class="l">Order booking vs FY target</div><div class="v">${fp(obP)} <small>${f2(s.ob)} / ${f0(s.T)} L</small></div>
-        ${pbar(obP, planPct, barColor(obP, planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${gapTxt(s.ob)}</div></div>
-      <div class="tile"><div class="l">Invoicing vs FY target</div><div class="v">${fp(invP)} <small>${f2(s.inv)} / ${f0(s.T)} L</small></div>
-        ${pbar(invP, planPct, barColor(invP, planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${gapTxt(s.inv)}</div></div>
-      <div class="tile"><div class="l">Invoicing + pending to bill</div><div class="v">${fp(ipP)} <small>incl. ${s.pend != null ? f2(s.pend) : '—'} L pending</small></div>
-        ${pbar(ipP, planPct, '#0073C8', 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${s.pend != null ? gapTxt(s.inv + s.pend) + ' once pending orders are billed' : 'Pending to bill not loaded'}</div></div>
-    </div>`;
     // D: run-rate
     const { day, dim } = monthDays(), left = Math.max(1, dim - day);
     const rr = (r, lbl) => { const need = Math.max(0, r.tgt - r.a), p = pc(r.a, r.tgt);
