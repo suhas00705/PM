@@ -118,6 +118,53 @@
   .ob-row .p{font-weight:800;text-align:right}
   .ob-row .pbar{margin:8px 0}
   @media(max-width:560px){.ob-row{grid-template-columns:90px minmax(0,1fr) 54px}}
+
+  /* 24-Nov-2026: multiselects, clickable charts, pop-ups (same look as PM Cumulative) */
+  .ms-btn{border:1px solid #cfd6e3;background:#fff;border-radius:8px;padding:7px 28px 7px 10px;font:inherit;color:var(--t1);cursor:pointer;min-width:170px;text-align:left;position:relative}
+  .ms-btn:after{content:'▾';position:absolute;right:10px;top:7px;color:var(--t3)}
+  .ms-pop{display:none;position:absolute;top:100%;left:0;margin-top:4px;z-index:60;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px rgba(11,41,66,.18);width:270px;padding:8px}
+  .ms-pop.open{display:block}
+  .ms-acts{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+  .ms-acts button{font:inherit;font-size:11.5px;border:1px solid #cfd6e3;background:#f6f8fb;border-radius:6px;padding:3px 8px;cursor:pointer;color:var(--t2)}
+  .ms-list{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+  .ms-list.long{display:block;max-height:280px;overflow:auto}
+  .f .ms-list label,.ms-list label{display:flex;gap:6px;align-items:center;padding:5px 4px;border-radius:5px;cursor:pointer;font-size:13px;text-transform:none;letter-spacing:0;font-weight:400;color:var(--t1)}
+  .chart.fit{max-width:900px}
+  .ms-list label:hover{background:#f1f5fb}
+  .ms-q{width:100%;margin-bottom:6px}
+  .ck{cursor:pointer}
+  svg .ck:hover rect{opacity:.85}
+  .hdr-f{margin:0;justify-content:flex-end}
+  .card-h .fl.hdr-f .f label{text-align:left}
+  a.dd{color:inherit;text-decoration:none;border-bottom:1px dashed #9db3d6;cursor:pointer}
+  a.dd:hover{color:var(--volt);border-bottom-color:var(--volt)}
+  .dd-ov{position:fixed;inset:0;background:rgba(11,41,66,.45);z-index:200;display:flex;align-items:center;justify-content:center;padding:12px}
+  .dd-box{background:#fff;border-radius:16px;width:min(1080px,100%);max-height:94vh;display:flex;flex-direction:column;box-shadow:0 30px 80px rgba(0,0,0,.35);overflow:hidden}
+  .dd-hd{background:linear-gradient(120deg,#0b2942,#0073c8);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+  .dd-hd h3{margin:0;font-size:18px}.dd-hd .s{font-size:12px;opacity:.85;margin-top:3px}
+  .dd-hd .toggle{background:rgba(255,255,255,.18)}.dd-hd .toggle button{color:#fff}.dd-hd .toggle button.on{color:var(--volt)}
+  .dd-x{background:rgba(255,255,255,.15);border:0;color:#fff;width:34px;height:34px;border-radius:50%;font-size:18px;cursor:pointer;flex:0 0 auto}
+  .dd-bd{overflow:auto;padding:12px 18px 18px}
+  .dd-kp{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+  .dd-k{border:1px solid var(--line);border-radius:12px;padding:9px 12px}
+  .dd-k .l{font-size:10.5px;font-weight:700;color:var(--t3);letter-spacing:.06em;text-transform:uppercase}
+  .dd-k .v{font-size:19px;font-weight:800;margin-top:2px}.dd-k .n{font-size:11.5px;color:var(--t3)}
+  .dd-two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .dd-cap{font-size:11px;font-weight:700;color:var(--t3);letter-spacing:.06em;margin:4px 0 6px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .dd-tb{max-height:300px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .dd-tb table th{position:sticky;top:0;z-index:2}
+  .dd-tb tr.sel td{background:#e8f1ff}
+  .dd-tb tr.ck:hover td{background:#f3f7fd}
+  .dd-bar{display:inline-block;height:7px;border-radius:4px;background:var(--volt);opacity:.75;margin-left:8px;vertical-align:middle}
+  .dd-docs{max-height:420px;margin-top:4px}
+  .dd-tb tr.it td{background:#f7faff;color:var(--t2);font-size:12.5px}
+  .dd-docs a.doc{color:var(--volt);font-weight:700;text-decoration:none;cursor:pointer}
+  .dd-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:14px 0 8px}
+  .dd-tools input{font:inherit;padding:6px 10px;border:1px solid #cfd6e3;border-radius:8px;width:260px;max-width:100%}
+  .dd-flt{font-size:12px;background:#e8f1ff;color:var(--volt);border-radius:20px;padding:3px 10px;font-weight:700}
+  .dd-flt button{border:0;background:none;color:var(--volt);font-weight:800;cursor:pointer;padding:0 0 0 4px}
+  .dd-load{padding:30px;text-align:center;color:var(--t3)}
+  @media (max-width:760px){.dd-ov{padding:0}.dd-box{max-height:100vh;height:100vh;border-radius:0}.dd-kp{grid-template-columns:1fr 1fr}.dd-two{grid-template-columns:1fr}.dd-hd h3{font-size:16px}.dd-tools input{width:100%}.hdr-f{justify-content:flex-start}}
 </style>
 </head>
 <body>
@@ -184,7 +231,7 @@ const famOf = n => FAMS.find(f => f.name === n);
 const tgtOf = (fam, fy) => (famOf(fam)?.target || {})[fy] ?? null;
 
 const S = { fy:null, view:'cum', cube:null, rows:[], pend:null, pipe:null, list:{}, leads:null, loadedAt:0,
-            ov:{doc:'OB', per:'q'}, ser:{gm:'', rg:'', per:'all', open:null}, reg:{doc:'OB', per:'cur', open:null},
+            ov:{doc:'OB', per:'q'}, ser:{gm:'', rgs:[], months:null}, reg:{doc:'OB', months:null, series:[], open:null}, leadM:null, msOpen:null,
             vis:{st:'Open', q:'', n:40, from:'', to:''}, gr:{doc:'OB'} };
 
 async function rpc(fn, body){
@@ -268,7 +315,7 @@ async function loadPipe(fam){
   } catch (e) { S.pipe = { cy:S.fy, err:e.message || String(e), sum:[] }; }
 }
 async function loadLeads(){
-  try { const l = await rpc('prd_leads', { p_cy:S.fy }); S.leads = { cy:S.fy, rows:l.rows || [] }; }
+  try { const l = await rpc('prd_leads_d', { p_cy:S.fy }); S.leads = { cy:S.fy, rows:l.rows || [] }; }
   catch (e) { S.leads = { cy:S.fy, err:e.message || String(e), rows:[] }; }
 }
 
@@ -325,7 +372,7 @@ function drawChips(){
     `<button data-k="${esc(k)}" class="${S.view === k ? 'on' : ''}">${esc(t)}</button>` + (i === 0 ? '<span class="sep"></span>' : '')).join('');
 }
 $('chips').onclick = async e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.k;
-  S.ser.open = null; S.reg.open = null; S.vis.n = 40; drawChips(); render();
+  S.reg.open = null; S.reg.series = []; S.ser.rgs = []; S.ser.gm = ''; S.vis.n = 40; drawChips(); render();
   if (famOf(S.view) && (!S.list[S.view])) { await loadPipe(S.view); if (S.view === b.dataset.k) render(); } };
 
 /* ---------------- render ---------------- */
@@ -398,6 +445,7 @@ function heroHtml(o){
 
 /* ===== One product family ===== */
 function renderFam(fam){
+  if (!S.ser.months) S.ser.months = pastMonths(); if (!S.reg.months) S.reg.months = [curMonth()];
   const s = famStats(fam), F = famOf(fam), cm = curMonth(), planPct = s.share * 100, P = pipeOf(fam);
   let h = heroHtml({ ob:s.ob, inv:s.inv, T:s.T, plan:s.plan, pend:s.pend, pipe:P, lyOb:s.lyOb, share:s.share });
   if (F.note) h += `<div class="note" style="margin:-6px 2px 12px">${esc(F.note)}${fam === 'Prepaid/Smart' ? ' ' + govtLine() : ''}</div>`;
@@ -425,87 +473,168 @@ function renderFam(fam){
 }
 function govtLine(){ const g = famStats(GOVT); return (g.ob || g.inv) ? `Govt Projects this FY: OB ₹${f2(g.ob)} L · billed ₹${f2(g.inv)} L${g.pend ? ' · pending ₹' + f2(g.pend) + ' L' : ''}.` : ''; }
 
-function monthTable(run, title, id){
-  const ci = curIdx(); const hasT = run.some(r => r.tgt != null);
-  let rows = '';
-  [1,2,3,4].forEach(q => {
-    const ms = run.filter(r => QOF(r.m) === q), qt = hasT ? ms.reduce((t, r) => t + r.plan, 0) : null, qa = ms.reduce((t, r) => t + r.a, 0);
-    const started = MONTHS.indexOf(ms[0].m) <= ci, qp = hasT && started ? pc(qa, qt) : null;
-    rows += `<tr class="q"><td class="l">Q${q}</td><td>${hasT ? f2(qt) : '—'}</td><td></td><td>${f2(qa)}</td><td class="${heat(qp)}">${qp == null ? '—' : fp(qp)}</td><td>${hasT ? (qa >= qt ? '+' + f2(qa - qt) + ' over' : f2(qt - qa)) : '—'}</td></tr>`;
-    ms.forEach(r => { const i = MONTHS.indexOf(r.m), fut = i > ci, p = hasT && !fut ? pc(r.a, r.tgt) : null;
-      rows += `<tr class="${fut ? 'fut' : ''}"><td class="l" style="padding-left:24px">${MNAME[r.m]}</td><td>${hasT ? f2(r.plan) : '—'}</td>
-        <td ${r.cin > 0.005 ? `data-tip="Plan ${f2(r.plan)} + ${f2(r.cin)} carried from earlier months"` : ''}>${hasT ? f2(r.tgt) : '—'}${r.cin > 0.005 ? ' <span class="sub">↻</span>' : ''}</td>
-        <td>${fut && !r.a ? '—' : f2(r.a)}</td><td class="${heat(p)}">${p == null ? '—' : fp(p)}</td><td>${hasT && !fut ? (r.a >= r.tgt ? '<span class="gr-up">done</span>' : f2(r.tgt - r.a)) : ''}</td></tr>`; });
+/* ================= 24-Nov-2026 round 2 (user choices: 1A month chart, 2A series bars, 3B stacked regions, 4A week bars) ================= */
+const PAL = ['#0073C8', '#00a3a3', '#f5a623', '#7b4fd6', '#e0703c', '#16a34a', '#c2185b', '#5d6d7e'];
+const FAM_BASKETS = { 'Panel Meters':['Panel Meters','High End MFM','Nano VIP','Power Quality'], 'ACCL':['ACCL'], 'ATES':['Transfer Switch'],
+  'Prepaid/Smart':['Prepaid & Smart Meters','Prepaid','Smart Meters'], 'LVS':['SWITCHGEAR'], 'FDP':['FDP'], 'OEM':['OEM'] };
+function famItems(fam){
+  if (fam === 'Other') { const b = [...new Set(S.rows.filter(x => x.f === 'Other').map(x => String(x.s).split(' · ')[0]))]; return [{ b, xg:false }]; }
+  return [{ b:FAM_BASKETS[fam] || [], xg:fam === 'Prepaid/Smart' }];
+}
+const ytdMonths = () => pastMonths();
+function monthsLabel(ms){
+  const sel = MONTHS.filter(m => ms.includes(m)); if (!sel.length) return 'No months';
+  if (sel.length === 12) return 'All months';
+  const idx = sel.map(m => MONTHS.indexOf(m)), cont = idx.every((v, i) => !i || v === idx[i - 1] + 1);
+  return sel.length === 1 ? MNAME[sel[0]] : cont ? `${MNAME[sel[0]]}–${MNAME[sel[sel.length - 1]]}` : `${sel.length} months`;
+}
+function regionsOf(fam){ return [...new Set(S.rows.filter(x => x.f === fam && x.y === 0).map(x => x.r))].sort(); }
+function seriesOf(fam){ const t = {}; S.rows.forEach(x => { if (x.f === fam && x.y === 0) t[x.s] = (t[x.s] || 0) + x.v; }); return Object.keys(t).sort((a, b) => t[b] - t[a]); }
+
+/* ---------- multiselect with quick picks (same look as PM Cumulative) ---------- */
+// id: unique; items: [{v, t}]; sel: array; opts: {quick:[[label, fn]], months:bool, btn:string}
+function msHtml(id, label, btnText, items, sel, quick){
+  const s = new Set(sel.map(String));
+  return `<div class="f ms" data-ms="${id}"><label>${esc(label)}</label><button class="ms-btn" type="button">${esc(btnText)}</button>
+    <div class="ms-pop${S.msOpen === id ? ' open' : ''}">${quick && quick.length ? `<div class="ms-acts">${quick.map((q, i) => `<button type="button" data-q="${i}">${esc(q[0])}</button>`).join('')}</div>` : ''}
+    ${items.length > 10 ? `<input type="search" class="ms-q" placeholder="Search…">` : ''}
+    <div class="ms-list${items.length > 12 || !items.every(it => typeof it.v === 'number') ? ' long' : ''}">${items.map(it => `<label><input type="checkbox" value="${esc(it.v)}" ${s.has(String(it.v)) ? 'checked' : ''}> ${esc(it.t)}</label>`).join('')}</div></div></div>`;
+}
+const MS = {};   // id -> {get, set, quick, items}
+function msBind(root, rer){
+  root.querySelectorAll('[data-ms]').forEach(w => {
+    const id = w.dataset.ms, cfg = MS[id]; if (!cfg) return;
+    const pop = w.querySelector('.ms-pop');
+    w.querySelector('.ms-btn').onclick = e => { e.stopPropagation(); S.msOpen = S.msOpen === id ? null : id; pop.classList.toggle('open', S.msOpen === id); };
+    pop.onclick = e => e.stopPropagation();
+    pop.querySelectorAll('[data-q]').forEach(b => b.onclick = () => { cfg.set(cfg.quick[+b.dataset.q][1]()); rer(); });
+    pop.querySelectorAll('input[type=checkbox]').forEach(cb => cb.onchange = () => {
+      const v = cfg.num ? +cb.value : cb.value, cur = cfg.get();
+      cfg.set(cb.checked ? [...cur, v] : cur.filter(x => x !== v)); rer(); });
+    const q = pop.querySelector('.ms-q'); if (q) q.oninput = () => { const t = q.value.toLowerCase();
+      pop.querySelectorAll('.ms-list label').forEach(l => l.style.display = l.textContent.toLowerCase().includes(t) ? '' : 'none'); };
   });
+}
+document.addEventListener('click', () => { if (S.msOpen) { S.msOpen = null; document.querySelectorAll('.ms-pop.open').forEach(p => p.classList.remove('open')); } });
+const MONTH_QUICK = () => [['Apr → latest', ytdMonths], ['Latest month', () => [curMonth()]], ['All 12', () => [...MONTHS]],
+  ['Q1', () => QM[1]], ['Q2', () => QM[2]], ['Q3', () => QM[3]], ['Q4', () => QM[4]], ['H1', () => [...QM[1], ...QM[2]]], ['H2', () => [...QM[3], ...QM[4]]], ['Clear', () => []]];
+const MONTH_ITEMS = () => MONTHS.map(m => ({ v:m, t:MNAME[m] }));
+
+/* ---------- 1A: month chart (bars coloured by % of revised target, dashed revised target, thin plan) ---------- */
+function heatCol(p){ return p == null ? '#0073C8' : p >= 100 ? '#16a34a' : p >= 90 ? '#7cb342' : p >= 75 ? '#e08a00' : '#b42323'; }
+function monthChart1A(run, doc, fam){
+  const ci = curIdx(), hasT = run.some(r => r.tgt != null);
+  const W = 640, H = 240, pl = 48, pr = 10, pt = 22, pb = 26, cw = (W - pl - pr) / 12;
+  const mx = Math.max(1, ...run.map((r, i) => Math.max(i <= ci ? r.a : 0, hasT && i <= ci ? r.tgt : 0, hasT ? r.plan : 0))) * 1.12;
+  const y = v => pt + (H - pt - pb) * (1 - Math.max(0, v) / mx);
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let g = 0; g <= 4; g++) { const v = mx * g / 4; s += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="#eef1f6"/><text x="${pl - 6}" y="${y(v) + 4}" font-size="10" text-anchor="end" fill="#7a8fb8">${f0(v)}</text>`; }
+  run.forEach((r, i) => { const x = pl + i * cw, bw = cw * .56, bx = x + (cw - bw) / 2;
+    if (i <= ci) { const p = hasT ? pc(r.a, r.tgt) : null;
+      s += `<rect x="${bx}" y="${y(r.a)}" width="${bw}" height="${Math.max(0, H - pb - y(r.a))}" rx="4" fill="${heatCol(p)}" ${i === ci ? 'opacity=".75"' : ''} class="ck" data-m="${r.m}" data-tip="${esc(MNAME[r.m] + ': achieved ₹' + f2(r.a) + ' L' + (hasT ? ' · revised target ₹' + f2(r.tgt) + ' L (' + fp(p) + ') · plan ₹' + f2(r.plan) + ' L' : '') + ' · click for breakdown')}"/>`;
+      s += `<text x="${x + cw / 2}" y="${y(r.a) - 4}" font-size="9.5" text-anchor="middle" fill="#3b5384">${f0(r.a)}</text>`; }
+    s += `<text x="${x + cw / 2}" y="${H - 8}" font-size="10.5" text-anchor="middle" fill="${i > ci ? '#a9b6cf' : '#3b5384'}">${MNAME[r.m]}</text>`; });
+  if (hasT) {
+    s += `<polyline points="${run.slice(0, ci + 1).map((r, i) => `${pl + i * cw + cw / 2},${y(r.tgt)}`).join(' ')}" fill="none" stroke="#0B2942" stroke-width="2" stroke-dasharray="5 4"/>`;
+    s += `<polyline points="${run.map((r, i) => `${pl + i * cw + cw / 2},${y(r.plan)}`).join(' ')}" fill="none" stroke="#9fb3d1" stroke-width="1.5"/>`;
+  }
+  return s + '</svg>';
+}
+function monthTable(run, title, id){
+  const doc = id === 'obT' ? 'OB' : 'INV', ci = curIdx(), hasT = run.some(r => r.tgt != null);
+  let rows = '';
+  run.forEach((r, i) => { const fut = i > ci, p = hasT && !fut ? pc(r.a, r.tgt) : null;
+    rows += `<tr class="${fut ? 'fut' : ''}"><td class="l">${MNAME[r.m]} <span class="sub">Q${QOF(r.m)}</span></td><td>${hasT ? f2(r.plan) : '—'}</td>
+      <td ${r.cin > 0.005 ? `data-tip="Plan ${f2(r.plan)} + ${f2(r.cin)} carried from earlier months"` : ''}>${hasT ? f2(r.tgt) : '—'}${r.cin > 0.005 ? ' <span class="sub">↻</span>' : ''}</td>
+      <td>${fut && !r.a ? '—' : `<a class="dd" href="#" data-dd="${doc}" data-m="${r.m}" title="Click for the breakdown by region, product series and ${doc === 'OB' ? 'OA' : 'invoice'}">${f2(r.a)}</a>`}</td>
+      <td class="${heat(p)}">${p == null ? '—' : fp(p)}</td><td>${hasT && !fut ? (r.a >= r.tgt ? '<span class="gr-up">done</span>' : f2(r.tgt - r.a)) : ''}</td></tr>`; });
   const T = hasT ? run.reduce((t, r) => t + r.plan, 0) : null, A = run.reduce((t, r) => t + r.a, 0);
-  rows += `<tr class="tot"><td class="l">FY total</td><td>${hasT ? f2(T) : '—'}</td><td></td><td>${f2(A)}</td><td>${hasT ? fp(pc(A, T)) : '—'}</td><td>${hasT ? f2(Math.max(0, T - A)) : '—'}</td></tr>`;
-  return `<div class="card"><div class="card-h"><h2>${title}</h2><div class="sub">₹ Lakhs</div></div>
-    <div class="tbl"><table id="${id}"><thead><tr><th class="l">Quarter / month</th><th>Plan</th><th>Revised target</th><th>Achieved</th><th>% ach.</th><th>Pending / carried</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="legend"><span><i class="sw" style="background:#d9f0e0"></i>&gt;100%</span><span><i class="sw" style="background:#eaf6d9"></i>90–100%</span><span><i class="sw" style="background:#fff1d9"></i>75–90%</span><span><i class="sw" style="background:#fde8e8"></i>&lt;75%</span><span>↻ = includes shortfall carried from earlier months</span></div></div>`;
+  rows += `<tr class="tot"><td class="l">FY total</td><td>${hasT ? f2(T) : '—'}</td><td></td><td><a class="dd" href="#" data-dd="${doc}" data-m="ytd">${f2(A)}</a></td><td>${hasT ? fp(pc(A, T)) : '—'}</td><td>${hasT ? f2(Math.max(0, T - A)) : '—'}</td></tr>`;
+  return `<div class="card"><div class="card-h"><h2>${title}</h2><div class="sub">₹ Lakhs · click a bar or an achieved value for the breakdown</div></div>
+    <div class="chart" id="${id}C">${monthChart1A(run, doc)}</div>
+    <div class="legend" style="margin:2px 0 10px"><span><i class="sw" style="background:#16a34a"></i>≥100%</span><span><i class="sw" style="background:#7cb342"></i>90–100%</span><span><i class="sw" style="background:#e08a00"></i>75–90%</span><span><i class="sw" style="background:#b42323"></i>&lt;75% of revised target</span><span><i class="sw" style="background:#0B2942;height:2px"></i>revised target</span><span><i class="sw" style="background:#9fb3d1;height:2px"></i>plan</span></div>
+    <div class="tbl"><table id="${id}"><thead><tr><th class="l">Month</th><th>Plan</th><th>Revised target</th><th>Achieved</th><th>% ach.</th><th>Pending / carried</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 
-/* --- period / region filters shared by series + region blocks --- */
-function perMonths(per){ if (per === 'all') return MONTHS; if (per === 'ytd') return pastMonths(); if (per === 'cur') return [curMonth()];
-  if (/^q\d$/.test(per)) return QM[+per[1]]; return [+per]; }
-function perLabel(per){ return per === 'all' ? 'Full FY' : per === 'ytd' ? `Apr–${MNAME[curMonth()]}` : per === 'cur' ? MNAME[curMonth()] : /^q\d$/.test(per) ? per.toUpperCase() : MNAME[+per]; }
-function perOptions(sel){ const o = [['all', 'Full FY'], ['ytd', 'Apr → latest'], ['cur', 'Latest month'], ['q1', 'Q1'], ['q2', 'Q2'], ['q3', 'Q3'], ['q4', 'Q4'], ...MONTHS.map(m => [String(m), MNAME[m]])];
-  return o.map(([k, t]) => `<option value="${k}" ${String(sel) === k ? 'selected' : ''}>${t}</option>`).join(''); }
-function regionsOf(fam){ return [...new Set(S.rows.filter(x => x.f === fam && x.y === 0).map(x => x.r))].sort(); }
-
-/* --- product series --- */
+/* ---------- product series (2A) ---------- */
+function serFiltered(fam){
+  const F = S.ser, ms = new Set(F.months), rs = new Set(F.rgs);
+  return S.rows.filter(x => x.f === fam && ms.has(x.m) && (!rs.size || rs.has(x.r)));
+}
+function seriesBars2A(list){
+  const top = list.slice(0, 12), W = 900, lbl = 170, R = 70, rowH = 30, T = 8, H = T + top.length * rowH + 6;
+  const mx = Math.max(1, ...top.flatMap(o => [o.ov, o.ly])), x = v => lbl + (W - lbl - R) * v / mx;
+  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  top.forEach((o, i) => { const y0 = T + i * rowH, name = o.s.length > 24 ? o.s.slice(0, 23) + '…' : o.s, g = o.ly ? (o.ov - o.ly) / o.ly * 100 : null;
+    s += `<g class="ck" data-ser="${esc(o.s)}"><rect x="0" y="${y0}" width="${W}" height="${rowH}" fill="transparent"/><text x="${lbl - 8}" y="${y0 + 18}" text-anchor="end" font-size="11" fill="#16264d">${esc(name)}</text>`;
+    s += `<rect x="${lbl}" y="${y0 + 5}" width="${Math.max(1, x(o.ov) - lbl)}" height="10" rx="4" fill="#0073C8"/><rect x="${lbl}" y="${y0 + 17}" width="${Math.max(1, x(o.ly) - lbl)}" height="7" rx="3" fill="#b9c7dc"/>`;
+    s += `<text x="${x(Math.max(o.ov, o.ly)) + 6}" y="${y0 + 18}" font-size="10.5" font-weight="700" fill="${g == null ? '#7a8fb8' : g >= 0 ? '#0f7a36' : '#b42323'}">${g == null ? (o.ov ? 'new' : '—') : (g >= 0 ? '▲' : '▼') + Math.abs(g).toFixed(0) + '%'}</text>`;
+    s += `<title>${esc(o.s)}: ₹${f2(o.ov)} L this year · ₹${f2(o.ly)} L last year · click for Region › Sales engineer</title></g>`; });
+  return s + '</svg>';
+}
 function seriesCard(fam){
-  const F = S.ser, ms = new Set(perMonths(F.per)), regs = regionsOf(fam);
-  const okR = r => (!F.rg || r === F.rg) && (!F.gm || gmOf(r) === F.gm);
-  const by = {}, lyBy = {};
-  S.rows.forEach(x => { if (x.f !== fam || !ms.has(x.m) || !okR(x.r)) return;
-    if (x.y === 0) { const o = (by[x.s] = by[x.s] || { oq:0, ov:0, iq:0, iv:0 }); if (x.d === 'OB') { o.oq += x.q; o.ov += x.v; } else { o.iq += x.q; o.iv += x.v; } }
-    else if (x.d === 'OB') lyBy[x.s] = (lyBy[x.s] || 0) + x.lv; });   // last year cut at the same day (like for like)
+  const F = S.ser, rows = serFiltered(fam), by = {}, lyBy = {};
+  rows.forEach(x => { if (x.y === 0) { const o = (by[x.s] = by[x.s] || { oq:0, ov:0, iq:0, iv:0 }); if (x.d === 'OB') { o.oq += x.q; o.ov += x.v; } else { o.iq += x.q; o.iv += x.v; } }
+    else if (x.d === 'OB') lyBy[x.s] = (lyBy[x.s] || 0) + x.lv; });
   const list = Object.entries(by).map(([s, o]) => ({ s, ...o, ly:lyBy[s] || 0 })).sort((a, b) => b.ov - a.ov || b.iv - a.iv);
   const t = list.reduce((a, o) => ({ oq:a.oq + o.oq, ov:a.ov + o.ov, iq:a.iq + o.iq, iv:a.iv + o.iv, ly:a.ly + o.ly }), { oq:0, ov:0, iq:0, iv:0, ly:0 });
-  const mx = Math.max(1, ...list.map(o => o.ov));
-  let rows = list.map(o => {
-    let r = `<tr class="ck" data-ser="${esc(o.s)}"><td class="l"><span class="caret">${F.open === o.s ? '▾' : '▸'}</span>${esc(o.s)}<span class="hb" style="width:${Math.round(o.ov / mx * 70)}px"></span></td>
-      <td>${f0(o.oq)}</td><td>${f2(o.ov)}</td><td>${f0(o.iq)}</td><td>${f2(o.iv)}</td><td>${f2(o.ly)}</td><td>${grTxt(o.ov, o.ly)}</td><td>${fp(pc(o.ov, t.ov))}</td></tr>`;
-    if (F.open === o.s) {
-      const rb = {}; S.rows.forEach(x => { if (x.f !== fam || x.s !== o.s || x.y !== 0 || !ms.has(x.m) || !okR(x.r)) return;
-        const z = (rb[x.r] = rb[x.r] || { oq:0, ov:0, iq:0, iv:0 }); if (x.d === 'OB') { z.oq += x.q; z.ov += x.v; } else { z.iq += x.q; z.iv += x.v; } });
-      r += Object.entries(rb).sort((a, b) => b[1].ov - a[1].ov).map(([rg, z]) => `<tr class="sub"><td class="l">${esc(rg)} <span class="sub">· ${esc(gmOf(rg))}</span></td><td>${f0(z.oq)}</td><td>${f2(z.ov)}</td><td>${f0(z.iq)}</td><td>${f2(z.iv)}</td><td></td><td></td><td>${fp(pc(z.ov, o.ov))}</td></tr>`).join('');
-    }
-    return r; }).join('');
-  rows += `<tr class="tot"><td class="l">Total · ${list.length} series</td><td>${f0(t.oq)}</td><td>${f2(t.ov)}</td><td>${f0(t.iq)}</td><td>${f2(t.iv)}</td><td>${f2(t.ly)}</td><td>${grTxt(t.ov, t.ly)}</td><td>100%</td></tr>`;
-  return `<div class="card" id="serCard"><div class="card-h"><div><h2>Product series — ${esc(fam)}</h2><div class="sub">${esc(F.gm || 'All GMs')} · ${esc(F.rg || 'All regions')} · ${perLabel(F.per)} · ${fyLabel(S.fy)} · click a series for its regions</div></div></div>
+  const regs = regionsOf(fam);
+  MS.serRg = { get:() => S.ser.rgs, set:v => { S.ser.rgs = v; const g = GMS.find(x => x.gm === S.ser.gm); if (g && !(v.length && v.every(r => g.regions.includes(r)))) S.ser.gm = ''; } };
+  MS.serM = { num:true, get:() => S.ser.months, set:v => S.ser.months = v, quick:MONTH_QUICK() };
+  const rgLbl = !F.rgs.length ? 'All regions' : F.rgs.length === 1 ? F.rgs[0] : `${F.rgs.length} regions`;
+  const rowsH = list.map(o => `<tr class="ck" data-ser="${esc(o.s)}"><td class="l">${esc(o.s)}</td><td>${f0(o.oq)}</td><td>${f2(o.ov)}</td><td>${f0(o.iq)}</td><td>${f2(o.iv)}</td><td>${f2(o.ly)}</td><td>${grTxt(o.ov, o.ly)}</td><td>${fp(pc(o.ov, t.ov))}</td></tr>`).join('') +
+    `<tr class="tot"><td class="l">Total · ${list.length} series</td><td>${f0(t.oq)}</td><td>${f2(t.ov)}</td><td>${f0(t.iq)}</td><td>${f2(t.iv)}</td><td>${f2(t.ly)}</td><td>${grTxt(t.ov, t.ly)}</td><td>100%</td></tr>`;
+  return `<div class="card" id="serCard"><div class="card-h"><div><h2>Product series — ${esc(fam)}</h2><div class="sub">${esc(F.gm || 'All GMs')} · ${esc(rgLbl)} · ${monthsLabel(F.months)} · ${fyLabel(S.fy)} · click a series for Region › Sales engineer › OA</div></div></div>
     <div class="fl">
-      <div class="f"><label>GM</label><select id="serGm"><option value="">All GMs</option>${GMS.map(g => `<option ${F.gm === g.gm ? 'selected' : ''}>${esc(g.gm)}</option>`).join('')}<option ${F.gm === NOGM ? 'selected' : ''}>${NOGM}</option></select></div>
-      <div class="f"><label>Region</label><select id="serRg"><option value="">All regions</option>${regs.map(r => `<option ${F.rg === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select></div>
-      <div class="f"><label>Period</label><select id="serPer">${perOptions(F.per)}</select></div>
+      <div class="f"><label>GM</label><select id="serGm"><option value="">All GMs</option>${GMS.map(g => `<option ${F.gm === g.gm ? 'selected' : ''}>${esc(g.gm)}</option>`).join('')}</select></div>
+      ${msHtml('serRg', 'Region', rgLbl, regs.map(r => ({ v:r, t:r })), F.rgs, [['All', () => []], ...GMS.filter(g => g.regions.some(r => regs.includes(r))).map(g => [g.gm, () => g.regions.filter(r => regs.includes(r))])])}
+      ${msHtml('serM', 'Months', monthsLabel(F.months), MONTH_ITEMS(), F.months, MONTH_QUICK())}
     </div>
     <div class="kp"><div class="k"><div class="l">OB value</div><div class="v">₹${f2(t.ov)} L</div><div class="n">${f0(t.oq)} units</div></div>
       <div class="k"><div class="l">Invoice value</div><div class="v">₹${f2(t.iv)} L</div><div class="n">${f0(t.iq)} units</div></div>
       <div class="k"><div class="l">OB last year</div><div class="v">₹${f2(t.ly)} L</div><div class="n">${grTxt(t.ov, t.ly)}</div></div>
       <div class="k"><div class="l">Series</div><div class="v">${list.length}</div><div class="n">top: ${esc(list[0]?.s || '—')}</div></div></div>
-    <div class="tbl"><table id="serTable"><thead><tr><th class="l">Series</th><th>OB qty</th><th>OB value (₹ L)</th><th>Inv qty</th><th>Invoice value (₹ L)</th><th>OB last year</th><th>OB growth</th><th>Share</th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div class="note">OB and invoice values incl. GST, from Zoho orders and invoices (same as PM Cumulative). Last year = same months, the latest month cut at the same day.</div></div>`;
+    <div class="secttl">Top ${Math.min(12, list.length)} series — OB this year vs last year</div>
+    <div class="legend" style="margin:0 0 6px"><span><i class="sw" style="background:#0073C8"></i>${fyLabel(S.fy)}</span><span><i class="sw" style="background:#b9c7dc"></i>${fyLabel(S.fy - 1)} (same period)</span></div>
+    <div class="chart fit" id="serChart">${list.length ? seriesBars2A(list) : '<div class="note">No sales for this selection</div>'}</div>
+    <div class="tbl" style="margin-top:12px"><table id="serTable"><thead><tr><th class="l">Series</th><th>OB qty</th><th>OB value (₹ L)</th><th>Inv qty</th><th>Invoice value (₹ L)</th><th>OB last year</th><th>OB growth</th><th>Share</th></tr></thead><tbody>${rowsH}</tbody></table></div>
+    <div class="note">OB and invoice values incl. GST. Last year = same months, the latest month cut at the same day.</div></div>`;
 }
 
-/* --- region-wise booking --- */
+/* ---------- region-wise (3B stacked by series) ---------- */
 function regionCard(fam){
-  const F = S.reg, ms = new Set(perMonths(F.per)), by = {};
-  S.rows.forEach(x => { if (x.f !== fam || x.y !== 0 || x.d !== F.doc || !ms.has(x.m)) return;
-    const o = (by[x.r] = by[x.r] || { q:0, v:0, s:{} }); o.q += x.q; o.v += x.v; const z = (o.s[x.s] = o.s[x.s] || { q:0, v:0 }); z.q += x.q; z.v += x.v; });
+  const F = S.reg, ms = new Set(F.months), ss = new Set(F.series), by = {}, serTot = {};
+  S.rows.forEach(x => { if (x.f !== fam || x.y !== 0 || x.d !== F.doc || !ms.has(x.m) || (ss.size && !ss.has(x.s))) return;
+    const o = (by[x.r] = by[x.r] || { q:0, v:0, s:{} }); o.q += x.q; o.v += x.v; const z = (o.s[x.s] = o.s[x.s] || { q:0, v:0 }); z.q += x.q; z.v += x.v; serTot[x.s] = (serTot[x.s] || 0) + x.v; });
   const list = Object.entries(by).map(([r, o]) => ({ r, ...o })).sort((a, b) => b.v - a.v), tot = list.reduce((t, o) => t + o.v, 0), totQ = list.reduce((t, o) => t + o.q, 0);
-  const mx = Math.max(1, ...list.map(o => o.v));
+  const topS = Object.keys(serTot).sort((a, b) => serTot[b] - serTot[a]).slice(0, 6), colOf = s => { const i = topS.indexOf(s); return i < 0 ? '#c5cfdf' : PAL[i]; };
+  MS.regM = { num:true, get:() => S.reg.months, set:v => S.reg.months = v, quick:MONTH_QUICK() };
+  MS.regS = { get:() => S.reg.series, set:v => S.reg.series = v, quick:[['All series', () => []]] };
+  // stacked bars
+  const W = 900, lbl = 130, R = 110, rowH = 26, T = 6, H = T + list.length * rowH + 4, mx = Math.max(1, ...list.map(o => o.v)), xs = v => (W - lbl - R) * v / mx;
+  let svg = `<svg viewBox="0 0 ${W} ${H}">`;
+  list.forEach((o, i) => { const y0 = T + i * rowH; let x0 = lbl;
+    svg += `<g class="ck" data-rg="${esc(o.r)}"><rect x="0" y="${y0}" width="${W}" height="${rowH}" fill="transparent"/><text x="${lbl - 8}" y="${y0 + 16}" text-anchor="end" font-size="11" fill="#16264d">${esc(o.r)}</text>`;
+    const parts = [...topS.filter(s => o.s[s]).map(s => [s, o.s[s].v]), ['Others', Object.entries(o.s).filter(([s]) => !topS.includes(s)).reduce((t, [, z]) => t + z.v, 0)]].filter(p => p[1] > 0);
+    parts.forEach(([s, v]) => { const w = xs(v); svg += `<rect x="${x0}" y="${y0 + 5}" width="${Math.max(0.5, w)}" height="14" fill="${s === 'Others' ? '#c5cfdf' : colOf(s)}"><title>${esc(o.r)} · ${esc(s)}: ₹${f2(v)} L</title></rect>`; x0 += w; });
+    svg += `<text x="${x0 + 6}" y="${y0 + 16}" font-size="10.5" fill="#3b5384">${f2(o.v)} · ${fp(pc(o.v, tot))}</text></g>`; });
+  svg += '</svg>';
   let rows = list.map(o => { let r = `<tr class="ck" data-rg="${esc(o.r)}"><td class="l"><span class="caret">${F.open === o.r ? '▾' : '▸'}</span><b>${esc(o.r)}</b> <span class="sub">(${Object.keys(o.s).length} series)</span></td><td class="l pm">${esc(gmOf(o.r))}</td>
-      <td>${f0(o.q)}</td><td>${f2(o.v)}<span class="hb" style="width:${Math.round(o.v / mx * 70)}px"></span></td><td>${fp(pc(o.v, tot))}</td></tr>`;
-    if (F.open === o.r) r += Object.entries(o.s).sort((a, b) => b[1].v - a[1].v).map(([s, z]) => `<tr class="sub"><td class="l">${esc(s)}</td><td></td><td>${f0(z.q)}</td><td>${f2(z.v)}</td><td>${fp(pc(z.v, o.v))}</td></tr>`).join('');
+      <td>${f0(o.q)}</td><td>${f2(o.v)}</td><td>${fp(pc(o.v, tot))}</td></tr>`;
+    if (F.open === o.r) r += Object.entries(o.s).sort((a, b) => b[1].v - a[1].v).map(([s, z]) => `<tr class="sub"><td class="l"><i class="sw" style="background:${colOf(s)}"></i>${esc(s)}</td><td></td><td>${f0(z.q)}</td><td>${f2(z.v)}</td><td>${fp(pc(z.v, o.v))}</td></tr>`).join('');
     return r; }).join('');
   rows += `<tr class="tot"><td class="l">Total · ${list.length} regions</td><td></td><td>${f0(totQ)}</td><td>${f2(tot)}</td><td>100%</td></tr>`;
-  return `<div class="card" id="regCard"><div class="card-h"><div><h2>Region-wise ${F.doc === 'OB' ? 'booking' : 'billing'} — ${esc(fam)} · ${perLabel(F.per)}</h2><div class="sub">Click a region for its product series</div></div>
+  const sers = seriesOf(fam), sLbl = !F.series.length ? 'All series' : F.series.length === 1 ? F.series[0] : `${F.series.length} series`;
+  return `<div class="card" id="regCard"><div class="card-h"><div><h2>Region-wise ${F.doc === 'OB' ? 'booking' : 'billing'} — ${esc(fam)} · ${monthsLabel(F.months)}</h2><div class="sub">Bar = region total split by its top series · click a region for its series</div></div>
     <div class="fl" style="margin:0"><div class="toggle" id="regDoc"><button data-d="OB" class="${F.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${F.doc === 'INV' ? 'on' : ''}">Invoicing</button></div>
-    <div class="f"><select id="regPer">${perOptions(F.per)}</select></div></div></div>
-    <div class="tbl"><table id="regTable"><thead><tr><th class="l">Region / series</th><th class="l">GM</th><th>Qty</th><th>Value (₹ L)</th><th>Share</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+      ${msHtml('regS', 'Product series', sLbl, sers.map(s => ({ v:s, t:s })), F.series, MS.regS.quick)}
+      ${msHtml('regM', 'Months', monthsLabel(F.months), MONTH_ITEMS(), F.months, MONTH_QUICK())}</div></div>
+    <div class="legend" style="margin:0 0 6px">${topS.map(s => `<span><i class="sw" style="background:${colOf(s)}"></i>${esc(s)}</span>`).join('')}${Object.keys(serTot).length > topS.length ? '<span><i class="sw" style="background:#c5cfdf"></i>Others</span>' : ''}</div>
+    <div class="chart fit" id="regChart">${list.length ? svg : '<div class="note">No sales for this selection</div>'}</div>
+    <div class="tbl" style="margin-top:12px"><table id="regTable"><thead><tr><th class="l">Region / series</th><th class="l">GM</th><th>Qty</th><th>Value (₹ L)</th><th>Share</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 
-/* --- last-year growth by month --- */
+/* --- last-year growth by month (unchanged) --- */
 function growthCard(fam){
   const d = S.gr.doc, ci = curIdx();
   const pts = MONTHS.map((m, i) => ({ m, cy:i <= ci ? mv(fam, d, 0, m) : null, ly:mv(fam, d, 1, m, i === ci), lyFull:mv(fam, d, 1, m) }));
@@ -518,30 +647,25 @@ function growthCard(fam){
     <div class="tbl"><table id="grTable"><thead><tr><th class="l">Month</th><th>This year</th><th>Last year</th><th>Growth</th></tr></thead><tbody>${rows}</tbody></table></div></div></div>`;
 }
 
-/* --- potentials (visibility) + open pipeline by month --- */
+
+/* ---------- potentials (visibility) ---------- */
 function pipeCard(fam){
-  if (!S.pipe) return `<div class="card"><div class="card-h"><h2>Visibility of orders — potentials</h2></div><div class="note">Loading potentials…</div></div>`;
-  if (S.pipe.err) return `<div class="card"><div class="card-h"><h2>Visibility of orders — potentials</h2></div><div class="note">Potentials not available yet (${esc(S.pipe.err)}). Run <b>supabase/products.sql</b> in Supabase.</div></div>`;
-  const P = pipeOf(fam);
-  // open pipeline by closing month
+  const head = `<h2>Visibility of orders — potentials · ${esc(fam)}</h2>`;
+  if (!S.pipe) return `<div class="card"><div class="card-h">${head}</div><div class="note">Loading potentials…</div></div>`;
+  if (S.pipe.err) return `<div class="card"><div class="card-h">${head}</div><div class="note">Potentials not available yet (${esc(S.pipe.err)}). Run <b>supabase/products.sql</b> in Supabase.</div></div>`;
+  const P = pipeOf(fam), V = S.vis;
   const byM = {}; S.pipe.sum.forEach(a => { if (a[0] !== fam || a[1] !== 'Open') return; const o = (byM[a[2]] = byM[a[2]] || { a:0, w:0, n:0 }); o.a += +a[5]; o.w += +a[6]; o.n += +a[4]; });
-  const ms = MONTHS.map(m => monthKey(m)), cmk = monthKey(curMonth());
+  const cmk = monthKey(curMonth()), mRows = MONTHS.map(m => monthKey(m)).filter(k => k >= cmk).map(k => ({ k, ...(byM[k] || { a:0, w:0, n:0 }) }));
   const overdue = Object.entries(byM).filter(([k]) => k < cmk).reduce((t, [, o]) => ({ a:t.a + o.a, w:t.w + o.w, n:t.n + o.n }), { a:0, w:0, n:0 });
-  const mRows = ms.filter(k => k >= cmk).map(k => ({ k, ...(byM[k] || { a:0, w:0, n:0 }) }));
   const list = S.list[fam];
-  const V = S.vis;
-  let body = '';
+  let body = '', cnt = '';
   if (!list) body = '<div class="note">Loading the deal list…</div>';
   else {
     const q = V.q.trim().toLowerCase();
     const f = list.filter(a => (V.st === 'All' || a[6] === V.st) && (!q || [a[1], a[2], a[3], a[4], a[5], (a[12] || []).map(x => x[0]).join(' ')].join(' ').toLowerCase().includes(q))
       && (!V.from || (a[9] || '') >= V.from) && (!V.to || (a[9] || '9999') <= V.to));
-    const tv = f.reduce((t, a) => t + +a[10], 0);
-    body = `<div class="fl"><div class="toggle" id="visSt">${['Open', 'Won', 'Lost', 'All'].map(s => `<button data-s="${s}" class="${V.st === s ? 'on' : ''}">${s}</button>`).join('')}</div>
-      <div class="f"><label>Closing from</label><input type="date" id="visFrom" value="${esc(V.from)}"></div><div class="f"><label>to</label><input type="date" id="visTo" value="${esc(V.to)}"></div>
-      <div class="f"><label>Search</label><input type="search" id="visQ" placeholder="Account, project, owner, series…" value="${esc(V.q)}"></div>
-      <div class="sub" style="padding-bottom:7px">${f.length} deals · ₹${f2(tv)} L</div></div>
-      <div class="tbl"><table id="visTable"><thead><tr><th class="l">Account / project</th><th class="l">Product series (this product)</th><th class="l">Owner</th><th class="l">Region</th><th>Closing</th><th>Value (₹ L)</th><th class="l">Status</th><th>Probability</th></tr></thead><tbody>
+    cnt = `${f.length} deals · ₹${f2(f.reduce((t, a) => t + +a[10], 0))} L`;
+    body = `<div class="tbl"><table id="visTable"><thead><tr><th class="l">Account / project</th><th class="l">Product series (this product)</th><th class="l">Owner</th><th class="l">Region</th><th>Closing</th><th>Value (₹ L)</th><th class="l">Status</th><th>Probability</th></tr></thead><tbody>
       ${f.slice(0, V.n).map(a => `<tr><td class="l wrapc"><span class="acct">${esc(a[2] || a[1] || '—')}${a[3] || a[1] ? `<small>${esc(a[3] || a[1])}</small>` : ''}</span></td>
         <td class="l wrapc">${(a[12] || []).map(x => `${esc(x[0])}${x[1] ? ` <span class="sub">×${f0(x[1])}</span>` : ''}${(a[12] || []).length > 1 ? ` <span class="sub">₹${f2(x[2])}</span>` : ''}`).join('<br>')}</td>
         <td class="l">${esc(a[4] || '—')}</td><td class="l">${esc(a[5] || '—')}</td><td>${a[9] ? new Date(a[9]).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'}) : '—'}</td>
@@ -550,8 +674,10 @@ function pipeCard(fam){
       </tbody></table></div>${f.length > V.n ? `<div class="more"><button class="btn" id="visMore">Show ${Math.min(40, f.length - V.n)} more of ${f.length - V.n}</button></div>` : ''}`;
   }
   const mxA = Math.max(1, ...mRows.map(r => r.a));
-  return `<div class="card" id="pipeCard"><div class="card-h"><div><h2>Visibility of orders — potentials · ${esc(fam)}</h2>
-      <div class="sub">Synced from Zoho. Value = this product's lines of the deal (₹ L)${S.pipe.lines ? '; product lines last fully synced ' + new Date(S.pipe.lines).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '; product lines still syncing – deals without lines use an equal split (≈)'}</div></div></div>
+  return `<div class="card" id="pipeCard"><div class="card-h">${'<div>' + head}<div class="sub">Synced from Zoho. Value = this product's lines of the deal (₹ L)${S.pipe.lines ? '; product lines synced ' + new Date(S.pipe.lines).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '; deals without product lines use an equal split (≈)'}</div></div>
+      <div class="fl hdr-f"><div class="toggle" id="visSt">${['Open', 'Won', 'Lost', 'All'].map(s => `<button data-s="${s}" class="${V.st === s ? 'on' : ''}">${s}</button>`).join('')}</div>
+        <div class="f"><label>Closing from</label><input type="date" id="visFrom" value="${esc(V.from)}"></div><div class="f"><label>to</label><input type="date" id="visTo" value="${esc(V.to)}"></div>
+        <div class="f"><label>Search</label><input type="search" id="visQ" placeholder="Account, project, owner, series…" value="${esc(V.q)}"></div></div></div>
     <div class="kp"><div class="k"><div class="l">Open · closing ${MNAME[curMonth()]}</div><div class="v">₹${f2(P.open)} L</div><div class="n">${P.n} deals · ₹${f2(P.w)} L weighted</div></div>
       <div class="k"><div class="l">Open · rest of FY</div><div class="v">₹${f2(P.openAll)} L</div><div class="n">₹${f2(P.wAll)} L weighted by probability</div></div>
       <div class="k"><div class="l">Overdue (closing date passed)</div><div class="v">₹${f2(overdue.a)} L</div><div class="n">${overdue.n} open deals to update</div></div>
@@ -559,33 +685,206 @@ function pipeCard(fam){
     <div class="two" style="margin-bottom:14px"><div><div class="secttl">Open pipeline by closing month</div>
       <div class="tbl"><table id="pipeMon"><thead><tr><th class="l">Month</th><th>Deals</th><th>Open pipeline (₹ L)</th><th>Weighted (₹ L)</th></tr></thead><tbody>
       ${mRows.map(r => `<tr><td class="l">${MNAME[+r.k.slice(5)]} ${r.k.slice(2, 4)}</td><td>${r.n || '—'}</td><td>${f2(r.a)}<span class="hb" style="width:${Math.round(r.a / mxA * 60)}px"></span></td><td>${f2(r.w)}</td></tr>`).join('')}
-      </tbody></table></div></div><div><div class="secttl">Weekly leads created — ${esc(fam)}</div>${leadsTable(fam)}</div></div>
+      </tbody></table></div></div>
+      <div><div class="secttl">Deal list ${cnt ? '· ' + cnt : ''}</div><div class="note" style="margin-top:0">Use the status, closing date and search filters at the top right. Deals marked ≈ have no product lines in Zoho.</div></div></div>
     ${body}</div>`;
 }
-function leadsCard(){ return ''; }
-function leadsAgg(fam){
-  if (!S.leads || S.leads.err) return null;
-  const fy0 = `${S.fy}-04-01`, ly0 = `${S.fy - 1}-04-01`;
-  const W = {}; let cyN = 0, cyV = 0, lyN = 0, lyV = 0;
-  const today = new Date(), lyCut = new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()).toISOString().slice(0, 10);
-  S.leads.rows.forEach(a => { const toks = String(a[1] || '').split(',').map(t => t.trim()).filter(Boolean);
-    const fams = [...new Set(toks.map(pfam))]; if (!fams.includes(fam)) return;
-    const n = +a[3], v = +a[4] / fams.length;
-    if (a[0] >= fy0) { const o = (W[a[0]] = W[a[0]] || { n:0, v:0 }); o.n += n; o.v += v; cyN += n; cyV += v; }
-    else if (a[0] >= ly0 && a[0] <= lyCut) { lyN += n; lyV += v; } });
-  return { W, cyN, cyV, lyN, lyV };
+
+/* ---------- leads (separate block): Week 1–5 of a month (4A) ---------- */
+function leadFams(pt){ const toks = String(pt || '').split(',').map(t => t.trim()).filter(Boolean); return [...new Set(toks.map(pfam))]; }
+function leadRows(fam){   // this family's share of each lead row: [day, rg, owner, n, v]
+  if (!S.leads || S.leads.err) return [];
+  const out = []; S.leads.rows.forEach(a => { const fs = leadFams(a[1]); if (!fs.includes(fam)) return; out.push({ d:a[0], rg:a[2], ow:a[3], n:+a[4], v:+a[5] / fs.length }); });
+  return out;
 }
-function leadsTable(fam){
-  if (!S.leads) return '<div class="note">Loading leads…</div>';
-  if (S.leads.err) return `<div class="note">Leads not available yet (${esc(S.leads.err)}).</div>`;
-  const L = leadsAgg(fam), wks = Object.keys(L.W).sort().reverse().slice(0, 8);
-  const avg4 = wks.slice(1, 5).reduce((t, w) => t + L.W[w].n, 0) / Math.max(1, Math.min(4, wks.length - 1));
-  const mx = Math.max(1, ...wks.map(w => L.W[w].n));
-  return `<div class="tbl"><table id="leadTbl"><thead><tr><th class="l">Week of</th><th>Leads</th><th>Value (₹ L)</th></tr></thead><tbody>
-    ${wks.map((w, i) => `<tr><td class="l">${new Date(w).toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}${i === 0 ? ' <span class="sub">(this week)</span>' : ''}</td><td>${L.W[w].n}<span class="hb" style="width:${Math.round(L.W[w].n / mx * 50)}px;background:#16a34a"></span></td><td>${f2(L.W[w].v)}</td></tr>`).join('')}
-    <tr class="tot"><td class="l">FY so far</td><td>${f0(L.cyN)}</td><td>${f2(L.cyV)}</td></tr></tbody></table></div>
-    <div class="note">Last year same period: ${f0(L.lyN)} leads ${grTxt(L.cyN, L.lyN)} · 4-week average ${avg4.toFixed(1)} a week. A lead naming 2 products counts in each; its value is split equally.</div>`;
+const weekOf = d => Math.min(5, Math.ceil(+d.slice(8, 10) / 7));
+function leadsCard(fam){
+  const head = `<h2>Leads — ${esc(fam)}</h2>`;
+  if (!S.leads) return `<div class="card"><div class="card-h">${head}</div><div class="note">Loading leads…</div></div>`;
+  if (S.leads.err) return `<div class="card"><div class="card-h">${head}</div><div class="note">Leads not available yet (${esc(S.leads.err)}). Run <b>supabase/products_v2.sql</b> in Supabase.</div></div>`;
+  const m = S.leadM || curMonth(), mk = monthKey(m), lyk = (m >= 4 ? S.fy - 1 : S.fy) + '-' + String(m).padStart(2, '0');
+  const R = leadRows(fam), cur = R.filter(r => r.d.slice(0, 7) === mk), ly = R.filter(r => r.d.slice(0, 7) === lyk);
+  const wk = [1, 2, 3, 4, 5].map(w => { const a = cur.filter(r => weekOf(r.d) === w), b = ly.filter(r => weekOf(r.d) === w);
+    return { w, n:a.reduce((t, r) => t + r.n, 0), v:a.reduce((t, r) => t + r.v, 0), ln:b.reduce((t, r) => t + r.n, 0) }; });
+  const tn = wk.reduce((t, x) => t + x.n, 0), tv = wk.reduce((t, x) => t + x.v, 0), tl = wk.reduce((t, x) => t + x.ln, 0);
+  const fyN = R.filter(r => r.d >= `${S.fy}-04-01`).reduce((t, r) => t + r.n, 0);
+  const W = 640, H = 220, pl = 40, pb = 28, pt = 22, cw = (W - pl - 10) / 5, mx = Math.max(1, ...wk.map(x => Math.max(x.n, x.ln))) * 1.15, y = v => pt + (H - pt - pb) * (1 - v / mx);
+  let svg = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let g = 0; g <= 4; g++) { const v = mx * g / 4; svg += `<line x1="${pl}" x2="${W - 10}" y1="${y(v)}" y2="${y(v)}" stroke="#eef1f6"/><text x="${pl - 6}" y="${y(v) + 4}" font-size="10" text-anchor="end" fill="#7a8fb8">${Math.round(v)}</text>`; }
+  wk.forEach((x, i) => { const cx = pl + i * cw + cw / 2, bw = cw * .42;
+    svg += `<g class="ck" data-wk="${x.w}"><rect x="${cx - cw / 2}" y="${pt}" width="${cw}" height="${H - pt - pb}" fill="transparent"/>`;
+    svg += `<rect x="${cx - bw / 2}" y="${y(x.n)}" width="${bw}" height="${Math.max(0, H - pb - y(x.n))}" rx="5" fill="#16a34a"/>`;
+    if (x.ln) svg += `<line x1="${cx - bw / 2 - 6}" x2="${cx + bw / 2 + 6}" y1="${y(x.ln)}" y2="${y(x.ln)}" stroke="#7f93b5" stroke-width="2" stroke-dasharray="4 3"/>`;
+    if (x.n) svg += `<text x="${cx}" y="${y(x.n) - 14}" font-size="11.5" font-weight="700" text-anchor="middle" fill="#16264d">${x.n}</text><text x="${cx}" y="${y(x.n) - 3}" font-size="9.5" text-anchor="middle" fill="#3b5384">₹${f2(x.v)} L</text>`;
+    svg += `<text x="${cx}" y="${H - 9}" font-size="11" text-anchor="middle" fill="#3b5384">Week ${x.w}</text><title>Week ${x.w}: ${x.n} leads · ₹${f2(x.v)} L · last year ${x.ln} · click for Region › Sales engineer</title></g>`; });
+  svg += '</svg>';
+  const opts = pastMonths().slice().reverse().map(mm => `<option value="${mm}" ${mm === m ? 'selected' : ''}>${MNAME[mm]} ${String(mm >= 4 ? S.fy : S.fy + 1).slice(2)}</option>`).join('');
+  return `<div class="card" id="leadCard"><div class="card-h"><div>${head}<div class="sub">Leads created in Zoho naming this product (Product / Solution type). A lead naming 2 products counts in each; its value is split equally. Week 1 = days 1–7, Week 5 = 29–31.</div></div>
+      <div class="fl hdr-f"><div class="f"><label>Month</label><select id="leadM">${opts}</select></div></div></div>
+    <div class="kp"><div class="k"><div class="l">Leads · ${MNAME[m]}</div><div class="v ck" data-wk="0">${tn}</div><div class="n">₹${f2(tv)} L order value</div></div>
+      <div class="k"><div class="l">Same month last year</div><div class="v">${tl}</div><div class="n">${grTxt(tn, tl)}</div></div>
+      <div class="k"><div class="l">Leads this FY</div><div class="v">${f0(fyN)}</div><div class="n">${fyLabel(S.fy)} so far</div></div>
+      <div class="k"><div class="l">Best week</div><div class="v">${tn ? 'Week ' + wk.slice().sort((a, b) => b.n - a.n)[0].w : '—'}</div><div class="n">${tn ? wk.slice().sort((a, b) => b.n - a.n)[0].n + ' leads' : ''}</div></div></div>
+    <div class="two"><div><div class="legend" style="margin:0 0 6px"><span><i class="sw" style="background:#16a34a"></i>${MNAME[m]} leads</span><span><i class="sw" style="background:#7f93b5;height:2px"></i>same week last year</span></div><div class="chart" id="leadChart">${svg}</div></div>
+    <div class="tbl"><table id="leadTbl"><thead><tr><th class="l">Week</th><th>Leads</th><th>Value (₹ L)</th><th>Last year</th></tr></thead><tbody>
+      ${wk.map(x => `<tr><td class="l">Week ${x.w} <span class="sub">${[1, 8, 15, 22, 29][x.w - 1]}–${[7, 14, 21, 28, 31][x.w - 1]}</span></td><td><a class="dd" href="#" data-lw="${x.w}">${x.n}</a></td><td><a class="dd" href="#" data-lw="${x.w}">${f2(x.v)}</a></td><td>${x.ln}</td></tr>`).join('')}
+      <tr class="tot"><td class="l">${MNAME[m]} total</td><td><a class="dd" href="#" data-lw="0">${tn}</a></td><td><a class="dd" href="#" data-lw="0">${f2(tv)}</a></td><td>${tl}</td></tr></tbody></table></div></div></div>`;
 }
+
+/* ---------------- pop-ups ---------------- */
+const DD = { mode:null };
+function ddShell(title, sub, extra){
+  let ov = $('ddOv');
+  if (!ov) { ov = document.createElement('div'); ov.id = 'ddOv'; ov.className = 'dd-ov dk-skip'; document.body.appendChild(ov);
+    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); ddDocs(); } });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ddOv')?.style.display !== 'none') ddClose(); }); }
+  ov.style.display = 'flex';
+  ov.innerHTML = `<div class="dd-box"><div class="dd-hd"><div><h3>${title}</h3><div class="s">${sub}</div></div>
+    <div style="display:flex;gap:8px;align-items:center">${extra || ''}<button class="dd-x" data-a="close" title="Close">✕</button></div></div><div class="dd-bd" id="ddBd"><div class="dd-load">Loading breakdown…</div></div></div>`;
+}
+function ddClose(){ const ov = $('ddOv'); if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; } }
+const nf = v => (+v || 0).toLocaleString('en-IN');
+// (a) Achieved → same pop-up as PM Cumulative (pm_drill: region, series, OA list)
+async function openPm(fam, doc, months){
+  Object.assign(DD, { mode:'pm', fam, doc, months, rg:null, sr:null, data:null, q:'', open:new Set(), items:{} });
+  ddShell(`${esc(fam)} · ${doc === 'OB' ? 'Order booked' : 'Billed'} · ${esc(monthsLabel(months))}`,
+    `${fyLabel(S.fy)} · baskets: ${esc(famItems(fam)[0].b.join(', '))}${fam === 'Prepaid/Smart' ? ' · Govt Projects left out' : ''} · click a region or series to filter the list`);
+  await ddLoadPm();
+}
+async function ddLoadPm(){
+  try { DD.data = await rpc('pm_drill', { p_fy:S.fy, p_doc:DD.doc, p_months:DD.months, p_items:famItems(DD.fam), p_rg:DD.rg, p_sr:DD.sr }); ddRenderPm(); }
+  catch (e) { $('ddBd').innerHTML = `<div class="dd-load">Could not load the breakdown — ${esc(e.message)}</div>`; }
+}
+function ddRenderPm(){
+  const D = DD.data, t = D.tot || {}, isOB = DD.doc === 'OB', W = isOB ? 'OA' : 'Invoice', Ws = isOB ? 'OAs' : 'invoices';
+  const tot = +t.v || 0, sh = v => tot ? v / tot * 100 : 0, reg = D.reg || [], ser = D.ser || [], mr = Math.max(1, ...reg.map(x => +x[3] || 0)), ms = Math.max(1, ...ser.map(x => +x[2] || 0));
+  $('ddBd').innerHTML = `<div class="dd-kp">
+      <div class="dd-k"><div class="l">Value</div><div class="v">₹${f2(tot)} L</div><div class="n">${isOB ? 'order booked' : 'billed'} · ${esc(monthsLabel(DD.months))}</div></div>
+      <div class="dd-k"><div class="l">Quantity</div><div class="v">${nf(t.q)} pcs</div><div class="n">across ${nf(t.series)} series</div></div>
+      <div class="dd-k"><div class="l">${Ws}</div><div class="v">${nf(t.docs)}</div><div class="n">avg ₹${t.docs ? f2(tot / t.docs) : '—'} L per ${W}</div></div>
+      <div class="dd-k"><div class="l">Customers</div><div class="v">${nf(t.cust)}</div><div class="n">in ${nf(t.regions)} regions</div></div></div>
+    <div class="dd-two">
+      <div><div class="dd-cap"><span>BY REGION</span></div><div class="dd-tb"><table><thead><tr><th class="l">Region</th><th>${Ws}</th><th>Qty</th><th>Value ₹ L</th><th class="l">Share</th></tr></thead><tbody>
+        ${reg.map(r => `<tr class="ck${DD.rg === r[0] ? ' sel' : ''}" data-rg="${esc(r[0])}"><td class="l">${esc(r[0])}</td><td>${nf(r[1])}</td><td>${nf(r[2])}</td><td>${f2(+r[3])}</td><td class="l">${sh(+r[3]).toFixed(1)}%<span class="dd-bar" style="width:${Math.max(2, +r[3] / mr * 70)}px"></span></td></tr>`).join('') || '<tr><td colspan="5">No data</td></tr>'}
+        <tr class="tot"><td class="l">Total</td><td>${nf(t.docs)}</td><td>${nf(t.q)}</td><td>${f2(tot)}</td><td class="l">100%</td></tr></tbody></table></div></div>
+      <div><div class="dd-cap"><span>BY PRODUCT SERIES</span></div><div class="dd-tb"><table><thead><tr><th class="l">Product series</th><th>Qty</th><th>Value ₹ L</th><th class="l">Share</th></tr></thead><tbody>
+        ${ser.map(r => `<tr class="ck${DD.sr === r[0] ? ' sel' : ''}" data-sr="${esc(r[0])}"><td class="l">${esc(r[0])}</td><td>${nf(r[1])}</td><td>${f2(+r[2])}</td><td class="l">${sh(+r[2]).toFixed(1)}%<span class="dd-bar" style="width:${Math.max(2, +r[2] / ms * 70)}px"></span></td></tr>`).join('') || '<tr><td colspan="4">No data</td></tr>'}
+        <tr class="tot"><td class="l">Total</td><td>${nf(t.q)}</td><td>${f2(tot)}</td><td class="l">100%</td></tr></tbody></table></div></div></div>
+    ${docsTools(W)}<div class="dd-tb dd-docs" id="ddDocs"></div>`;
+  ddDocs();
+}
+function docsTools(W){
+  return `<div class="dd-tools"><b style="font-size:12px;color:var(--t3);letter-spacing:.06em">${W.toUpperCase()} DETAILS</b>
+      ${DD.rg ? `<span class="dd-flt">Region: ${esc(DD.rg)}<button data-a="unrg" title="Remove">×</button></span>` : ''}
+      ${DD.sr ? `<span class="dd-flt">Series: ${esc(DD.sr)}<button data-a="unsr" title="Remove">×</button></span>` : ''}
+      ${DD.se ? `<span class="dd-flt">Sales engineer: ${esc(DD.se)}<button data-a="unse" title="Remove">×</button></span>` : ''}
+      <input id="ddQ" placeholder="Search ${W} no., customer, region…" value="${esc(DD.q)}"><span style="flex:1"></span><button class="btn" data-a="csv">⬇ CSV</button></div>`;
+}
+// (b) Product series → Region › Sales engineer › OA (prd_drill)
+async function openSe(fam, series, doc){
+  Object.assign(DD, { mode:'se', fam, doc:doc || 'OB', series, months:S.ser.months.slice(), rgs:S.ser.rgs.slice(), rg:null, se:null, sr:null, data:null, q:'', open:new Set(), items:{}, openRg:new Set() });
+  ddShell(`${esc(series)} · ${esc(fam)}`, `${fyLabel(S.fy)} · ${esc(monthsLabel(DD.months))} · ${DD.rgs.length ? esc(DD.rgs.join(', ')) : 'all regions'} · click a region to see its sales engineers`,
+    `<div class="toggle dd-doc"><button data-a="doc" data-d="OB" class="${DD.doc === 'OB' ? 'on' : ''}">OB</button><button data-a="doc" data-d="INV" class="${DD.doc === 'INV' ? 'on' : ''}">Invoicing</button></div>`);
+  await ddLoadSe();
+}
+async function ddLoadSe(){
+  try { DD.data = await rpc('prd_drill', { p_cy:S.fy, p_doc:DD.doc, p_fam:DD.fam, p_months:DD.months, p_rgs:DD.rgs, p_series:[DD.series] }); ddRenderSe(); }
+  catch (e) { $('ddBd').innerHTML = `<div class="dd-load">Could not load the breakdown — ${esc(e.message)}${/prd_drill|PGRST202|404/.test(e.message) ? '<br>Run <b>supabase\\products_v2.sql</b> in Supabase once.' : ''}</div>`; }
+}
+function ddRenderSe(){
+  const D = DD.data, t = D.tot || {}, isOB = DD.doc === 'OB', W = isOB ? 'OA' : 'Invoice', Ws = isOB ? 'OAs' : 'invoices', tot = +t.v || 0, tq = +t.q || 0;
+  const reg = D.reg || [], se = D.se || [], mr = Math.max(1, ...reg.map(x => +x[2] || 0));
+  const rows = reg.map(r => { const o = DD.openRg.has(r[0]);
+    let h = `<tr class="ck${DD.rg === r[0] ? ' sel' : ''}" data-rgo="${esc(r[0])}"><td class="l"><span class="caret">${o ? '▾' : '▸'}</span><b>${esc(r[0])}</b></td><td>${nf(r[3])}</td><td>${nf(r[1])}</td><td>${tq ? (r[1] / tq * 100).toFixed(1) + '%' : '—'}</td><td>${f2(+r[2])}</td><td class="l">${tot ? (r[2] / tot * 100).toFixed(1) : '0.0'}%<span class="dd-bar" style="width:${Math.max(2, +r[2] / mr * 70)}px"></span></td></tr>`;
+    if (o) h += se.filter(x => x[0] === r[0]).map(x => `<tr class="it ck${DD.se === x[1] ? ' sel' : ''}" data-se="${esc(x[1])}" data-serg="${esc(x[0])}"><td class="l" style="padding-left:28px">👤 ${esc(x[1])}</td><td>${nf(x[4])}</td><td>${nf(x[2])}</td><td>${r[1] ? (x[2] / r[1] * 100).toFixed(1) + '%' : '—'}</td><td>${f2(+x[3])}</td><td class="l">${r[2] ? (x[3] / r[2] * 100).toFixed(1) : '0.0'}% of region</td></tr>`).join('');
+    return h; }).join('');
+  $('ddBd').innerHTML = `<div class="dd-kp">
+      <div class="dd-k"><div class="l">Value</div><div class="v">₹${f2(tot)} L</div><div class="n">${isOB ? 'order booked' : 'billed'}</div></div>
+      <div class="dd-k"><div class="l">Quantity</div><div class="v">${nf(t.q)} pcs</div><div class="n">avg ₹${tq ? nf(Math.round(tot * 1e5 / tq)) : '—'} per pc</div></div>
+      <div class="dd-k"><div class="l">${Ws}</div><div class="v">${nf(t.docs)}</div><div class="n">${nf(t.cust)} customers</div></div>
+      <div class="dd-k"><div class="l">Sales engineers</div><div class="v">${nf(t.se)}</div><div class="n">in ${nf(t.regions)} regions</div></div></div>
+    <div class="dd-cap"><span>REGION › SALES ENGINEER</span><span class="sub">click a region to open it · click a sales engineer to filter the ${W} list</span></div>
+    <div class="dd-tb" style="max-height:360px"><table><thead><tr><th class="l">Region / sales engineer</th><th>${Ws}</th><th>Qty</th><th>Qty share</th><th>Value ₹ L</th><th class="l">Value share</th></tr></thead><tbody>
+      ${rows || '<tr><td colspan="6">No data</td></tr>'}<tr class="tot"><td class="l">Total</td><td>${nf(t.docs)}</td><td>${nf(t.q)}</td><td>100%</td><td>${f2(tot)}</td><td class="l">100%</td></tr></tbody></table></div>
+    ${docsTools(W)}<div class="dd-tb dd-docs" id="ddDocs"></div>`;
+  ddDocs();
+}
+// (c) Leads → Region › Sales engineer (client side)
+function openLeads(fam, w){
+  const m = S.leadM || curMonth(), mk = monthKey(m);
+  const R = leadRows(fam).filter(r => r.d.slice(0, 7) === mk && (!w || weekOf(r.d) === w));
+  Object.assign(DD, { mode:'lead', fam, R, openRg:new Set() });
+  ddShell(`Leads · ${esc(fam)} · ${MNAME[m]}${w ? ' · Week ' + w : ''}`, `Leads created in Zoho naming this product · value split equally when a lead names 2+ products · click a region to see its sales engineers`);
+  ddRenderLeads();
+}
+function ddRenderLeads(){
+  const R = DD.R, tn = R.reduce((t, r) => t + r.n, 0), tv = R.reduce((t, r) => t + r.v, 0), by = {};
+  R.forEach(r => { const o = (by[r.rg] = by[r.rg] || { n:0, v:0, ow:{} }); o.n += r.n; o.v += r.v; const z = (o.ow[r.ow] = o.ow[r.ow] || { n:0, v:0 }); z.n += r.n; z.v += r.v; });
+  const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n || b[1].v - a[1].v), mx = Math.max(1, ...list.map(([, o]) => o.n));
+  const rows = list.map(([rg, o]) => { const op = DD.openRg.has(rg);
+    let h = `<tr class="ck" data-rgo="${esc(rg)}"><td class="l"><span class="caret">${op ? '▾' : '▸'}</span><b>${esc(rg)}</b></td><td>${o.n}</td><td>${tn ? (o.n / tn * 100).toFixed(1) : 0}%</td><td>${f2(o.v)}</td><td class="l">${tv ? (o.v / tv * 100).toFixed(1) : '0.0'}%<span class="dd-bar" style="width:${Math.max(2, o.n / mx * 70)}px;background:#16a34a"></span></td></tr>`;
+    if (op) h += Object.entries(o.ow).sort((a, b) => b[1].n - a[1].n).map(([ow, z]) => `<tr class="it"><td class="l" style="padding-left:28px">👤 ${esc(ow)}</td><td>${z.n}</td><td>${o.n ? (z.n / o.n * 100).toFixed(1) : 0}%</td><td>${f2(z.v)}</td><td class="l">${o.v ? (z.v / o.v * 100).toFixed(1) : '0.0'}% of region</td></tr>`).join('');
+    return h; }).join('');
+  $('ddBd').innerHTML = `<div class="dd-kp"><div class="dd-k"><div class="l">Leads</div><div class="v">${tn}</div><div class="n">created</div></div>
+      <div class="dd-k"><div class="l">Order value</div><div class="v">₹${f2(tv)} L</div><div class="n">as entered in Zoho</div></div>
+      <div class="dd-k"><div class="l">Regions</div><div class="v">${list.length}</div><div class="n">top: ${esc(list[0]?.[0] || '—')}</div></div>
+      <div class="dd-k"><div class="l">Sales engineers</div><div class="v">${new Set(DD.R.map(r => r.ow)).size}</div><div class="n">lead owners</div></div></div>
+    <div class="dd-cap"><span>REGION › SALES ENGINEER</span></div>
+    <div class="dd-tb" style="max-height:60vh"><table><thead><tr><th class="l">Region / sales engineer</th><th>Leads</th><th>Qty share</th><th>Value ₹ L</th><th class="l">Value share</th></tr></thead><tbody>
+      ${rows || '<tr><td colspan="5">No leads</td></tr>'}<tr class="tot"><td class="l">Total</td><td>${tn}</td><td>100%</td><td>${f2(tv)}</td><td class="l">100%</td></tr></tbody></table></div>`;
+}
+function ddDocs(){
+  const D = DD.data; if (!D || !$('ddDocs')) return;
+  const isOB = DD.doc === 'OB', W = isOB ? 'OA' : 'Invoice', q = DD.q, se = DD.mode === 'se', md = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) : '—';
+  // pm_drill docs: [doc, dt, card, rg, top_sr, ns, q, v]; prd_drill docs: [doc, dt, card, rg, se, top_sr, ns, q, v]
+  const norm = r => se ? { n:r[0], dt:r[1], c:r[2], rg:r[3], se:r[4], sr:r[5], ns:r[6], q:r[7], v:r[8] } : { n:r[0], dt:r[1], c:r[2], rg:r[3], se:'', sr:r[4], ns:r[5], q:r[6], v:r[7] };
+  const list = (D.docs || []).map(norm).filter(r => (!DD.se || r.se === DD.se) && (!DD.rg || !se || r.rg === DD.rg) && (!q || [r.n, r.c, r.rg, r.se, r.sr].some(x => String(x || '').toLowerCase().includes(q))));
+  const sv = list.reduce((a, r) => a + (+r.v || 0), 0), sq = list.reduce((a, r) => a + (+r.q || 0), 0), nc = se ? 8 : 7;
+  const more = (D.docs_n || 0) > (D.docs || []).length ? `<tr><td colspan="${nc}" style="text-align:center;color:var(--t3)">Showing the biggest ${(D.docs || []).length} of ${nf(D.docs_n)} — filter or search to narrow down</td></tr>` : '';
+  $('ddDocs').innerHTML = `<table><thead><tr><th class="l">${W} no.</th><th class="l">Date</th><th class="l">Customer</th><th class="l">Region</th>${se ? '<th class="l">Sales engineer</th>' : ''}<th class="l">Series</th><th>Qty</th><th>Value ₹ L</th></tr></thead><tbody>` +
+    list.map(r => { const o = DD.open.has(r.n), it = DD.items[r.n];
+      return `<tr><td class="l"><a class="doc" data-doc="${esc(r.n)}">${o ? '▾' : '▸'} ${esc(r.n)}</a></td><td class="l">${md(r.dt)}</td><td class="l">${esc(r.c)}</td><td class="l">${esc(r.rg)}</td>${se ? `<td class="l">${esc(r.se)}</td>` : ''}<td class="l">${esc(r.sr)}${r.ns > 1 ? ` <span style="color:var(--t3)">+${r.ns - 1}</span>` : ''}</td><td>${nf(r.q)}</td><td>${f2(+r.v)}</td></tr>` +
+        (o ? (it === 'loading' ? `<tr class="it"><td colspan="${nc}">Loading items…</td></tr>` : Array.isArray(it) ? it.map(x => `<tr class="it"><td class="l">${esc(x[1] || x[0])}</td><td></td><td class="l" style="color:var(--t3)">${esc(x[0])}</td><td></td>${se ? '<td></td>' : ''}<td class="l">${esc(x[2])}</td><td>${nf(x[3])}</td><td>${f2(+x[4])}</td></tr>`).join('') : `<tr class="it"><td colspan="${nc}">${esc(String(it))}</td></tr>`) : ''); }).join('') +
+    (list.length ? '' : `<tr><td colspan="${nc}" style="text-align:center;color:var(--t3)">No ${isOB ? 'OAs' : 'invoices'} match</td></tr>`) + more +
+    `<tr class="tot"><td class="l">Total</td><td></td><td class="l">${nf(new Set(list.map(r => r.c)).size)} customers</td><td></td>${se ? '<td></td>' : ''}<td></td><td>${nf(sq)}</td><td>${f2(sv)}</td></tr></tbody></table>`;
+}
+async function ddClick(e){
+  const a = e.target.closest('[data-a]'), ov = $('ddOv');
+  if (e.target === ov) return ddClose();
+  if (a) {
+    if (a.dataset.a === 'close') return ddClose();
+    if (a.dataset.a === 'unrg') { DD.rg = null; return DD.mode === 'pm' ? ddLoadPm() : ddRenderSe(); }
+    if (a.dataset.a === 'unsr') { DD.sr = null; return ddLoadPm(); }
+    if (a.dataset.a === 'unse') { DD.se = null; return ddRenderSe(); }
+    if (a.dataset.a === 'csv') return ddCsv();
+    if (a.dataset.a === 'doc') { DD.doc = a.dataset.d; DD.rg = DD.se = null; DD.open.clear(); DD.items = {};
+      a.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); $('ddBd').innerHTML = '<div class="dd-load">Loading…</div>'; return ddLoadSe(); }
+  }
+  if (DD.mode === 'lead') { const r = e.target.closest('tr[data-rgo]'); if (r) { const k = r.dataset.rgo; DD.openRg.has(k) ? DD.openRg.delete(k) : DD.openRg.add(k); ddRenderLeads(); } return; }
+  if (DD.mode === 'se') {
+    const s = e.target.closest('tr[data-se]'); if (s) { DD.se = DD.se === s.dataset.se ? null : s.dataset.se; DD.rg = DD.se ? s.dataset.serg : null; return ddRenderSe(); }
+    const r = e.target.closest('tr[data-rgo]'); if (r) { const k = r.dataset.rgo; DD.openRg.has(k) ? DD.openRg.delete(k) : DD.openRg.add(k); DD.rg = DD.openRg.has(k) ? k : (DD.rg === k ? null : DD.rg); DD.se = null; return ddRenderSe(); }
+  } else {
+    const rg = e.target.closest('tr[data-rg]'); if (rg) { DD.rg = DD.rg === rg.dataset.rg ? null : rg.dataset.rg; DD.open.clear(); return ddLoadPm(); }
+    const sr = e.target.closest('tr[data-sr]'); if (sr) { DD.sr = DD.sr === sr.dataset.sr ? null : sr.dataset.sr; DD.open.clear(); return ddLoadPm(); }
+  }
+  const doc = e.target.closest('a.doc');
+  if (doc) { const n = doc.dataset.doc;
+    if (DD.open.has(n)) { DD.open.delete(n); return ddDocs(); }
+    DD.open.add(n);
+    if (!DD.items[n]) { DD.items[n] = 'loading'; ddDocs();
+      try { DD.items[n] = await rpc('pm_drill_doc', { p_fy:S.fy, p_doc:DD.doc, p_months:DD.months, p_items:famItems(DD.fam), p_doc_num:n }); }
+      catch (err) { DD.items[n] = 'Could not load items — ' + err.message; } }
+    ddDocs(); }
+}
+function ddCsv(){
+  const D = DD.data; if (!D) return; const se = DD.mode === 'se';
+  const rows = [[DD.doc === 'OB' ? 'OA no.' : 'Invoice no.', 'Date', 'Customer', 'Region', ...(se ? ['Sales engineer'] : []), 'Main series', 'Series count', 'Qty', 'Value Rs L'], ...(D.docs || [])];
+  const csv = rows.map(r => r.map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }));
+  a.download = `${String(DD.fam + (se ? '_' + DD.series : '')).replace(/[^A-Za-z0-9]+/g, '_')}_${DD.doc}.csv`; a.click();
+}
+
 
 /* ===== Overview ===== */
 function renderOv(){
@@ -665,19 +964,27 @@ function bindTips(){
 function bindFam(fam){
   const rer = () => { const y = scrollY; renderFam(fam); scrollTo(0, y); };
   const on = (id, ev, fn) => { const el = $(id); if (el) el[ev] = fn; };
-  on('serGm', 'onchange', e => { S.ser.gm = e.target.value; if (S.ser.gm && S.ser.rg && gmOf(S.ser.rg) !== S.ser.gm) S.ser.rg = ''; rer(); });
-  on('serRg', 'onchange', e => { S.ser.rg = e.target.value; rer(); });
-  on('serPer', 'onchange', e => { S.ser.per = e.target.value; rer(); });
-  on('serTable', 'onclick', e => { const tr = e.target.closest('tr[data-ser]'); if (tr) { S.ser.open = S.ser.open === tr.dataset.ser ? null : tr.dataset.ser; rer(); } });
+  msBind($('view'), rer);
+  // Achieved (table value or bar) -> PM Cumulative style pop-up
+  $('view').querySelectorAll('[data-dd]').forEach(el => el.onclick = e => { e.preventDefault();
+    openPm(fam, el.dataset.dd, el.dataset.m === 'ytd' ? pastMonths() : [+el.dataset.m]); });
+  [['obTC', 'OB'], ['invTC', 'INV']].forEach(([id, d]) => { const c = $(id); if (c) c.onclick = e => { const r = e.target.closest('[data-m]'); if (r) openPm(fam, d, [+r.dataset.m]); }; });
+  on('serGm', 'onchange', e => { S.ser.gm = e.target.value; const g = GMS.find(x => x.gm === S.ser.gm), regs = regionsOf(fam);
+    S.ser.rgs = g ? g.regions.filter(r => regs.includes(r)) : []; rer(); });
+  on('serTable', 'onclick', e => { const tr = e.target.closest('tr[data-ser]'); if (tr) openSe(fam, tr.dataset.ser, 'OB'); });
+  on('serChart', 'onclick', e => { const g = e.target.closest('[data-ser]'); if (g) openSe(fam, g.dataset.ser, 'OB'); });
   on('regDoc', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.reg.doc = b.dataset.d; rer(); } });
-  on('regPer', 'onchange', e => { S.reg.per = e.target.value; rer(); });
-  on('regTable', 'onclick', e => { const tr = e.target.closest('tr[data-rg]'); if (tr) { S.reg.open = S.reg.open === tr.dataset.rg ? null : tr.dataset.rg; rer(); } });
+  const regOpen = e => { const tr = e.target.closest('[data-rg]'); if (tr) { S.reg.open = S.reg.open === tr.dataset.rg ? null : tr.dataset.rg; rer(); } };
+  on('regTable', 'onclick', regOpen); on('regChart', 'onclick', regOpen);
   on('grDoc', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.gr.doc = b.dataset.d; rer(); } });
   on('visSt', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.vis.st = b.dataset.s; S.vis.n = 40; rer(); } });
   on('visMore', 'onclick', () => { S.vis.n += 40; rer(); });
   on('visFrom', 'onchange', e => { S.vis.from = e.target.value; rer(); });
   on('visTo', 'onchange', e => { S.vis.to = e.target.value; rer(); });
   let t; on('visQ', 'oninput', e => { clearTimeout(t); t = setTimeout(() => { S.vis.q = e.target.value; S.vis.n = 40; rer(); const q = $('visQ'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 300); });
+  on('leadM', 'onchange', e => { S.leadM = +e.target.value; rer(); });
+  on('leadChart', 'onclick', e => { const g = e.target.closest('[data-wk]'); if (g) openLeads(fam, +g.dataset.wk); });
+  const lc = $('leadCard'); if (lc) lc.querySelectorAll('[data-lw],.k [data-wk]').forEach(el => el.onclick = e => { e.preventDefault(); openLeads(fam, +(el.dataset.lw ?? el.dataset.wk)); });
 }
 
 /* ---------------- load / refresh ---------------- */
