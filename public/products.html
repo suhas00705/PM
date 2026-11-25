@@ -35,11 +35,36 @@
   .loading.on{display:flex}
 
   /* product chips */
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
-  .chips button{font:inherit;font-weight:700;font-size:13.5px;border:1px solid #cfd6e3;background:#fff;color:var(--t2);border-radius:22px;padding:8px 16px;cursor:pointer}
-  .chips button:hover{border-color:var(--volt);color:var(--volt)}
-  .chips button.on{background:var(--volt);border-color:var(--volt);color:#fff;box-shadow:0 3px 10px rgba(0,115,200,.25)}
-  .chips .sep{width:1px;background:#cfd6e3;margin:4px 2px}
+  /* 25-Nov-2026: product selector = card buttons (name, PM, OB % bar) */
+  .chips{display:grid;grid-template-columns:minmax(190px,1.25fr) repeat(8,minmax(118px,1fr));gap:8px;margin-bottom:16px}
+  .chips button{font:inherit;text-align:left;border:1px solid var(--line);background:#fff;color:var(--t1);border-radius:12px;padding:9px 11px 10px;cursor:pointer;
+    display:flex;flex-direction:column;gap:3px;min-width:0;position:relative;transition:transform .12s,box-shadow .12s,border-color .12s}
+  .chips button:hover{border-color:#9cc3ea;box-shadow:0 4px 14px rgba(11,41,66,.10);transform:translateY(-1px)}
+  .chips button:focus-visible{outline:2px solid var(--volt);outline-offset:2px}
+  .chips .cn{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chips .ci{flex:0 0 auto;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;letter-spacing:0}
+  .chips .cp{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chips .cb{height:4px;background:#e6ecf5;border-radius:3px;overflow:hidden;margin-top:3px}
+  .chips .cb i{display:block;height:100%;border-radius:3px}
+  .chips .cr{display:flex;justify-content:space-between;align-items:baseline;gap:6px;min-width:0}
+  .chips .cv{font-size:11.5px;font-weight:800;flex:0 0 auto}
+  .chips button.on{border-color:var(--volt);box-shadow:0 0 0 2px var(--volt) inset,0 6px 18px rgba(0,115,200,.18);background:#f3f8ff}
+  .chips button.cum{background:linear-gradient(125deg,#0b2942,#0073c8);color:#fff;border-color:transparent}
+  .chips button.cum .cp{color:#bcd3ee} .chips button.cum .cb{background:rgba(255,255,255,.22)} .chips button.cum .ci{background:rgba(255,255,255,.18)!important}
+  .chips button.cum.on{box-shadow:0 0 0 3px #9fd0ff,0 8px 22px rgba(0,115,200,.35)}
+  .chips button.cum .cv{color:#fff}
+  @media(max-width:1250px){.chips{grid-template-columns:repeat(5,minmax(0,1fr))}}
+  @media(max-width:760px){.chips{grid-template-columns:repeat(3,minmax(0,1fr))}}
+  @media(max-width:480px){.chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  tr.det td{background:#fafbfd;padding:6px 12px 10px 34px;font-size:12px;color:var(--t2);text-align:left;white-space:normal}
+  .mini{width:100%;font-size:12px;margin-top:4px}
+  .mini td,.mini th{padding:4px 8px;border-bottom:1px solid #eef1f6;text-align:right}
+  .mini th{background:#eef2f8;color:var(--t3)}
+  .mini td:first-child,.mini th:first-child{text-align:left}
+  tr.prod td:first-child{font-weight:700}
+  tr.grand td{background:#eaf2fd;border-top:2px solid #9cc3ea}
+  .gobtn{font:inherit;font-size:11px;font-weight:700;border:1px solid #cfe0f5;background:#fff;color:var(--volt);border-radius:12px;padding:1px 8px;margin-left:8px;cursor:pointer}
+  .hero .ck:hover{background:rgba(255,255,255,.08)}
 
   /* F: hero strip */
   .hero{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--navy);border-radius:14px;overflow:hidden;margin-bottom:14px}
@@ -343,10 +368,10 @@ function runOf(fam, doc){
   const T = tgtOf(fam, S.fy); let net = 0;
   return MONTHS.map(m => {
     const a = mv(fam, doc, 0, m);
-    if (T == null) return { m, plan:null, cin:0, tgt:null, a, cout:0 };
+    if (T == null) return { m, plan:null, cin:0, tgt:null, a, cout:0, bank:0 };
     const plan = T * QUARTER_SHARE[QOF(m)] / 3, cin = Math.max(0, net), tgt = plan + cin;
     net = net + plan - a;
-    return { m, plan, cin, tgt, a, cout:Math.max(0, net) };
+    return { m, plan, cin, tgt, a, cout:Math.max(0, net), bank:Math.max(0, -net) };
   });
 }
 function famStats(fam){
@@ -382,10 +407,23 @@ function pbar(pct, planPct, color, label){
 }
 
 /* ---------------- chips ---------------- */
+// 25-Nov-2026: card buttons — icon, name, PM, OB % of FY target with a small bar (Overview chip removed; it now sits inside Cumulative)
+const CHIP_IC = { 'Panel Meters':['PM','#0073C8'], 'ACCL':['AC','#00a3a3'], 'ATES':['AT','#f5a623'], 'Prepaid/Smart':['PS','#7b4fd6'],
+  'LVS':['LV','#e0703c'], 'FDP':['FD','#16a34a'], 'OEM':['OE','#c2185b'], 'Other':['OT','#5d6d7e'] };
 function drawChips(){
-  const items = [['cum', '📈 Cumulative'], ...FAMS.map(f => [f.name, f.name]), ['ov', '📊 Overview']];
-  $('chips').innerHTML = items.map(([k, t], i) => (i === items.length - 1 ? '<span class="sep"></span>' : '') +
-    `<button data-k="${esc(k)}" class="${S.view === k ? 'on' : ''}">${esc(t)}</button>` + (i === 0 ? '<span class="sep"></span>' : '')).join('');
+  if (S.view === 'ov') S.view = 'cum';
+  const ok = !!S.cube, bar = (p, plan) => p == null ? '' : `<div class="cb"><i style="width:${Math.min(100, Math.max(0, p))}%;background:${barColor(p, plan)}"></i></div>`;
+  const plan = ok ? planShareTo(curMonth()) * 100 : 0;
+  let cum = '';
+  if (ok) { const all = FAMS.reduce((t, f) => t + famStats(f.name).ob, 0), p = pc(all, TOTAL_TARGET);
+    cum = `<span class="cr"><span class="cp">OB ₹${f0(all)} L of ₹${f0(TOTAL_TARGET / 100)} Cr</span><span class="cv">${fp(p)}</span></span>${`<div class="cb"><i style="width:${Math.min(100, p)}%;background:#6fe39b"></i></div>`}`; }
+  $('chips').innerHTML = `<button data-k="cum" class="cum${S.view === 'cum' ? ' on' : ''}" title="All products — PM cumulative tracking, overview, pending to bill">
+      <span class="cn"><span class="ci">∑</span>Cumulative</span>${cum || '<span class="cp">All products</span>'}</button>` +
+    FAMS.map(f => { const ic = CHIP_IC[f.name] || ['··', '#5d6d7e'];
+      let x = `<span class="cp">${esc(f.pm || '')}</span>`;
+      if (ok) { const st = famStats(f.name), p = st.T != null ? pc(st.ob, st.T) : null;
+        x = `<span class="cr"><span class="cp">${esc(f.pm && f.pm !== '—' ? f.pm : 'no target')}</span>${p != null ? `<span class="cv" style="color:${barColor(p, plan)}">${fp(p)}</span>` : ''}</span>` + (p != null ? bar(p, plan) : `<span class="cp">OB ₹${f2(st.ob)} L</span>`); }
+      return `<button data-k="${esc(f.name)}" class="${S.view === f.name ? 'on' : ''}" title="${esc(f.name)} — OB % of FY target"><span class="cn"><span class="ci" style="background:${ic[1]}">${ic[0]}</span>${esc(f.name)}</span>${x}</button>`; }).join('');
 }
 $('chips').onclick = async e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.k;
   S.reg.open = null; S.reg.series = []; S.ser.rgs = []; S.ser.gm = ''; S.vis.n = 40; drawChips(); render();
@@ -394,42 +432,58 @@ $('chips').onclick = async e => { const b = e.target.closest('button'); if (!b) 
 /* ---------------- render ---------------- */
 function render(){
   if (!S.cube) return;
-  if (S.view === 'cum') renderCum(); else if (S.view === 'ov') renderOv(); else renderFam(S.view);
+  if (S.view === 'cum' || S.view === 'ov') renderCum(); else renderFam(S.view);
 }
 
-/* ===== Cumulative (all products) ===== */
+/* ===== Cumulative (all products) — 25-Nov-2026: PM Cumulative Tracking table + Overview + 520 Cr target ===== */
+const TOTAL_TARGET = 52000;   // ₹ Lakhs = ₹520 Cr, same as Path to Target
 function renderCum(){
   const cm = curMonth(), share = planShareTo(cm), stats = FAMS.map(f => famStats(f.name)), g = famStats(GOVT);
-  const per = `Apr–${MNAME[cm]}`;
-  const tgtRows = stats.filter(s => s.T != null);
-  const tot = list => list.reduce((a, s) => ({ T:a.T + (s.T || 0), plan:a.plan + (s.plan || 0), ob:a.ob + s.ob, inv:a.inv + s.inv,
-    pend:a.pend + (s.pend || 0), lyOb:a.lyOb + s.lyOb }), { T:0, plan:0, ob:0, inv:0, pend:0, lyOb:0 });
-  const core = tot(stats.filter(s => famOf(s.fam).core)), grand = tot(tgtRows), all = tot(stats);
+  const per = monthsLabel(pastMonths()), ci = curIdx();
+  const all = stats.reduce((a, s) => ({ ob:a.ob + s.ob, inv:a.inv + s.inv, pend:a.pend + (s.pend || 0), lyOb:a.lyOb + s.lyOb }), { ob:0, inv:0, pend:0, lyOb:0 });
   const P = pipeOf(null);
-  let h = heroHtml({ ob:all.ob, inv:all.inv, T:grand.T, plan:grand.plan, obT:tot(tgtRows).ob, pend:S.pend && !S.pend.err ? all.pend : null,
-                     pipe:P, lyOb:all.lyOb, share, label:'All products' });
-  const row = (s, cls) => {
-    const tp = s.T != null ? s.plan : null;
-    return `<tr class="${cls || 'ck'}" ${cls ? '' : `data-go="${esc(s.fam)}"`}><td class="l"><b>${esc(s.fam)}</b></td><td class="l pm">${esc(s.pm || '')}</td>
-      <td>${s.T != null ? f2(s.T) : '—'}</td><td>${tp != null ? f2(tp) : '—'}</td>
-      <td>${f2(s.ob)}</td><td>${s.T != null ? chipFor(pc(s.ob, tp)) : '—'}</td>
-      <td>${f2(s.inv)}</td><td>${s.T != null ? chipFor(pc(s.inv, tp)) : '—'}</td>
-      <td>${s.pend != null ? f2(s.pend) : '—'}</td><td>${s.T != null && s.pend != null ? chipFor(pc(s.inv + s.pend, tp)) : '—'}</td>
-      <td>${grTxt(s.ob, s.lyOb)}</td></tr>`; };
-  const rowsH = stats.map(s => row({ ...s, pm:famOf(s.fam).pm })).join('') +
-    row({ fam:'Total (excl. OEM)', pm:'', ...core }, 'tot') + row({ fam:'Grand total (with targets)', pm:'', ...grand }, 'tot') +
-    ((g.ob || g.inv) ? `<tr class="sub"><td class="l" colspan="4">${esc(GOVT)} — left out by rule</td><td>${f2(g.ob)}</td><td></td><td>${f2(g.inv)}</td><td></td><td>${g.pend != null ? f2(g.pend) : '—'}</td><td colspan="2"></td></tr>` : '');
-  h += `<div class="card"><div class="card-h"><div><h2>${per} cumulative performance (₹ L) — product management tracking</h2>
-      <div class="sub">Plan to date = ${(share * 100).toFixed(1)}% of the FY target (quarters 20 / 25 / 25 / 30 %). Click a product to open it.</div></div><div class="sub">${fyLabel(S.fy)}</div></div>
-    <div class="tbl"><table id="cumTable"><thead><tr><th class="l">Product</th><th class="l">PM</th><th>FY target</th><th>Plan to date</th><th>Order booked</th><th>OB % of plan</th><th>Billed</th><th>Billing % of plan</th><th>Pending to bill</th><th>Billed + pending %</th><th>OB vs LY</th></tr></thead>
-    <tbody>${rowsH}</tbody></table></div>
-    <div class="note">Pending to bill = approved orders not yet invoiced (Zoho Pending Orders, copied daily at 9 pm${S.pend?.at ? ', last copy ' + new Date(S.pend.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : ''}). OB vs LY compares the same period last year.</div></div>`;
-  // quarter table + chart
-  const qRows = [1,2,3,4].map(q => { let ot = 0, oa = 0, it = 0, ia = 0;
-    tgtRows.forEach(s => { const T = s.T; QM[q].forEach(m => { ot += T * QUARTER_SHARE[q] / 3; it += T * QUARTER_SHARE[q] / 3;
-      oa += mv(s.fam, 'OB', 0, m); ia += mv(s.fam, 'INV', 0, m); }); });
-    return { q, ot, oa, it, ia }; });
-  h += `<div class="two"><div class="card"><div class="card-h"><h2>Cumulative performance — products with targets, by quarter</h2></div>
+  let h = heroHtml({ ob:all.ob, inv:all.inv, T:TOTAL_TARGET, plan:TOTAL_TARGET * share, pend:S.pend && !S.pend.err ? all.pend : null,
+                     pipe:P, lyOb:all.lyOb, share, label:'All products', tl:'₹520 Cr' });
+  h += ovBarsHtml(stats, share * 100);
+  // ---- PM Cumulative Tracking table (same columns, rows and month-by-month working) ----
+  S.cumOpen = S.cumOpen || new Set();
+  const P2 = stats.filter(s => s.T != null).map(s => { const F = famOf(s.fam), last = s.rOb[ci] || {}, lastI = s.rInv[ci] || {};
+    return { name:s.fam, pm:F.pm, core:F.core, fyT:s.T, obT:s.plan, invT:s.plan, ob:s.ob, inv:s.inv, obShort:last.cout || 0, invShort:lastI.cout || 0, rOb:s.rOb, rInv:s.rInv }; });
+  const core = P2.filter(p => p.core), oem = P2.filter(p => !p.core);
+  const sumk = (l, k) => l.reduce((a, p) => a + (p[k] || 0), 0);
+  const chipT = (a, t, short) => { if (!t) return '<span class="chip c-na">—</span>'; const p = a / t * 100;
+    return `<span class="chip ${p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad'}" title="${f2(a)} of ${f2(t)} target${short > 0.005 ? '. Shortfall ' + f2(short) + ' moves to next month.' : ''}">${p.toFixed(1)}%</span>`; };
+  const ddA = (v, d, k) => `<a class="dd" href="#" data-ddk="${esc(k)}" data-ddd="${d}" title="Click for the breakdown by region, product series and ${d === 'OB' ? 'OA' : 'invoice'}">${f2(v)}</a>`;
+  const totRow = (label, l, key, cls) => { const t = {}; ['fyT','obT','invT','ob','inv','obShort','invShort'].forEach(k => t[k] = sumk(l, k));
+    return `<tr class="tot ${cls || ''}"><td class="l">${label}</td><td></td><td>${f2(t.fyT)}</td><td>${f2(t.obT)}</td><td>${ddA(t.ob, 'OB', key)}</td><td>${chipT(t.ob, t.obT, t.obShort)}</td><td>${f2(t.invT)}</td><td>${ddA(t.inv, 'INV', key)}</td><td>${chipT(t.inv, t.invT, t.invShort)}</td></tr>`; };
+  const rowHtml = p => { const open = S.cumOpen.has(p.name);
+    let r = `<tr class="prod ck" data-cp="${esc(p.name)}"><td class="l"><span class="caret">${open ? '▾' : '▸'}</span>${esc(p.name)}<button class="gobtn" data-go="${esc(p.name)}" title="Open ${esc(p.name)}">Open ›</button></td><td class="l pm">${esc(p.pm)}</td>
+      <td>${f2(p.fyT)}</td><td>${f2(p.obT)}</td><td>${ddA(p.ob, 'OB', p.name)}</td><td>${chipT(p.ob, p.obT, p.obShort)}</td><td>${f2(p.invT)}</td><td>${ddA(p.inv, 'INV', p.name)}</td><td>${chipT(p.inv, p.invT, p.invShort)}</td></tr>`;
+    if (open) { let cP = 0, cO = 0, cI = 0;
+      const gap = x => { const d = x - cP; return `<span class="${d >= 0 ? 'gr-up' : 'gr-dn'}">${d >= 0 ? '+' : '−'}${f2(Math.abs(d))}</span>`; };
+      r += `<tr class="det"><td colspan="9"><b>${esc(p.name)}</b> counts product basket${(FAM_BASKETS[p.name] || []).length > 1 ? 's' : ''}: ${esc((FAM_BASKETS[p.name] || []).join(', '))}${p.name === 'Prepaid/Smart' ? ' · <b>excludes Govt Projects</b>' : ''}
+        <div style="margin-top:8px"><b>Month by month — target with shortfall carried forward</b> (plan = yearly target × quarter share ÷ 3; a shortfall is added to the next month's target; extra above target clears a shortfall carried in and the rest is kept for later shortfalls)</div>
+        <div class="tbl"><table class="mini"><thead><tr><th>Month</th><th>Plan target</th><th>OB shortfall carried in</th><th>OB target</th><th>Order booked</th><th>OB short → next</th><th>OB extra kept</th><th>INV shortfall carried in</th><th>INV target</th><th>Billed</th><th>INV short → next</th><th>INV extra kept</th><th>Cum. plan</th><th>Cum. booked</th><th>Cum. OB ±</th><th>Cum. billed</th><th>Cum. INV ±</th></tr></thead><tbody>
+        ${p.rOb.map((o, i) => { cP += o.plan || 0; cO += o.a || 0; cI += p.rInv[i].a || 0; if (i > ci + 1) return ''; const v = p.rInv[i], nxt = i === ci + 1;
+          return `<tr style="${nxt ? 'background:#f1f7ff' : ''}"><td>${MNAME[o.m]}${nxt ? ' — next month target' : ''}</td><td>${f2(o.plan)}</td><td>${f2(o.cin)}</td><td><b>${f2(o.tgt)}</b></td><td>${f2(o.a)}</td><td>${nxt ? '—' : o.cout > 0.005 ? f2(o.cout) : '—'}</td><td>${nxt ? '—' : o.bank > 0.005 ? `<span class="gr-up">${f2(o.bank)}</span>` : '—'}</td>
+            <td>${f2(v.cin)}</td><td><b>${f2(v.tgt)}</b></td><td>${f2(v.a)}</td><td>${nxt ? '—' : v.cout > 0.005 ? f2(v.cout) : '—'}</td><td>${nxt ? '—' : v.bank > 0.005 ? `<span class="gr-up">${f2(v.bank)}</span>` : '—'}</td>
+            <td>${f2(cP)}</td><td>${nxt ? '—' : f2(cO)}</td><td>${nxt ? '—' : gap(cO)}</td><td>${nxt ? '—' : f2(cI)}</td><td>${nxt ? '—' : gap(cI)}</td></tr>`; }).join('')}</tbody></table></div></td></tr>`; }
+    return r; };
+  const oth = stats.filter(s => s.T == null);
+  const extra = [...oth.map(s => [s.fam + ' (no target)', s.ob, s.inv]), ...((g.ob || g.inv) ? [[GOVT + ' — left out by rule', g.ob, g.inv]] : [])];
+  h += `<div class="card"><div class="card-h"><div><h2>${per} Cumulative Performance (Rs-L) — Product Management Tracking</h2>
+      <div class="sub">Same table as PM Cumulative Tracking · targets carry forward month to month · click a product for the month-by-month working, click Order booked / Billed for the breakdown</div></div><div class="sub">${fyLabel(S.fy)} · ${per}</div></div>
+    <div class="tbl"><table id="cumTable" data-nosort="1"><thead><tr><th class="l">Product</th><th class="l">PM</th><th>Target ${fyLabel(S.fy)}</th><th>${per} OB target</th><th>Order booked</th><th>OB % achieved</th><th>${per} INV target</th><th>Billed</th><th>Billing % achieved</th></tr></thead>
+    <tbody>${core.map(rowHtml).join('')}${totRow('TOTAL', core, '__core')}${oem.map(rowHtml).join('')}${totRow('TOTAL', P2, '__all', 'grand')}
+    ${extra.map(x => `<tr class="sub"><td class="l" colspan="4">${esc(x[0])} — not in the targets above</td><td>${f2(x[1])}</td><td></td><td></td><td>${f2(x[2])}</td><td></td></tr>`).join('')}</tbody></table></div>
+    <div class="note">Targets: monthly plan = yearly target × quarter share (Q1 20%, Q2 25%, Q3 25%, Q4 30%) ÷ 3; a shortfall is added to the next month. % achieved = order booked / billed ÷ the period target.
+      Product targets add up to ₹${f0(sumk(P2, 'fyT'))} L; the blue bar above uses the company target of ₹${f0(TOTAL_TARGET)} L (₹520 Cr, as in Path to Target) for all products.</div></div>`;
+  h += ovPerfHtml(stats);
+  // quarter table + chart (company target 520 Cr)
+  const qRows = [1,2,3,4].map(q => { let oa = 0, ia = 0; const tg = TOTAL_TARGET * QUARTER_SHARE[q];
+    stats.forEach(s => QM[q].forEach(m => { oa += mv(s.fam, 'OB', 0, m); ia += mv(s.fam, 'INV', 0, m); }));
+    return { q, ot:tg, oa, it:tg, ia }; });
+  h += `<div class="two"><div class="card"><div class="card-h"><h2>All products by quarter vs ₹520 Cr target</h2></div>
     <div class="tbl"><table id="cumQ"><thead><tr><th class="l">Quarter</th><th>OB target</th><th>OB achieved</th><th>OB %</th><th>Inv target</th><th>Inv achieved</th><th>Inv %</th></tr></thead><tbody>
     ${qRows.map(r => `<tr><td class="l"><b>Q${r.q}</b></td><td>${f2(r.ot)}</td><td>${f2(r.oa)}</td><td class="${heat(r.oa ? pc(r.oa, r.ot) : null)}">${r.oa ? fp(pc(r.oa, r.ot)) : '—'}</td><td>${f2(r.it)}</td><td>${f2(r.ia)}</td><td class="${heat(r.ia ? pc(r.ia, r.it) : null)}">${r.ia ? fp(pc(r.ia, r.it)) : '—'}</td></tr>`).join('')}
     ${(() => { const t = qRows.reduce((a, r) => ({ ot:a.ot + r.ot, oa:a.oa + r.oa, it:a.it + r.it, ia:a.ia + r.ia }), {ot:0, oa:0, it:0, ia:0});
@@ -439,7 +493,14 @@ function renderCum(){
     <div class="chart">${groupBars(qRows.map(r => ({ k:'Q' + r.q, vals:[r.ot, r.oa, r.ia] })), ['#cfdcef', '#0073C8', '#16a34a'], ['Target', 'OB', 'Invoice'])}</div></div></div>`;
   $('view').innerHTML = h;
   enableSort($('view'));
-  $('cumTable').onclick = e => { const tr = e.target.closest('tr[data-go]'); if (tr) { S.view = tr.dataset.go; drawChips(); render(); loadPipe(S.view).then(() => { if (S.view === tr.dataset.go) render(); }); } };
+  const go = fam => { S.view = fam; drawChips(); render(); scrollTo(0, 0); loadPipe(fam).then(() => { if (S.view === fam) render(); }); };
+  $('cumTable').onclick = e => {
+    const d = e.target.closest('a.dd[data-ddk]'); if (d) { e.preventDefault(); return openPm(d.dataset.ddk, d.dataset.ddd, pastMonths()); }
+    const b = e.target.closest('[data-go]'); if (b) { e.stopPropagation(); return go(b.dataset.go); }
+    const tr = e.target.closest('tr[data-cp]'); if (tr) { const k = tr.dataset.cp, y = scrollY; S.cumOpen.has(k) ? S.cumOpen.delete(k) : S.cumOpen.add(k); renderCum(); scrollTo(0, y); } };
+  const od = $('ovDoc'); if (od) od.onclick = e => { const b = e.target.closest('button'); if (b) { S.ov.doc = b.dataset.d; const y = scrollY; renderCum(); scrollTo(0, y); } };
+  const op = $('ovPer'); if (op) op.onclick = e => { const b = e.target.closest('button'); if (b) { S.ov.per = b.dataset.p; const y = scrollY; renderCum(); scrollTo(0, y); } };
+  $('view').querySelectorAll('.ob-row[data-go], #ovTable tr[data-go]').forEach(el => el.onclick = () => go(el.dataset.go));
   bindTips();
 }
 
@@ -449,10 +510,10 @@ function heroHtml(o){
   const gr = o.lyOb ? (o.ob - o.lyOb) / o.lyOb * 100 : null;
   const cov = o.pend != null && o.inv ? o.pend / (o.inv / Math.max(1, curIdx() + 1)) : null;
   return `<div class="hero">
-    <div><div class="l">Order booking · FY</div><div class="v">${f2(o.ob)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.obT ?? o.ob, o.T)) + ' of ' + f0(o.T) + ' target' : 'no target'}</div></div>
-    <div><div class="l">Invoicing · FY</div><div class="v">${f2(o.inv)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.inv, o.T)) + ' of ' + f0(o.T) : 'no target'}</div></div>
+    <div><div class="l">Order booking · FY</div><div class="v">${f2(o.ob)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.obT ?? o.ob, o.T)) + ' of ' + f0(o.T) + (o.tl ? ' L (' + o.tl + ')' : ' target') : 'no target'}</div></div>
+    <div><div class="l">Invoicing · FY</div><div class="v">${f2(o.inv)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.inv, o.T)) + ' of ' + f0(o.T) + (o.tl ? ' L (' + o.tl + ')' : '') : 'no target'}</div></div>
     <div><div class="l">OB vs plan to date</div><div class="v ${gap == null ? '' : gap >= 0 ? 'up' : 'dn'}">${gap == null ? '—' : (gap >= 0 ? '+' : '−') + f2(Math.abs(gap))}</div><div class="s">${gap == null ? 'no target' : (gap >= 0 ? 'ahead of ' : 'short of ') + planPct.toFixed(1) + '% plan'}</div></div>
-    <div><div class="l">Pending to bill</div><div class="v">${o.pend == null ? '—' : f2(o.pend)}</div><div class="s">${cov != null ? cov.toFixed(1) + ' months of billing' : S.pend?.err ? 'not loaded' : 'daily 9 pm copy'}</div></div>
+    <div ${o.pend != null ? `class="ck" data-pend="${esc(o.fam || '')}" title="Click for product basket › series › OA details"` : ''}><div class="l">Pending to bill${o.pend != null ? ' ↗' : ''}</div><div class="v">${o.pend == null ? '—' : f2(o.pend)}</div><div class="s">${cov != null ? cov.toFixed(1) + ' months of billing' : S.pend?.err ? 'not loaded' : 'daily 9 pm copy'}</div></div>
     <div ${o.fam ? `class="ck" data-pipe="${monthKey(curMonth())}" title="Click for region › sales engineer › potentials"` : ''}><div class="l">Pipeline · ${MNAME[curMonth()]}${o.fam ? ' ↗' : ''}</div><div class="v">${o.pipe ? f2(o.pipe.open) : '—'}</div><div class="s">${o.pipe ? f2(o.pipe.w) + ' L weighted' : S.pipe?.err ? 'not loaded' : 'loading…'}</div></div>
     <div><div class="l">OB vs last year</div><div class="v ${gr == null ? '' : gr >= 0 ? 'up' : 'dn'}">${gr == null ? '—' : (gr >= 0 ? '▲ ' : '▼ ') + Math.abs(gr).toFixed(1) + '%'}</div><div class="s">${o.lyOb ? f2(o.lyOb) + ' L same period LY' : 'no LY data'}</div></div>
   </div>`;
@@ -462,8 +523,9 @@ function heroHtml(o){
 function renderFam(fam){
   if (!S.ser.months) S.ser.months = pastMonths(); if (!S.reg.months) S.reg.months = [curMonth()];
   const s = famStats(fam), F = famOf(fam), cm = curMonth(), planPct = s.share * 100, P = pipeOf(fam);
-  let h = heroHtml({ ob:s.ob, inv:s.inv, T:s.T, plan:s.plan, pend:s.pend, pipe:P, lyOb:s.lyOb, share:s.share, fam });
-  if (F.note) h += `<div class="note" style="margin:-6px 2px 12px">${esc(F.note)}${fam === 'Prepaid/Smart' ? ' ' + govtLine() : ''}</div>`;
+  const heroH = heroHtml({ ob:s.ob, inv:s.inv, T:s.T, plan:s.plan, pend:s.pend, pipe:P, lyOb:s.lyOb, share:s.share, fam });
+  let h = '';
+  if (F.note) h += `<div class="note" style="margin:0 2px 12px">${esc(F.note)}${fam === 'Prepaid/Smart' ? ' ' + govtLine() : ''}</div>`;
   // B: pace bars – removed 24-Nov-2026 (user): the hero strip above already shows OB / invoicing vs plan and pending to bill
   if (s.T != null) {
     // D: run-rate
@@ -478,8 +540,10 @@ function renderFam(fam){
       <div class="tile"><div class="l">Carried shortfall (Apr – ${MNAME[MONTHS[Math.max(0, curIdx() - 1)]]})</div><div class="v">${f2(s.carriedOb)} <small>L OB · ${f2(s.carriedInv)} L inv</small></div>
         <div class="s">Targets of past months not yet met; they are added to this month's target (same rule as PM Cumulative).${s.pend != null ? `<br>Pending to bill ₹${f2(s.pend)} L can cover ${s.carriedInv + s.cur.inv.tgt - s.cur.inv.a > 0 ? fp(pc(s.pend, s.carriedInv + Math.max(0, s.cur.inv.tgt - s.cur.inv.a))) + ' of the invoicing still due' : 'all invoicing due'}.` : ''}</div></div>
     </div>`;
+    h += heroH;   // 25-Nov-2026: blue bar just below this month's run-rate KPIs
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   } else {
+    h += heroH;
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   }
   h += seriesCard(fam) + regionCard(fam) + growthCard(fam) + pipeCard(fam) + leadsCard(fam);
@@ -492,7 +556,9 @@ function govtLine(){ const g = famStats(GOVT); return (g.ob || g.inv) ? `Govt Pr
 const PAL = ['#0073C8', '#00a3a3', '#f5a623', '#7b4fd6', '#e0703c', '#16a34a', '#c2185b', '#5d6d7e'];
 const FAM_BASKETS = { 'Panel Meters':['Panel Meters','High End MFM','Nano VIP','Power Quality'], 'ACCL':['ACCL'], 'ATES':['Transfer Switch'],
   'Prepaid/Smart':['Prepaid & Smart Meters','Prepaid','Smart Meters'], 'LVS':['SWITCHGEAR'], 'FDP':['FDP'], 'OEM':['OEM'] };
+const TOT_KEYS = { '__core':'TOTAL (excl. OEM)', '__all':'TOTAL (with OEM)' };
 function famItems(fam){
+  if (fam === '__core' || fam === '__all') return FAMS.filter(f => f.target[S.fy] != null && (fam === '__all' || f.core)).map(f => famItems(f.name)[0]);
   if (fam === 'Other') { const b = [...new Set(S.rows.filter(x => x.f === 'Other').map(x => String(x.s).split(' · ')[0]))]; return [{ b, xg:false }]; }
   return [{ b:FAM_BASKETS[fam] || [], xg:fam === 'Prepaid/Smart' }];
 }
@@ -792,7 +858,7 @@ function sortTable(t, col, dir){
 function enableSort(root){
   if (!root) return;
   root.querySelectorAll('table').forEach((t, n) => {
-    if (!t.tHead || t.tHead.rows.length !== 1) return;
+    if (t.dataset.nosort || !t.tHead || t.tHead.rows.length !== 1) return;
     const key = t.id || (root.id || 'x') + ':' + n, hs = [...t.tHead.rows[0].cells];
     hs.forEach((th, i) => { th.classList.add('srt'); th.title = 'Click to sort';
       th.onclick = e => { e.stopPropagation(); const cur = S.sort[key], dir = cur && cur.col === i ? -cur.dir : (i === 0 ? 1 : -1);
@@ -806,7 +872,7 @@ const DD = { mode:null };
 function ddShell(title, sub, extra){
   let ov = $('ddOv');
   if (!ov) { ov = document.createElement('div'); ov.id = 'ddOv'; ov.className = 'dd-ov dk-skip'; document.body.appendChild(ov);
-    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); DD.mode === 'pipe' ? ddPipeList() : DD.mode === 'lead' ? ddLeadList() : ddDocs(); } });
+    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); DD.mode === 'pipe' ? ddPipeList() : DD.mode === 'lead' ? ddLeadList() : DD.mode === 'pend' ? ddPendDocs() : ddDocs(); } });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ddOv')?.style.display !== 'none') ddClose(); }); }
   ov.style.display = 'flex';
   ov.innerHTML = `<div class="dd-box"><div class="dd-hd"><div><h3>${title}</h3><div class="s">${sub}</div></div>
@@ -817,8 +883,8 @@ const nf = v => (+v || 0).toLocaleString('en-IN');
 // (a) Achieved → same pop-up as PM Cumulative (pm_drill: region, series, OA list)
 async function openPm(fam, doc, months){
   Object.assign(DD, { mode:'pm', fam, doc, months, rg:null, sr:null, data:null, q:'', open:new Set(), items:{} });
-  ddShell(`${esc(fam)} · ${doc === 'OB' ? 'Order booked' : 'Billed'} · ${esc(monthsLabel(months))}`,
-    `${fyLabel(S.fy)} · baskets: ${esc(famItems(fam)[0].b.join(', '))}${fam === 'Prepaid/Smart' ? ' · Govt Projects left out' : ''} · click a region or series to filter the list`);
+  ddShell(`${esc(TOT_KEYS[fam] || fam)} · ${doc === 'OB' ? 'Order booked' : 'Billed'} · ${esc(monthsLabel(months))}`,
+    `${fyLabel(S.fy)} · baskets: ${esc([...new Set(famItems(fam).flatMap(x => x.b))].join(', '))}${famItems(fam).some(x => x.xg) ? ' · Govt Projects left out for Prepaid/Smart' : ''} · click a region or series to filter the list`);
   await ddLoadPm();
 }
 async function ddLoadPm(){
@@ -990,6 +1056,7 @@ async function ddClick(e){
   if (e.target === ov) return ddClose();
   if (a) {
     if (a.dataset.a === 'close') return ddClose();
+    if (DD.mode === 'pend') return ddPendClick(e);
     if (a.dataset.a === 'unrg' && DD.mode !== 'pipe' && DD.mode !== 'lead') { DD.rg = null; return DD.mode === 'pm' ? ddLoadPm() : ddRenderSe(); }
     if (a.dataset.a === 'unsr') { DD.sr = null; return ddLoadPm(); }
     if (a.dataset.a === 'unse' && DD.mode !== 'pipe' && DD.mode !== 'lead') { DD.se = null; return ddRenderSe(); }
@@ -997,6 +1064,7 @@ async function ddClick(e){
     if (a.dataset.a === 'doc') { DD.doc = a.dataset.d; DD.rg = DD.se = null; DD.open.clear(); DD.items = {};
       a.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); $('ddBd').innerHTML = '<div class="dd-load">Loading…</div>'; return ddLoadSe(); }
   }
+  if (DD.mode === 'pend') return ddPendClick(e);
   if (DD.mode === 'pipe') {
     if (a && a.dataset.a === 'unrg') { DD.rg = null; DD.se = null; return ddRenderPipe(); }
     if (a && a.dataset.a === 'unse') { DD.se = null; return ddRenderPipe(); }
@@ -1034,44 +1102,116 @@ function ddCsv(){
 }
 
 
-/* ===== Overview ===== */
-function renderOv(){
-  const O = S.ov, cm = curMonth(), planPct = planShareTo(cm) * 100, stats = FAMS.map(f => famStats(f.name));
-  const tg = stats.filter(s => s.T != null);
-  const totT = tg.reduce((t, s) => t + s.T, 0), totOb = tg.reduce((t, s) => t + s.ob, 0), totInv = tg.reduce((t, s) => t + s.inv, 0);
-  let h = `<div class="tiles"><div class="tile"><div class="l">Combined OB achieved / target</div><div class="v">${f2(totOb)} <small>/ ${f0(totT)} L</small></div>
-      ${pbar(pc(totOb, totT), planPct, barColor(pc(totOb, totT), planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${fp(pc(totOb, totT))} · ${tg.length} of ${FAMS.length} products have targets</div></div>
-    <div class="tile"><div class="l">Combined invoice achieved / target</div><div class="v">${f2(totInv)} <small>/ ${f0(totT)} L</small></div>
-      ${pbar(pc(totInv, totT), planPct, barColor(pc(totInv, totT), planPct), 'plan ' + planPct.toFixed(1) + '%')}<div class="s">${fp(pc(totInv, totT))} of the combined FY target</div></div>
-    <div class="tile"><div class="l">Pending to bill · all products</div><div class="v">${S.pend && !S.pend.err ? f2(S.pend.tot) : '—'} <small>L</small></div>
-      ${S.pend && !S.pend.err ? pbar(pc(totInv + stats.reduce((t, s) => t + (s.T != null ? (s.pend || 0) : 0), 0), totT), planPct, '#0073C8', 'plan ' + planPct.toFixed(1) + '%') : ''}<div class="s">Bar = invoiced + pending to bill vs combined target</div></div></div>`;
-  h += `<div class="card"><div class="card-h"><div><h2>${O.doc === 'OB' ? 'OB' : 'Invoicing'} % of FY target — by product</h2><div class="sub">Bar = achieved so far · marker = where the bar must reach by month-end (${planPct.toFixed(1)}%)</div></div>
+/* ===== Overview (25-Nov-2026: shown inside Cumulative; no separate chip) ===== */
+function ovBarsHtml(stats, planPct){
+  const O = S.ov;
+  return `<div class="card"><div class="card-h"><div><h2>${O.doc === 'OB' ? 'OB' : 'Invoicing'} % of FY target — by product</h2><div class="sub">Bar = achieved so far · marker = where the bar must reach by month-end (${planPct.toFixed(1)}%) · click a product to open it</div></div>
     <div class="toggle" id="ovDoc"><button data-d="OB" class="${O.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${O.doc === 'INV' ? 'on' : ''}">Invoicing</button></div></div>
     ${stats.map(s => { const a = O.doc === 'OB' ? s.ob : s.inv, p = s.T != null ? pc(a, s.T) : null;
       return `<div class="ob-row ck" data-go="${esc(s.fam)}" style="cursor:pointer"><div class="n">${esc(s.fam)}<div class="sub">${p != null && p < planPct ? (planPct - p).toFixed(1) + '% pending' : p != null ? 'on track' : '₹' + f2(a) + ' L'}</div></div>
         <div>${p != null ? pbar(p, planPct, barColor(p, planPct), planPct.toFixed(1) + '%') : '<div class="sub">No target set</div>'}</div><div class="p">${p != null ? fp(p) : '—'}</div></div>`; }).join('')}</div>`;
-  // product x quarter / month table
+}
+function ovPerfHtml(stats){
+  const O = S.ov, tg = stats.filter(s => s.T != null), totT = tg.reduce((t, s) => t + s.T, 0);
   const cols = O.per === 'q' ? [1,2,3,4].map(q => ({ k:'Q' + q, ms:QM[q] })) : MONTHS.map(m => ({ k:MNAME[m], ms:[m] }));
   const ci = curIdx();
   const cell = (s, c) => { const ob = c.ms.reduce((t, m) => t + mv(s.fam, 'OB', 0, m), 0), inv = c.ms.reduce((t, m) => t + mv(s.fam, 'INV', 0, m), 0);
-    const tg = s.T != null ? c.ms.reduce((t, m) => t + s.T * QUARTER_SHARE[QOF(m)] / 3, 0) : null, started = MONTHS.indexOf(c.ms[0]) <= ci, p = tg && started ? pc(ob, tg) : null;
+    const tgt = s.T != null ? c.ms.reduce((t, m) => t + s.T * QUARTER_SHARE[QOF(m)] / 3, 0) : null, started = MONTHS.indexOf(c.ms[0]) <= ci, p = tgt && started ? pc(ob, tgt) : null;
     return `<td>${f2(ob)}</td><td>${f2(inv)}</td><td class="${heat(p)}">${p == null ? '—' : fp(p)}</td>`; };
-  const totRow = () => { const z = { fam:'__', T:totT };
-    return `<tr class="tot"><td class="l">Combined (with targets)</td><td>${f0(totT)}</td>${cols.map(c => { const ob = tg.reduce((t, s) => t + c.ms.reduce((u, m) => u + mv(s.fam, 'OB', 0, m), 0), 0), inv = tg.reduce((t, s) => t + c.ms.reduce((u, m) => u + mv(s.fam, 'INV', 0, m), 0), 0);
+  const totRow = () => `<tr class="tot"><td class="l">Combined (with targets)</td><td>${f0(totT)}</td>${cols.map(c => { const ob = tg.reduce((t, s) => t + c.ms.reduce((u, m) => u + mv(s.fam, 'OB', 0, m), 0), 0), inv = tg.reduce((t, s) => t + c.ms.reduce((u, m) => u + mv(s.fam, 'INV', 0, m), 0), 0);
       const tt = c.ms.reduce((t, m) => t + totT * QUARTER_SHARE[QOF(m)] / 3, 0), p = MONTHS.indexOf(c.ms[0]) <= ci ? pc(ob, tt) : null;
-      return `<td>${f2(ob)}</td><td>${f2(inv)}</td><td>${p == null ? '—' : fp(p)}</td>`; }).join('')}</tr>`; };
-  h += `<div class="card"><div class="card-h"><div><h2>Product-wise performance</h2><div class="sub">₹ Lakhs · OB % = OB ÷ plan of the period</div></div>
+      return `<td>${f2(ob)}</td><td>${f2(inv)}</td><td>${p == null ? '—' : fp(p)}</td>`; }).join('')}</tr>`;
+  return `<div class="card"><div class="card-h"><div><h2>Product-wise performance</h2><div class="sub">₹ Lakhs · OB % = OB ÷ plan of the period</div></div>
     <div class="toggle" id="ovPer"><button data-p="q" class="${O.per === 'q' ? 'on' : ''}">Quarter-wise</button><button data-p="m" class="${O.per === 'm' ? 'on' : ''}">Month-wise</button></div></div>
     <div class="tbl"><table id="ovTable"><thead><tr><th class="l" rowspan="2">Product</th><th rowspan="2">FY target</th>${cols.map(c => `<th colspan="3" style="text-align:center;border-left:1px solid rgba(255,255,255,.25)">${c.k}</th>`).join('')}</tr>
       <tr>${cols.map(() => '<th>OB</th><th>Inv</th><th>OB%</th>').join('')}</tr></thead><tbody>
       ${stats.map(s => `<tr class="ck" data-go="${esc(s.fam)}"><td class="l"><b>${esc(s.fam)}</b></td><td>${s.T != null ? f0(s.T) : '—'}</td>${cols.map(c => cell(s, c)).join('')}</tr>`).join('')}${totRow()}</tbody></table></div></div>`;
-  $('view').innerHTML = h;
-  enableSort($('view'));
-  $('ovDoc').onclick = e => { const b = e.target.closest('button'); if (b) { O.doc = b.dataset.d; renderOv(); } };
-  $('ovPer').onclick = e => { const b = e.target.closest('button'); if (b) { O.per = b.dataset.p; renderOv(); } };
-  $('view').querySelectorAll('[data-go]').forEach(el => el.onclick = () => { S.view = el.dataset.go; drawChips(); render(); loadPipe(S.view).then(() => { if (famOf(S.view)) render(); }); });
-  bindTips();
 }
+
+/* ===== Pending to bill pop-up (25-Nov-2026): product basket (qty, value) › series › OA details ===== */
+function pendBaskets(fam){ return fam ? (b => famOfBasket(b, false) === (fam === GOVT ? 'Prepaid/Smart' : fam)) : () => true; }
+async function openPend(fam){
+  Object.assign(DD, { mode:'pend', fam:fam || null, bk:null, sr:null, base:null, data:null, q:'', open:new Set(), items:{}, rgs:null });
+  ddShell(`Pending to bill · ${esc(fam || 'All products')}`, `Approved orders not yet invoiced (Zoho Pending Orders, copied daily at 9 pm${S.pend?.at ? ', last copy ' + new Date(S.pend.at).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : ''})${fam === 'Prepaid/Smart' ? ' · Govt Projects left out' : ''} · click a basket, then a series`);
+  try {
+    let a = await rpc('rt_pend', {});
+    if (fam === 'Prepaid/Smart') { DD.rgs = (a.reg || []).map(r => r[0]).filter(r => String(r).toUpperCase() !== 'GOVT PROJECTS'); a = await rpc('rt_pend', { p_rgs:DD.rgs }); }
+    if (fam === GOVT) { DD.rgs = ['Govt Projects']; a = await rpc('rt_pend', { p_rgs:DD.rgs }); }
+    DD.base = a; await ddLoadPend();
+  } catch (e) { $('ddBd').innerHTML = `<div class="dd-load">Could not load pending to bill — ${esc(e.message)}</div>`; }
+}
+async function ddLoadPend(){
+  const ok = pendBaskets(DD.fam), bks = (DD.base.bsk || []).filter(x => ok(x[0])).map(x => x[0]);
+  const args = x => ({ ...(DD.rgs ? { p_rgs:DD.rgs } : {}), ...x });
+  try {
+    if (DD.bk || !DD.fam) DD.data = await rpc('rt_pend', args(DD.bk ? { p_bk:DD.bk, ...(DD.sr ? { p_sr:DD.sr } : {}) } : (DD.sr ? { p_sr:DD.sr } : {})));
+    else if (DD.sr) DD.data = await rpc('rt_pend', args({ p_sr:DD.sr, p_bk:(DD.base.ser || []).find(x => x[0] === DD.sr)?.[1] || bks[0] }));
+    else { // a family with several baskets: one call per basket, OAs merged
+      const rs = await Promise.all(bks.map(b => rpc('rt_pend', args({ p_bk:b })))), m = new Map();
+      rs.forEach(r => (r.docs || []).forEach(d => { const o = m.get(d[0]); if (!o) m.set(d[0], d.slice()); else { o[6] += d[6]; o[8] += d[8]; o[9] += +d[9]; o[10] = +o[10] + +d[10]; } }));
+      DD.data = { docs:[...m.values()].sort((x, y) => y[10] - x[10]) }; }
+    ddRenderPend();
+  } catch (e) { $('ddBd').innerHTML = `<div class="dd-load">Could not load pending to bill — ${esc(e.message)}</div>`; }
+}
+function ddRenderPend(){
+  const ok = pendBaskets(DD.fam), B = DD.base, bsk = (B.bsk || []).filter(x => ok(x[0])), bset = new Set(bsk.map(x => x[0]));
+  const ser = (B.ser || []).filter(x => DD.bk ? x[1] === DD.bk : bset.has(x[1]));
+  const tv = bsk.reduce((t, x) => t + +x[3], 0), tq = bsk.reduce((t, x) => t + +x[2], 0), tn = bsk.reduce((t, x) => t + +x[1], 0);
+  const mb = Math.max(1, ...bsk.map(x => +x[3])), ms = Math.max(1, ...ser.map(x => +x[3])), sv = ser.reduce((t, x) => t + +x[3], 0), sq = ser.reduce((t, x) => t + +x[2], 0);
+  const T = DD.fam ? null : B.tot || {};
+  $('ddBd').innerHTML = `<div class="dd-kp">
+      <div class="dd-k"><div class="l">Pending value</div><div class="v">₹${f2(tv)} L</div><div class="n">${DD.fam ? esc(DD.fam) : 'all products'}</div></div>
+      <div class="dd-k"><div class="l">Quantity</div><div class="v">${nf(tq)} pcs</div><div class="n">in ${bsk.length} basket${bsk.length === 1 ? '' : 's'}</div></div>
+      <div class="dd-k"><div class="l">Open OAs</div><div class="v">${nf(T ? T.oas : tn)}</div><div class="n">${T ? nf(T.cust) + ' customers' : 'OA count per basket added up'}</div></div>
+      <div class="dd-k"><div class="l">Older than 90 days</div><div class="v">${T ? '₹' + f2(+T.a90p) + ' L' : '—'}</div><div class="n">${T ? (tv ? (+T.a90p / tv * 100).toFixed(1) + '% of pending' : '') : 'see OA dates below'}</div></div></div>
+    <div class="dd-two">
+      <div><div class="dd-cap"><span>BY PRODUCT BASKET</span><span style="font-weight:400">click a basket for its series</span></div><div class="dd-tb"><table><thead><tr><th class="l">Product basket</th><th>OAs</th><th>Qty</th><th>Value ₹ L</th><th class="l">Share</th></tr></thead><tbody>
+        ${bsk.map(r => `<tr class="ck${DD.bk === r[0] ? ' sel' : ''}" data-pbk="${esc(r[0])}"><td class="l">${esc(r[0])}</td><td>${nf(r[1])}</td><td>${nf(r[2])}</td><td>${f2(+r[3])}</td><td class="l">${tv ? (r[3] / tv * 100).toFixed(1) : '0.0'}%<span class="dd-bar" style="width:${Math.max(2, r[3] / mb * 70)}px"></span></td></tr>`).join('') || '<tr><td colspan="5">Nothing pending</td></tr>'}
+        <tr class="tot"><td class="l">Total</td><td></td><td>${nf(tq)}</td><td>${f2(tv)}</td><td class="l">100%</td></tr></tbody></table></div></div>
+      <div><div class="dd-cap"><span>BY PRODUCT SERIES${DD.bk ? ' · ' + esc(DD.bk) : ''}</span><span style="font-weight:400">click a series for its OAs</span></div><div class="dd-tb"><table><thead><tr><th class="l">Product series</th><th class="l">Basket</th><th>Qty</th><th>Value ₹ L</th><th class="l">Share</th></tr></thead><tbody>
+        ${ser.map(r => `<tr class="ck${DD.sr === r[0] ? ' sel' : ''}" data-psr="${esc(r[0])}" data-psb="${esc(r[1])}"><td class="l">${esc(r[0])}</td><td class="l" style="color:var(--t3)">${esc(r[1])}</td><td>${nf(r[2])}</td><td>${f2(+r[3])}</td><td class="l">${sv ? (r[3] / sv * 100).toFixed(1) : '0.0'}%<span class="dd-bar" style="width:${Math.max(2, r[3] / ms * 70)}px"></span></td></tr>`).join('') || '<tr><td colspan="5">No series</td></tr>'}
+        <tr class="tot"><td class="l">Total</td><td></td><td>${nf(sq)}</td><td>${f2(sv)}</td><td class="l">100%</td></tr></tbody></table></div></div></div>
+    <div class="dd-tools"><b style="font-size:12px;color:var(--t3);letter-spacing:.06em">OA DETAILS</b>
+      ${DD.bk ? `<span class="dd-flt">Basket: ${esc(DD.bk)}<button data-a="unbk" title="Remove">×</button></span>` : ''}
+      ${DD.sr ? `<span class="dd-flt">Series: ${esc(DD.sr)}<button data-a="unpsr" title="Remove">×</button></span>` : ''}
+      <input id="ddQ" placeholder="Search OA no., customer, region…" value="${esc(DD.q)}"><span style="flex:1"></span><button class="btn" data-a="pcsv">⬇ CSV</button></div>
+    <div class="dd-tb dd-docs" id="ddDocs"></div>`;
+  enableSort($('ddBd')); ddPendDocs();
+}
+function ddPendDocs(){
+  const D = DD.data; if (!D || !$('ddDocs')) return;
+  const q = DD.q, md = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'2-digit' }) : '—';
+  // docs: [oa, date, customer, region, top basket, top series, series count, PDN date, lines, qty, value L]
+  const list = (D.docs || []).filter(r => !q || [r[0], r[2], r[3], r[4], r[5]].some(x => String(x || '').toLowerCase().includes(q)));
+  const sv = list.reduce((a, r) => a + (+r[10] || 0), 0), sq = list.reduce((a, r) => a + (+r[9] || 0), 0), nc = 9;
+  $('ddDocs').innerHTML = `<table><thead><tr><th class="l">OA no.</th><th class="l">OA date</th><th class="l">Customer</th><th class="l">Region</th><th class="l">Basket</th><th class="l">Series</th><th class="l">PDN date</th><th>Qty</th><th>Value ₹ L</th></tr></thead><tbody>` +
+    list.map(r => { const o = DD.open.has(r[0]), it = DD.items[r[0]];
+      return `<tr><td class="l"><a class="doc" data-pdoc="${esc(r[0])}">${o ? '▾' : '▸'} ${esc(r[0])}</a></td><td class="l">${md(r[1])}</td><td class="l">${esc(r[2])}</td><td class="l">${esc(r[3])}</td><td class="l">${esc(r[4])}</td><td class="l">${esc(r[5])}${r[6] > 1 ? ` <span style="color:var(--t3)">+${r[6] - 1}</span>` : ''}</td><td class="l">${md(r[7])}</td><td>${nf(r[9])}</td><td>${f2(+r[10])}</td></tr>` +
+        (o ? (it === 'loading' ? `<tr class="it"><td colspan="${nc}">Loading items…</td></tr>` : Array.isArray(it) ? it.map(x => `<tr class="it"><td class="l" colspan="3">${esc(x[0])} <span style="color:var(--t3)">${esc(x[1] || '')}</span></td><td></td><td class="l">${esc(x[2])}</td><td class="l">${esc(x[3])}</td><td class="l">${md(x[4])}</td><td>${nf(x[5])}</td><td>${f2(+x[6])}</td></tr>`).join('') : `<tr class="it"><td colspan="${nc}">${esc(String(it))}</td></tr>`) : ''); }).join('') +
+    (list.length ? '' : `<tr><td colspan="${nc}" style="text-align:center;color:var(--t3)">No OAs match</td></tr>`) +
+    ((D.docs || []).length >= 500 ? `<tr><td colspan="${nc}" style="text-align:center;color:var(--t3)">Showing the biggest 500 OAs — pick a basket or series to narrow down</td></tr>` : '') +
+    `<tr class="tot"><td class="l">Total</td><td></td><td class="l">${nf(new Set(list.map(r => r[2])).size)} customers</td><td></td><td></td><td></td><td></td><td>${nf(sq)}</td><td>${f2(sv)}</td></tr></tbody></table>`;
+  enableSort($('ddDocs'));
+}
+async function ddPendClick(e){
+  const a = e.target.closest('[data-a]');
+  if (a && a.dataset.a === 'unbk') { DD.bk = null; DD.sr = null; DD.open.clear(); return ddLoadPend(); }
+  if (a && a.dataset.a === 'unpsr') { DD.sr = null; DD.open.clear(); return ddLoadPend(); }
+  if (a && a.dataset.a === 'pcsv') { const rows = [['OA no.', 'OA date', 'Customer', 'Region', 'Basket', 'Series', 'Series count', 'PDN date', 'Lines', 'Qty', 'Value Rs L'], ...((DD.data || {}).docs || [])];
+    const csv = rows.map(r => r.map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n'), l = document.createElement('a');
+    l.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' })); l.download = `Pending_to_bill_${String(DD.fam || 'All').replace(/[^A-Za-z0-9]+/g, '_')}${DD.bk ? '_' + DD.bk.replace(/[^A-Za-z0-9]+/g, '_') : ''}.csv`; l.click(); return; }
+  const bk = e.target.closest('tr[data-pbk]'); if (bk) { DD.bk = DD.bk === bk.dataset.pbk ? null : bk.dataset.pbk; DD.sr = null; DD.open.clear(); $('ddDocs') && ($('ddDocs').innerHTML = '<div class="dd-load">Loading…</div>'); return ddLoadPend(); }
+  const sr = e.target.closest('tr[data-psr]'); if (sr) { if (DD.sr === sr.dataset.psr) DD.sr = null; else { DD.sr = sr.dataset.psr; DD.bk = DD.bk || sr.dataset.psb; } DD.open.clear(); return ddLoadPend(); }
+  const d = e.target.closest('a.doc[data-pdoc]');
+  if (d) { const n = d.dataset.pdoc;
+    if (DD.open.has(n)) { DD.open.delete(n); return ddPendDocs(); }
+    DD.open.add(n);
+    if (!DD.items[n]) { DD.items[n] = 'loading'; ddPendDocs();
+      try { DD.items[n] = await rpc('rt_pend_doc', { p_oa:n }); } catch (err) { DD.items[n] = 'Could not load items — ' + err.message; } }
+    ddPendDocs(); }
+}
+// Pending to bill tile in the blue bar (Cumulative and every product)
+$('view').addEventListener('click', e => { const t = e.target.closest('[data-pend]'); if (t) openPend(t.dataset.pend || null); });
 
 /* ---------------- small charts ---------------- */
 function groupBars(groups, colors, names){
@@ -1169,7 +1309,7 @@ window.addEventListener('message', e => { if (e.data && e.data.type === 'pm-tab-
 
 (async () => {
   const now = new Date(); S.fy = now.getMonth() + 1 >= 4 ? now.getFullYear() : now.getFullYear() - 1;
-  const q = new URLSearchParams(location.search).get('f'); if (q && (famOf(q) || q === 'ov')) S.view = q;
+  const q = new URLSearchParams(location.search).get('f'); if (q && famOf(q)) S.view = q;
   drawChips();
   await loadAll();
   dataVersion().then(v => { if (v !== null) AUTO.ver = v; });
