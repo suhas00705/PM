@@ -259,6 +259,12 @@ async function rpcRows(fn, body){
   } catch (e) { /* fall back below */ }
   return rpc(fn, body);
 }
+// 25-Nov-2026 (option A): basket names that differ only by extra spaces ("Prepaid " / "Smart  Meters") count in their basket,
+// same as the Products tab. RAWB keeps the original spellings so the drill-down can still find those lines.
+const RAWB = {};
+const nb = s => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
+function fixB(rows){ (rows || []).forEach(r => { if (r == null || r.b == null) return; const n = nb(r.b); if (n !== r.b) { (RAWB[n] = RAWB[n] || new Set()).add(r.b); r.b = n; } }); return rows; }
+const rawItems = items => items.map(x => ({ ...x, b:[...new Set(x.b.flatMap(b => [b, ...(RAWB[b] ? [...RAWB[b]] : [])]))] }));
 function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').textContent = e ? 'Could not load data — ' + e : ''; }
 
 function monthTarget(p, m){ const t = p.target[S.fy]; return t == null ? null : t * QUARTER_SHARE[QOF(m)] / 3; }
@@ -295,7 +301,7 @@ async function load(resetMonths, quiet){
   if (!quiet) $('loading').classList.add('on');
   try {
     const wasDefault = S.data && S.months.length && S.months.join() === ytdMonths().join();
-    S.data = await rpc('pm_tracking', { p_fy: S.fy }); S.loadedAt = Date.now();
+    S.data = await rpc('pm_tracking', { p_fy: S.fy }); fixB(S.data && S.data.rows); S.loadedAt = Date.now();
     if (wasDefault) S.months = ytdMonths();   // "Apr → latest" follows new months as data arrives
     if (!$('fySel').options.length) {
       $('fySel').innerHTML = (S.data.fys || []).map(f => `<option value="${f}">${fyLabel(f)}</option>`).join('');
@@ -461,7 +467,7 @@ async function loadGrowth(force){
   try {
     const oldDefault = G.data && G.fy === S.fy ? MONTHS.slice(0, MONTHS.indexOf(G.data.max_date ? new Date(G.data.max_date).getMonth() + 1 : 3) + 1).join() : null;
     const keep = force && G.fy === S.fy && G.months;
-    G.data = await rpcRows('pm_growth', { p_cy: S.fy }); G.fy = S.fy;
+    G.data = await rpcRows('pm_growth', { p_cy: S.fy }); fixB(G.data && G.data.rows); G.fy = S.fy;
     // 20-Nov-2026: full last-year month for the running month (dashed outline in the month chart); never breaks the page
     try { G.lyf = await rpc('pm_growth_lyfull', { p_cy: S.fy }); } catch (e) { G.lyf = null; }
     const lm = G.data.max_date ? new Date(G.data.max_date).getMonth() + 1 : 3;
@@ -471,7 +477,7 @@ async function loadGrowth(force){
     const tot = {}; G.data.rows.forEach(r => { const k = rkey(r.r); (tot[k] = tot[k] || {})[r.r] = (tot[k][r.r] || 0) + Math.abs(Number(r.v) || 0); });
     const canon = {}; Object.entries(tot).forEach(([k, vs]) => canon[k] = Object.entries(vs).sort((a,b) => b[1] - a[1])[0][0]);
     G.data.rows.forEach(r => r.r = canon[rkey(r.r)]);
-    if (G.lyf && G.lyf.rows) G.lyf.rows = G.lyf.rows.map(a => ({ d:a[0], r:canon[rkey(a[1])] || a[1], b:a[2], gov:!!a[3], v:+a[4] || 0 }));
+    if (G.lyf && G.lyf.rows) G.lyf.rows = G.lyf.rows.map(a => ({ d:a[0], r:canon[rkey(a[1])] || a[1], b:a[2], gov:!!a[3], v:+a[4] || 0 })); if (G.lyf && G.lyf.rows) fixB(G.lyf.rows);
     const regions = [...new Set(G.data.rows.map(r => r.r))].sort((a,b) => a.localeCompare(b));
     gDraw.m = ms($('gMonths'), () => MONTHS.map(m => ({value:m, label:MNAME[m]})), () => G.months, v => G.months = v, 'Choose months',
       [{label:'Apr → latest', pick:() => MONTHS.slice(0, MONTHS.indexOf(lm) + 1)}, {label:'Q1', pick:() => QM.q1}, {label:'Q2', pick:() => QM.q2}, {label:'Q3', pick:() => QM.q3}, {label:'Q4', pick:() => QM.q4}], sel => { const m = MONTHS.filter(x => sel.includes(x)); return m.length === 12 ? 'All months' : m.length === 1 ? MNAME[m[0]] : m.every((x,i) => i === 0 || MONTHS.indexOf(x) === MONTHS.indexOf(m[i-1]) + 1) ? `${MNAME[m[0]]}–${MNAME[m[m.length-1]]}` : `${m.length} months`; });
@@ -596,7 +602,7 @@ async function openDrill(k, d){
 function ddClose(){ const ov = $('ddOv'); if (ov) { ov.style.display = 'none'; ov.innerHTML = ''; } }
 async function ddLoad(){
   try {
-    DD.data = await rpc('pm_drill', { p_fy:S.fy, p_doc:DD.doc, p_months:S.months, p_items:ddItems(DD.key), p_rg:DD.rg, p_sr:DD.sr });
+    DD.data = await rpc('pm_drill', { p_fy:S.fy, p_doc:DD.doc, p_months:S.months, p_items:rawItems(ddItems(DD.key)), p_rg:DD.rg, p_sr:DD.sr });
     ddRender();
   } catch (e) {
     $('ddBd').innerHTML = `<div class="dd-load">Could not load the breakdown — ${esc(e.message)}${/pm_drill|PGRST202|404/.test(e.message) ? '<br>Run <b>supabase\\pm_drill.sql</b> in Supabase once.' : ''}</div>`;
@@ -663,7 +669,7 @@ async function ddClick(e){
     if (DD.open.has(n)) { DD.open.delete(n); return ddDocs(); }
     DD.open.add(n);
     if (!DD.items[n] || DD.items[n] === 'error') { DD.items[n] = 'loading'; ddDocs();
-      try { DD.items[n] = await rpc('pm_drill_doc', { p_fy:S.fy, p_doc:DD.doc, p_months:S.months, p_items:ddItems(DD.key), p_doc_num:n }); }
+      try { DD.items[n] = await rpc('pm_drill_doc', { p_fy:S.fy, p_doc:DD.doc, p_months:S.months, p_items:rawItems(ddItems(DD.key)), p_doc_num:n }); }
       catch (err) { DD.items[n] = 'Could not load items — ' + err.message; } }
     ddDocs(); }
 }
@@ -682,7 +688,7 @@ async function loadSeries(force){
   try {
     const oldDefault = SG.data && SG.fy === S.fy ? MONTHS.slice(0, MONTHS.indexOf(SG.data.max_date ? new Date(SG.data.max_date).getMonth() + 1 : 3) + 1).join() : null;
     const keep = force && SG.fy === S.fy && SG.months;
-    SG.data = await rpcRows('pm_series_growth', { p_cy: S.fy }); SG.fy = S.fy;
+    SG.data = await rpcRows('pm_series_growth', { p_cy: S.fy }); fixB(SG.data && SG.data.rows); SG.fy = S.fy;
     const lm = SG.data.max_date ? new Date(SG.data.max_date).getMonth() + 1 : 3, ytd = () => MONTHS.slice(0, MONTHS.indexOf(lm) + 1);
     if (!keep || SG.months.join() === oldDefault) SG.months = ytd();
     // same region clean-up as the growth chart above
