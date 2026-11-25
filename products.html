@@ -35,27 +35,39 @@
   .loading.on{display:flex}
 
   /* product chips */
-  /* 25-Nov-2026: product selector = card buttons (name, PM, OB % bar) */
+  /* 25-Nov-2026: product selector = Night buttons (navy, status bar, selected = mint glow); Cumulative = Ocean */
   .chips{display:grid;grid-template-columns:minmax(190px,1.25fr) repeat(8,minmax(118px,1fr));gap:8px;margin-bottom:16px}
-  .chips button{font:inherit;text-align:left;border:1px solid var(--line);background:#fff;color:var(--t1);border-radius:12px;padding:9px 11px 10px;cursor:pointer;
-    display:flex;flex-direction:column;gap:3px;min-width:0;position:relative;transition:transform .12s,box-shadow .12s,border-color .12s}
-  .chips button:hover{border-color:#9cc3ea;box-shadow:0 4px 14px rgba(11,41,66,.10);transform:translateY(-1px)}
-  .chips button:focus-visible{outline:2px solid var(--volt);outline-offset:2px}
+  .chips button{font:inherit;text-align:left;border:1px solid #0b2942;background:linear-gradient(160deg,#0b2942,#12406b);color:#fff;border-radius:12px;padding:9px 11px 10px;cursor:pointer;
+    display:flex;flex-direction:column;gap:3px;min-width:0;position:relative;transition:transform .12s,box-shadow .12s}
+  .chips button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(11,41,66,.25)}
+  .chips button:focus-visible{outline:2px solid #2ee6c9;outline-offset:2px}
   .chips .cn{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .chips .ci{flex:0 0 auto;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;letter-spacing:0}
-  .chips .cp{font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .chips .cb{height:4px;background:#e6ecf5;border-radius:3px;overflow:hidden;margin-top:3px}
+  .chips .cp{font-size:11px;color:#9fb3d1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chips .cb{height:4px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden;margin-top:3px}
   .chips .cb i{display:block;height:100%;border-radius:3px}
   .chips .cr{display:flex;justify-content:space-between;align-items:baseline;gap:6px;min-width:0}
   .chips .cv{font-size:11.5px;font-weight:800;flex:0 0 auto}
-  .chips button.on{border-color:var(--volt);box-shadow:0 0 0 2px var(--volt) inset,0 6px 18px rgba(0,115,200,.18);background:#f3f8ff}
-  .chips button.cum{background:linear-gradient(125deg,#0b2942,#0073c8);color:#fff;border-color:transparent}
-  .chips button.cum .cp{color:#bcd3ee} .chips button.cum .cb{background:rgba(255,255,255,.22)} .chips button.cum .ci{background:rgba(255,255,255,.18)!important}
-  .chips button.cum.on{box-shadow:0 0 0 3px #9fd0ff,0 8px 22px rgba(0,115,200,.35)}
+  .chips button.on{border-color:#2ee6c9;box-shadow:0 0 0 2px #2ee6c9,0 8px 22px rgba(46,230,201,.25)}
+  .chips button.cum{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3);border-color:transparent}
+  .chips button.cum .cp{color:#dff4ff} .chips button.cum .cb{background:rgba(255,255,255,.3)} .chips button.cum .ci{background:rgba(255,255,255,.2)!important}
+  .chips button.cum.on{box-shadow:0 0 0 3px #9fe7ff,0 8px 22px rgba(0,115,200,.35);border-color:transparent}
   .chips button.cum .cv{color:#fff}
   @media(max-width:1250px){.chips{grid-template-columns:repeat(5,minmax(0,1fr))}}
   @media(max-width:760px){.chips{grid-template-columns:repeat(3,minmax(0,1fr))}}
   @media(max-width:480px){.chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  /* 25-Nov-2026: Clean white modules — accent line on titles, Ocean table headers, zebra rows, % as soft pills */
+  .card{box-shadow:0 4px 16px rgba(11,41,66,.06);border-color:#e3e9f2}
+  .card h2:before{content:'';display:inline-block;width:4px;height:15px;border-radius:2px;background:#00a3a3;margin-right:8px;vertical-align:-2px}
+  #view .tbl{border:1px solid #e3e9f2;border-radius:12px}
+  #view table:not(.mini) thead tr{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3)}
+  #view table:not(.mini) th{background:transparent}
+  #view table:not(.mini) th.srt:hover{background:rgba(255,255,255,.12)}
+  #view table:not(.mini) tbody tr:nth-child(even):not(.tot):not(.sub):not(.det):not(.q) td{background:#f6f9fd}
+  #view tr.tot td{background:#eaf4fb}
+  td.h-good,td.h-ok,td.h-warn,td.h-bad{background:transparent!important}
+  .hp{display:inline-block;padding:2px 9px;border-radius:10px;font-weight:700}
+  td.h-good .hp{background:#dcf5ec;color:#0f7a5f} td.h-ok .hp{background:#eaf6d9;color:#4d7a0a} td.h-warn .hp{background:#fff1d6;color:#a86400} td.h-bad .hp{background:#fde6e9;color:#c0394b}
   tr.det td{background:#fafbfd;padding:6px 12px 10px 34px;font-size:12px;color:var(--t2);text-align:left;white-space:normal}
   .mini{width:100%;font-size:12px;margin-top:4px}
   .mini td,.mini th{padding:4px 8px;border-bottom:1px solid #eef1f6;text-align:right}
@@ -91,27 +103,27 @@
   .nchart svg .nrow:hover>rect:first-child{fill:rgba(46,230,201,.10)}
   .nbtn{background:rgba(255,255,255,.08);color:#2ee6c9;border-color:rgba(46,230,201,.5)}
   .nchart svg .ck:hover{filter:brightness(1.15)}
-  .rr-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
-  .rr{background:linear-gradient(160deg,#0b2942,#12406b);border-radius:14px;padding:14px 16px;color:#d6e3f5;min-width:0}
-  .rr-l{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9fc0e6;display:flex;justify-content:space-between;gap:8px;align-items:center}
-  .rr-st{font-size:10.5px;letter-spacing:.02em;padding:2px 9px;border-radius:10px;white-space:nowrap}
+  .rr-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
+  .rr{background:linear-gradient(160deg,#0b2942,#12406b);border-radius:12px;padding:10px 13px;color:#d6e3f5;min-width:0}
+  .rr-l{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9fc0e6;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .rr-st{font-size:9.5px;letter-spacing:.02em;padding:1px 8px;border-radius:10px;white-space:nowrap}
   .rr-st.bad{background:rgba(255,154,154,.18);color:#ffb0b0} .rr-st.mid{background:rgba(255,196,92,.18);color:#ffd27a} .rr-st.ok{background:rgba(111,227,155,.18);color:#8ff0b2}
-  .rr-big{font-size:30px;font-weight:800;color:#fff;margin-top:4px;line-height:1.15}.rr-big small{font-size:13px;color:#9fb3d1;font-weight:600}
-  .rr-sub{font-size:12.5px;color:#d6e3f5;margin-top:2px}.rr-sub b{color:#fff}
-  .rr-bar{position:relative;height:14px;border-radius:8px;margin:24px 0 6px;display:flex;background:rgba(255,255,255,.12)}
+  .rr-big{font-size:22px;font-weight:800;color:#fff;margin-top:2px;line-height:1.15}.rr-big small{font-size:11.5px;color:#9fb3d1;font-weight:600}
+  .rr-sub{font-size:11.5px;color:#d6e3f5;margin-top:1px}.rr-sub b{color:#fff}
+  .rr-bar{position:relative;height:10px;border-radius:6px;margin:18px 0 5px;display:flex;background:rgba(255,255,255,.12)}
   .rr-bar .pl{background:rgba(159,208,255,.35);border-radius:8px 0 0 8px}
   .rr-bar .ca{background:repeating-linear-gradient(45deg,rgba(245,166,35,.45),rgba(245,166,35,.45) 5px,rgba(245,166,35,.2) 5px,rgba(245,166,35,.2) 10px);border-radius:0 8px 8px 0}
-  .rr-bar i{position:absolute;left:0;top:3px;height:8px;border-radius:5px;background:#2ee6c9;box-shadow:0 0 8px rgba(46,230,201,.45)}
-  .rr-bar em{position:absolute;top:-6px;bottom:-6px;width:3px;margin-left:-1px;background:#fff;border-radius:2px}
-  .rr-bar em:after{content:attr(data-l);position:absolute;top:-17px;right:-4px;font-size:10.5px;font-style:normal;font-weight:700;color:#fff;white-space:nowrap}
-  .rr-leg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:11.5px;color:#9fb3d1}.rr-leg b{color:#d6e3f5}
+  .rr-bar i{position:absolute;left:0;top:2px;height:6px;border-radius:4px;background:#2ee6c9;box-shadow:0 0 8px rgba(46,230,201,.45)}
+  .rr-bar em{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:#fff;border-radius:2px}
+  .rr-bar em:after{content:attr(data-l);position:absolute;top:-15px;right:-4px;font-size:10px;font-style:normal;font-weight:700;color:#fff;white-space:nowrap}
+  .rr-leg{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:10.5px;color:#9fb3d1}.rr-leg b{color:#d6e3f5}
   .rr-leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
   .rr-leg i.pl{background:rgba(159,208,255,.55)} .rr-leg i.ca{background:rgba(245,166,35,.6)}
-  .rr-pace{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
-  .rr-pace>div{background:rgba(255,255,255,.08);border-radius:9px;padding:7px 10px;font-size:11.5px;color:#9fb3d1}
+  .rr-pace{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}
+  .rr-pace>div{background:rgba(255,255,255,.08);border-radius:8px;padding:5px 9px;font-size:10.5px;color:#9fb3d1}
   .rr-pace>div.w{background:rgba(255,140,90,.14)}
-  .rr-pace b{display:block;font-size:17px;color:#fff;margin-top:1px}.rr-pace b.need{color:#ffb37a}.rr-pace b.doing{color:#2ee6c9}
-  .rr-ft{margin-top:10px;padding-top:8px;border-top:1px dashed rgba(255,255,255,.18);font-size:12px;color:#d6e3f5}.rr-ft b{color:#fff}
+  .rr-pace b{display:block;font-size:14.5px;color:#fff;margin-top:0}.rr-pace b.need{color:#ffb37a}.rr-pace b.doing{color:#2ee6c9}
+  .rr-ft{margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.18);font-size:11px;color:#d6e3f5}.rr-ft b{color:#fff}
   @media(max-width:1000px){.rr-row{grid-template-columns:minmax(0,1fr)}}
   @media(max-width:1000px){.tiles{grid-template-columns:minmax(0,1fr)}}
   .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
@@ -446,17 +458,18 @@ const CHIP_IC = { 'Panel Meters':['PM','#0073C8'], 'ACCL':['AC','#00a3a3'], 'ATE
   'LVS':['LV','#e0703c'], 'FDP':['FD','#16a34a'], 'OEM':['OE','#c2185b'], 'Other':['OT','#5d6d7e'] };
 function drawChips(){
   if (S.view === 'ov') S.view = 'cum';
-  const ok = !!S.cube, bar = (p, plan) => p == null ? '' : `<div class="cb"><i style="width:${Math.min(100, Math.max(0, p))}%;background:${barColor(p, plan)}"></i></div>`;
+  const nc = (p, plan) => p >= plan ? '#2ee6c9' : p >= plan * 0.85 ? '#ffc35a' : '#ff8a8a';
+  const ok = !!S.cube, bar = (p, plan) => p == null ? '' : `<div class="cb"><i style="width:${Math.min(100, Math.max(0, p))}%;background:${nc(p, plan)}"></i></div>`;
   const plan = ok ? planShareTo(curMonth()) * 100 : 0;
   let cum = '';
   if (ok) { const all = FAMS.reduce((t, f) => t + famStats(f.name).ob, 0), p = pc(all, TOTAL_TARGET);
-    cum = `<span class="cr"><span class="cp">OB ₹${f0(all)} L of ₹${f0(TOTAL_TARGET / 100)} Cr</span><span class="cv">${fp(p)}</span></span>${`<div class="cb"><i style="width:${Math.min(100, p)}%;background:#6fe39b"></i></div>`}`; }
+    cum = `<span class="cr"><span class="cp">OB ₹${f0(all)} L of ₹${f0(TOTAL_TARGET / 100)} Cr</span><span class="cv">${fp(p)}</span></span>${`<div class="cb"><i style="width:${Math.min(100, p)}%;background:#b9ffd6"></i></div>`}`; }
   $('chips').innerHTML = `<button data-k="cum" class="cum${S.view === 'cum' ? ' on' : ''}" title="All products — PM cumulative tracking, overview, pending to bill">
       <span class="cn"><span class="ci">∑</span>Cumulative</span>${cum || '<span class="cp">All products</span>'}</button>` +
     FAMS.map(f => { const ic = CHIP_IC[f.name] || ['··', '#5d6d7e'];
       let x = `<span class="cp">${esc(f.pm || '')}</span>`;
       if (ok) { const st = famStats(f.name), p = st.T != null ? pc(st.ob, st.T) : null;
-        x = `<span class="cr"><span class="cp">${esc(f.pm && f.pm !== '—' ? f.pm : 'no target')}</span>${p != null ? `<span class="cv" style="color:${barColor(p, plan)}">${fp(p)}</span>` : ''}</span>` + (p != null ? bar(p, plan) : `<span class="cp">OB ₹${f2(st.ob)} L</span>`); }
+        x = `<span class="cr"><span class="cp">${esc(f.pm && f.pm !== '—' ? f.pm : 'no target')}</span>${p != null ? `<span class="cv" style="color:${nc(p, plan)}">${fp(p)}</span>` : ''}</span>` + (p != null ? bar(p, plan) : `<span class="cp">OB ₹${f2(st.ob)} L</span>`); }
       return `<button data-k="${esc(f.name)}" class="${S.view === f.name ? 'on' : ''}" title="${esc(f.name)} — OB % of FY target"><span class="cn"><span class="ci" style="background:${ic[1]}">${ic[0]}</span>${esc(f.name)}</span>${x}</button>`; }).join('');
 }
 $('chips').onclick = async e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.k;
@@ -938,8 +951,10 @@ function sortTable(t, col, dir){
     return dir * String(x).localeCompare(String(y)); });
   blocks.forEach(b => b.forEach(r => tb.appendChild(r))); fixed.forEach(r => tb.appendChild(r));
 }
+function heatPills(root){ root.querySelectorAll('td.h-good,td.h-ok,td.h-warn,td.h-bad').forEach(td => { if (!td.querySelector('.hp') && td.textContent.trim() !== '—') td.innerHTML = `<span class="hp">${td.innerHTML}</span>`; }); }
 function enableSort(root){
   if (!root) return;
+  heatPills(root);
   root.querySelectorAll('table').forEach((t, n) => {
     if (t.dataset.nosort || !t.tHead || t.tHead.rows.length !== 1) return;
     const key = t.id || (root.id || 'x') + ':' + n, hs = [...t.tHead.rows[0].cells];
