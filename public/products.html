@@ -133,6 +133,9 @@
   .ms-list label:hover{background:#f1f5fb}
   .ms-q{width:100%;margin-bottom:6px}
   .ck{cursor:pointer}
+  .og{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:9px;margin-left:4px;white-space:nowrap}
+  .og.new{background:#e3f6ea;color:#0f7a36} .og.old{background:#fdf0dc;color:#9a5a00}
+  .lsr{font-size:11.5px;color:#3b5384;line-height:1.5}
   a.zl{text-decoration:none;color:var(--t1)} a.zl:hover{color:var(--volt)} a.zl .zx{color:var(--volt);font-size:11px}
   th.srt{cursor:pointer;user-select:none} th.srt:hover{background:#13497b}
   th.srt:after{content:' ⇅';opacity:.45;font-size:10px} th.srt.asc:after{content:' ▲';opacity:1} th.srt.desc:after{content:' ▼';opacity:1}
@@ -203,6 +206,7 @@ const FAMS = [
 ];
 const GOVT = 'Prepaid/Smart – Govt';
 const ZOHO_DEAL = 'https://crm.zoho.com/crm/org286180109/tab/Potentials/';   // same link as the Potentials tab
+const ZOHO_LEAD = 'https://crm.zoho.com/crm/org286180109/tab/Leads/';
 const QUARTER_SHARE = { 1:0.20, 2:0.25, 3:0.25, 4:0.30 };
 // GM -> regions (same as Region Tracking)
 const GMS = [
@@ -317,6 +321,14 @@ async function loadPipe(fam){
     if (!S.pipe || S.pipe.cy !== S.fy) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:null }); S.pipe = { cy:S.fy, sum:p.sum || [], lines:p.lines_synced, asof:p.asof }; S.list = {}; }
     if (fam && !S.list[fam]) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:fam }); S.list[fam] = p.list || []; }
   } catch (e) { S.pipe = { cy:S.fy, err:e.message || String(e), sum:[] }; }
+  if (fam) await loadLeadsFam(fam);
+}
+// 25-Nov-2026: leads of one family, valued from each lead's own product lines (Zoho "Products Information")
+async function loadLeadsFam(fam){
+  S.lf = S.lf || {};
+  if (S.lf[fam] && S.lf[fam].cy === S.fy) return;
+  try { const l = await rpc('prd_leads_l', { p_cy:S.fy, p_fam:fam }); S.lf[fam] = { cy:S.fy, rows:l.rows || [], synced:l.lines_synced }; }
+  catch (e) { S.lf[fam] = { cy:S.fy, err:e.message || String(e), rows:[] }; }
 }
 async function loadLeads(){
   try { const l = await rpc('prd_leads_d', { p_cy:S.fy }); S.leads = { cy:S.fy, rows:l.rows || [] }; }
@@ -658,6 +670,14 @@ function growthCard(fam){
 
 
 /* ---------- potentials (visibility) ---------- */
+// New = created in the month it is due to close; Carried over = created in an earlier month (same rule as the Potentials tab)
+function originOf(created, closing){ if (!created || !closing) return ''; return created.slice(0, 7) < String(closing).slice(0, 7) ? 'carried' : 'new'; }
+function createdCell(created, closing){
+  if (!created) return '<span class="sub">—</span>';
+  const o = originOf(created, closing);
+  return new Date(created).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'}) +
+    (o === 'carried' ? ' <span class="og old">Carried over</span>' : o === 'new' ? ' <span class="og new">New</span>' : '');
+}
 function pipeCard(fam){
   const head = `<h2>Visibility of orders — potentials · ${esc(fam)}</h2>`;
   if (!S.pipe) return `<div class="card"><div class="card-h">${head}</div><div class="note">Loading potentials…</div></div>`;
@@ -674,10 +694,11 @@ function pipeCard(fam){
     const f = list.filter(a => (V.st === 'All' || a[6] === V.st) && (!q || [a[1], a[2], a[3], a[4], a[5], (a[12] || []).map(x => x[0]).join(' ')].join(' ').toLowerCase().includes(q))
       && (!V.from || (a[9] || '') >= V.from) && (!V.to || (a[9] || '9999') <= V.to));
     cnt = `${f.length} deals · ₹${f2(f.reduce((t, a) => t + +a[10], 0))} L`;
-    body = `<div class="tbl"><table id="visTable"><thead><tr><th class="l">Account / project</th><th class="l">Product series (this product)</th><th class="l">Owner</th><th class="l">Region</th><th>Closing</th><th>Value (₹ L)</th><th class="l">Status</th><th>Probability</th></tr></thead><tbody>
+    body = `<div class="tbl"><table id="visTable"><thead><tr><th class="l">Account / project</th><th class="l">Product series (this product)</th><th class="l">Owner</th><th class="l">Region</th><th>Closing</th><th class="l">Created</th><th>Value (₹ L)</th><th class="l">Status</th><th>Probability</th></tr></thead><tbody>
       ${f.slice(0, V.n).map(a => `<tr><td class="l wrapc"><a class="acct zl" href="${ZOHO_DEAL}${encodeURIComponent(a[0])}" target="_blank" rel="noopener" title="Open this potential in Zoho CRM">${esc(a[2] || a[1] || '—')} <span class="zx">↗</span>${a[3] || a[1] ? `<small>${esc(a[3] || a[1])}</small>` : ''}</a></td>
         <td class="l wrapc">${(a[12] || []).map(x => `${esc(x[0])}${x[1] ? ` <span class="sub">×${f0(x[1])}</span>` : ''}${(a[12] || []).length > 1 ? ` <span class="sub">₹${f2(x[2])}</span>` : ''}`).join('<br>')}</td>
         <td class="l">${esc(a[4] || '—')}</td><td class="l">${esc(a[5] || '—')}</td><td>${a[9] ? new Date(a[9]).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'}) : '—'}</td>
+        <td class="l">${createdCell(a[13], a[9])}</td>
         <td>${a[11] ? `<span class="est" data-tip="Deal has no product lines in Zoho: value split equally between the products named in Product / Solution type">≈ ${f2(a[10])}</span>` : f2(a[10])}</td>
         <td class="l"><span class="st-${esc(a[6])}">${esc(a[6])}</span> <span class="sub">${esc(a[7] || '')}</span></td><td>${a[8] != null ? f0(a[8]) + '%' : '—'}</td></tr>`).join('')}
       </tbody></table></div>${f.length > V.n ? `<div class="more"><button class="btn" id="visMore">Show ${Math.min(40, f.length - V.n)} more of ${f.length - V.n}</button></div>` : ''}`;
@@ -701,7 +722,9 @@ function pipeCard(fam){
 
 /* ---------- leads (separate block): Week 1–5 of a month (4A) ---------- */
 function leadFams(pt){ const toks = String(pt || '').split(',').map(t => t.trim()).filter(Boolean); return [...new Set(toks.map(pfam))]; }
-function leadRows(fam){   // this family's share of each lead row: [day, rg, owner, n, v]
+function leadRows(fam){   // this family's leads: { id, d, rg, ow, n, v, est, nm, co, sr }
+  const L = S.lf && S.lf[fam];
+  if (L && !L.err && L.cy === S.fy) return L.rows.map(a => ({ id:a[0], d:a[1], rg:a[2], ow:a[3], nm:a[4], co:a[5], n:1, v:+a[6], est:!!a[7], sr:a[8] || [] }));
   if (!S.leads || S.leads.err) return [];
   const out = []; S.leads.rows.forEach(a => { const fs = leadFams(a[1]); if (!fs.includes(fam)) return; out.push({ d:a[0], rg:a[2], ow:a[3], n:+a[4], v:+a[5] / fs.length }); });
   return out;
@@ -711,33 +734,33 @@ function leadsCard(fam){
   const head = `<h2>Leads — ${esc(fam)}</h2>`;
   if (!S.leads) return `<div class="card"><div class="card-h">${head}</div><div class="note">Loading leads…</div></div>`;
   if (S.leads.err) return `<div class="card"><div class="card-h">${head}</div><div class="note">Leads not available yet (${esc(S.leads.err)}). Run <b>supabase/products_v2.sql</b> in Supabase.</div></div>`;
-  const m = S.leadM || curMonth(), mk = monthKey(m), lyk = (m >= 4 ? S.fy - 1 : S.fy) + '-' + String(m).padStart(2, '0');
-  const R = leadRows(fam), cur = R.filter(r => r.d.slice(0, 7) === mk), ly = R.filter(r => r.d.slice(0, 7) === lyk);
-  const wk = [1, 2, 3, 4, 5].map(w => { const a = cur.filter(r => weekOf(r.d) === w), b = ly.filter(r => weekOf(r.d) === w);
-    return { w, n:a.reduce((t, r) => t + r.n, 0), v:a.reduce((t, r) => t + r.v, 0), ln:b.reduce((t, r) => t + r.n, 0) }; });
-  const tn = wk.reduce((t, x) => t + x.n, 0), tv = wk.reduce((t, x) => t + x.v, 0), tl = wk.reduce((t, x) => t + x.ln, 0);
+  const m = S.leadM || curMonth(), mk = monthKey(m);
+  const R = leadRows(fam), cur = R.filter(r => r.d.slice(0, 7) === mk);
+  const wk = [1, 2, 3, 4, 5].map(w => { const a = cur.filter(r => weekOf(r.d) === w);
+    return { w, n:a.reduce((t, r) => t + r.n, 0), v:a.reduce((t, r) => t + r.v, 0) }; });
+  const tn = wk.reduce((t, x) => t + x.n, 0), tv = wk.reduce((t, x) => t + x.v, 0);
+  const L = S.lf && S.lf[fam], byLines = L && !L.err && L.cy === S.fy;
   const fyN = R.filter(r => r.d >= `${S.fy}-04-01`).reduce((t, r) => t + r.n, 0);
-  const W = 640, H = 220, pl = 40, pb = 28, pt = 22, cw = (W - pl - 10) / 5, mx = Math.max(1, ...wk.map(x => Math.max(x.n, x.ln))) * 1.15, y = v => pt + (H - pt - pb) * (1 - v / mx);
+  const W = 640, H = 220, pl = 40, pb = 28, pt = 22, cw = (W - pl - 10) / 5, mx = Math.max(1, ...wk.map(x => x.n)) * 1.15, y = v => pt + (H - pt - pb) * (1 - v / mx);
   let svg = `<svg viewBox="0 0 ${W} ${H}">`;
   for (let g = 0; g <= 4; g++) { const v = mx * g / 4; svg += `<line x1="${pl}" x2="${W - 10}" y1="${y(v)}" y2="${y(v)}" stroke="#eef1f6"/><text x="${pl - 6}" y="${y(v) + 4}" font-size="10" text-anchor="end" fill="#7a8fb8">${Math.round(v)}</text>`; }
   wk.forEach((x, i) => { const cx = pl + i * cw + cw / 2, bw = cw * .42;
     svg += `<g class="ck" data-wk="${x.w}"><rect x="${cx - cw / 2}" y="${pt}" width="${cw}" height="${H - pt - pb}" fill="transparent"/>`;
     svg += `<rect x="${cx - bw / 2}" y="${y(x.n)}" width="${bw}" height="${Math.max(0, H - pb - y(x.n))}" rx="5" fill="#16a34a"/>`;
-    if (x.ln) svg += `<line x1="${cx - bw / 2 - 6}" x2="${cx + bw / 2 + 6}" y1="${y(x.ln)}" y2="${y(x.ln)}" stroke="#7f93b5" stroke-width="2" stroke-dasharray="4 3"/>`;
     if (x.n) svg += `<text x="${cx}" y="${y(x.n) - 14}" font-size="11.5" font-weight="700" text-anchor="middle" fill="#16264d">${x.n}</text><text x="${cx}" y="${y(x.n) - 3}" font-size="9.5" text-anchor="middle" fill="#3b5384">₹${f2(x.v)} L</text>`;
-    svg += `<text x="${cx}" y="${H - 9}" font-size="11" text-anchor="middle" fill="#3b5384">Week ${x.w}</text><title>Week ${x.w}: ${x.n} leads · ₹${f2(x.v)} L · last year ${x.ln} · click for Region › Sales engineer</title></g>`; });
+    svg += `<text x="${cx}" y="${H - 9}" font-size="11" text-anchor="middle" fill="#3b5384">Week ${x.w}</text><title>Week ${x.w}: ${x.n} leads · ₹${f2(x.v)} L · click for Region › Sales engineer › leads</title></g>`; });
   svg += '</svg>';
   const opts = pastMonths().slice().reverse().map(mm => `<option value="${mm}" ${mm === m ? 'selected' : ''}>${MNAME[mm]} ${String(mm >= 4 ? S.fy : S.fy + 1).slice(2)}</option>`).join('');
-  return `<div class="card" id="leadCard"><div class="card-h"><div>${head}<div class="sub">Leads created in Zoho naming this product (Product / Solution type). A lead naming 2 products counts in each; its value is split equally. Week 1 = days 1–7, Week 5 = 29–31.</div></div>
+  return `<div class="card" id="leadCard"><div class="card-h"><div>${head}<div class="sub">${byLines ? `Leads created in Zoho with this product in their Products Information lines · value = this product's lines of the lead${L.synced ? ' (lines synced ' + new Date(L.synced).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) + ')' : ''}; leads without lines use Product / Solution type with an equal split (≈)` : 'Leads created in Zoho naming this product (Product / Solution type); value split equally when a lead names 2+ products'}. Week 1 = days 1–7, Week 5 = 29–31.</div></div>
       <div class="fl hdr-f"><div class="f"><label>Month</label><select id="leadM">${opts}</select></div></div></div>
-    <div class="kp"><div class="k"><div class="l">Leads · ${MNAME[m]}</div><div class="v ck" data-wk="0">${tn}</div><div class="n">₹${f2(tv)} L order value</div></div>
-      <div class="k"><div class="l">Same month last year</div><div class="v">${tl}</div><div class="n">${grTxt(tn, tl)}</div></div>
+    <div class="kp"><div class="k"><div class="l">Leads · ${MNAME[m]}</div><div class="v ck" data-wk="0">${tn}</div><div class="n">₹${f2(tv)} L · this product</div></div>
+      <div class="k"><div class="l">Average per lead</div><div class="v">${tn ? '₹' + f2(tv / tn) + ' L' : '—'}</div><div class="n">${MNAME[m]} leads</div></div>
       <div class="k"><div class="l">Leads this FY</div><div class="v">${f0(fyN)}</div><div class="n">${fyLabel(S.fy)} so far</div></div>
       <div class="k"><div class="l">Best week</div><div class="v">${tn ? 'Week ' + wk.slice().sort((a, b) => b.n - a.n)[0].w : '—'}</div><div class="n">${tn ? wk.slice().sort((a, b) => b.n - a.n)[0].n + ' leads' : ''}</div></div></div>
-    <div class="two"><div><div class="legend" style="margin:0 0 6px"><span><i class="sw" style="background:#16a34a"></i>${MNAME[m]} leads</span><span><i class="sw" style="background:#7f93b5;height:2px"></i>same week last year</span></div><div class="chart" id="leadChart">${svg}</div></div>
-    <div class="tbl"><table id="leadTbl"><thead><tr><th class="l">Week</th><th>Leads</th><th>Value (₹ L)</th><th>Last year</th></tr></thead><tbody>
-      ${wk.map(x => `<tr><td class="l">Week ${x.w} <span class="sub">${[1, 8, 15, 22, 29][x.w - 1]}–${[7, 14, 21, 28, 31][x.w - 1]}</span></td><td><a class="dd" href="#" data-lw="${x.w}">${x.n}</a></td><td><a class="dd" href="#" data-lw="${x.w}">${f2(x.v)}</a></td><td>${x.ln}</td></tr>`).join('')}
-      <tr class="tot"><td class="l">${MNAME[m]} total</td><td><a class="dd" href="#" data-lw="0">${tn}</a></td><td><a class="dd" href="#" data-lw="0">${f2(tv)}</a></td><td>${tl}</td></tr></tbody></table></div></div></div>`;
+    <div class="two"><div><div class="legend" style="margin:0 0 6px"><span><i class="sw" style="background:#16a34a"></i>${MNAME[m]} leads · click a bar for Region › Sales engineer › leads</span></div><div class="chart" id="leadChart">${svg}</div></div>
+    <div class="tbl"><table id="leadTbl"><thead><tr><th class="l">Week</th><th>Leads</th><th>Value (₹ L)</th></tr></thead><tbody>
+      ${wk.map(x => `<tr><td class="l">Week ${x.w} <span class="sub">${[1, 8, 15, 22, 29][x.w - 1]}–${[7, 14, 21, 28, 31][x.w - 1]}</span></td><td><a class="dd" href="#" data-lw="${x.w}">${x.n}</a></td><td><a class="dd" href="#" data-lw="${x.w}">${f2(x.v)}</a></td></tr>`).join('')}
+      <tr class="tot"><td class="l">${MNAME[m]} total</td><td><a class="dd" href="#" data-lw="0">${tn}</a></td><td><a class="dd" href="#" data-lw="0">${f2(tv)}</a></td></tr></tbody></table></div></div></div>`;
 }
 
 
@@ -783,7 +806,7 @@ const DD = { mode:null };
 function ddShell(title, sub, extra){
   let ov = $('ddOv');
   if (!ov) { ov = document.createElement('div'); ov.id = 'ddOv'; ov.className = 'dd-ov dk-skip'; document.body.appendChild(ov);
-    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); DD.mode === 'pipe' ? ddPipeList() : ddDocs(); } });
+    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); DD.mode === 'pipe' ? ddPipeList() : DD.mode === 'lead' ? ddLeadList() : ddDocs(); } });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ddOv')?.style.display !== 'none') ddClose(); }); }
   ov.style.display = 'flex';
   ov.innerHTML = `<div class="dd-box"><div class="dd-hd"><div><h3>${title}</h3><div class="s">${sub}</div></div>
@@ -860,8 +883,8 @@ function ddRenderSe(){
 function openLeads(fam, w){
   const m = S.leadM || curMonth(), mk = monthKey(m);
   const R = leadRows(fam).filter(r => r.d.slice(0, 7) === mk && (!w || weekOf(r.d) === w));
-  Object.assign(DD, { mode:'lead', fam, R, openRg:new Set() });
-  ddShell(`Leads · ${esc(fam)} · ${MNAME[m]}${w ? ' · Week ' + w : ''}`, `Leads created in Zoho naming this product · value split equally when a lead names 2+ products · click a region to see its sales engineers`);
+  Object.assign(DD, { mode:'lead', fam, R, openRg:new Set(), rg:null, se:null, q:'' });
+  ddShell(`Leads · ${esc(fam)} · ${MNAME[m]}${w ? ' · Week ' + w : ''}`, `Leads created in Zoho with this product · value = this product's lines of the lead (≈ = no lines, equal split) · click a region, then a sales engineer, to list the leads`);
   ddRenderLeads();
 }
 function ddRenderLeads(){
@@ -870,16 +893,35 @@ function ddRenderLeads(){
   const list = Object.entries(by).sort((a, b) => b[1].n - a[1].n || b[1].v - a[1].v), mx = Math.max(1, ...list.map(([, o]) => o.n));
   const rows = list.map(([rg, o]) => { const op = DD.openRg.has(rg);
     let h = `<tr class="ck" data-rgo="${esc(rg)}"><td class="l"><span class="caret">${op ? '▾' : '▸'}</span><b>${esc(rg)}</b></td><td>${o.n}</td><td>${tn ? (o.n / tn * 100).toFixed(1) : 0}%</td><td>${f2(o.v)}</td><td class="l">${tv ? (o.v / tv * 100).toFixed(1) : '0.0'}%<span class="dd-bar" style="width:${Math.max(2, o.n / mx * 70)}px;background:#16a34a"></span></td></tr>`;
-    if (op) h += Object.entries(o.ow).sort((a, b) => b[1].n - a[1].n).map(([ow, z]) => `<tr class="it"><td class="l" style="padding-left:28px">👤 ${esc(ow)}</td><td>${z.n}</td><td>${o.n ? (z.n / o.n * 100).toFixed(1) : 0}%</td><td>${f2(z.v)}</td><td class="l">${o.v ? (z.v / o.v * 100).toFixed(1) : '0.0'}% of region</td></tr>`).join('');
+    if (op) h += Object.entries(o.ow).sort((a, b) => b[1].n - a[1].n).map(([ow, z]) => `<tr class="it ck${DD.se === ow && DD.rg === rg ? ' sel' : ''}" data-lse="${esc(ow)}" data-lserg="${esc(rg)}"><td class="l" style="padding-left:28px">👤 ${esc(ow)}</td><td>${z.n}</td><td>${o.n ? (z.n / o.n * 100).toFixed(1) : 0}%</td><td>${f2(z.v)}</td><td class="l">${o.v ? (z.v / o.v * 100).toFixed(1) : '0.0'}% of region</td></tr>`).join('');
     return h; }).join('');
   $('ddBd').innerHTML = `<div class="dd-kp"><div class="dd-k"><div class="l">Leads</div><div class="v">${tn}</div><div class="n">created</div></div>
-      <div class="dd-k"><div class="l">Order value</div><div class="v">₹${f2(tv)} L</div><div class="n">as entered in Zoho</div></div>
+      <div class="dd-k"><div class="l">Value</div><div class="v">₹${f2(tv)} L</div><div class="n">this product's lines</div></div>
       <div class="dd-k"><div class="l">Regions</div><div class="v">${list.length}</div><div class="n">top: ${esc(list[0]?.[0] || '—')}</div></div>
       <div class="dd-k"><div class="l">Sales engineers</div><div class="v">${new Set(DD.R.map(r => r.ow)).size}</div><div class="n">lead owners</div></div></div>
-    <div class="dd-cap"><span>REGION › SALES ENGINEER</span></div>
-    <div class="dd-tb" style="max-height:60vh"><table><thead><tr><th class="l">Region / sales engineer</th><th>Leads</th><th>Qty share</th><th>Value ₹ L</th><th class="l">Value share</th></tr></thead><tbody>
-      ${rows || '<tr><td colspan="5">No leads</td></tr>'}<tr class="tot"><td class="l">Total</td><td>${tn}</td><td>100%</td><td>${f2(tv)}</td><td class="l">100%</td></tr></tbody></table></div>`;
-  enableSort($('ddBd'));
+    <div class="dd-cap"><span>REGION › SALES ENGINEER</span><span class="sub">click a region to open it · click a sales engineer to list the leads below</span></div>
+    <div class="dd-tb" style="max-height:340px"><table><thead><tr><th class="l">Region / sales engineer</th><th>Leads</th><th>Count share</th><th>Value ₹ L</th><th class="l">Value share</th></tr></thead><tbody>
+      ${rows || '<tr><td colspan="5">No leads</td></tr>'}<tr class="tot"><td class="l">Total</td><td>${tn}</td><td>100%</td><td>${f2(tv)}</td><td class="l">100%</td></tr></tbody></table></div>
+    ${DD.R.some(r => r.id) ? `<div class="dd-tools"><b style="font-size:12px;color:var(--t3);letter-spacing:.06em">LEADS</b>
+      ${DD.rg ? `<span class="dd-flt">Region: ${esc(DD.rg)}<button data-a="unrg" title="Remove">×</button></span>` : ''}
+      ${DD.se ? `<span class="dd-flt">Sales engineer: ${esc(DD.se)}<button data-a="unse" title="Remove">×</button></span>` : ''}
+      <input id="ddQ" placeholder="Search lead, company, series…" value="${esc(DD.q)}"></div>
+    <div class="dd-tb dd-docs" id="ddDocs"></div>` : '<div class="note">The lead list appears once <b>supabase/products_v4.sql</b> is run.</div>'}`;
+  enableSort($('ddBd')); if (DD.R.some(r => r.id)) ddLeadList();
+}
+function ddLeadList(){
+  const q = DD.q, L = DD.R.filter(r => (!DD.rg || r.rg === DD.rg) && (!DD.se || r.ow === DD.se)
+    && (!q || [r.nm, r.co, r.ow, r.rg, (r.sr || []).map(x => x[0]).join(' ')].join(' ').toLowerCase().includes(q)))
+    .sort((a, b) => b.v - a.v);
+  const tv = L.reduce((t, r) => t + r.v, 0);
+  $('ddDocs').innerHTML = `<table id="ddLeadT"><thead><tr><th class="l">Lead / company</th><th class="l">Product lines (this product)</th><th class="l">Sales engineer</th><th class="l">Region</th><th>Created</th><th>Value ₹ L</th></tr></thead><tbody>
+    ${L.map(r => `<tr><td class="l wrapc"><a class="acct zl" href="${ZOHO_LEAD}${encodeURIComponent(r.id)}" target="_blank" rel="noopener" title="Open this lead in Zoho CRM">${esc(r.nm || r.co || '—')} <span class="zx">↗</span>${r.co && r.co !== r.nm ? `<small>${esc(r.co)}</small>` : ''}</a></td>
+      <td class="l wrapc lsr">${(r.sr || []).map(x => `${esc(x[0])}${x[1] ? ` <span class="sub">×${f0(x[1])}</span>` : ''} <span class="sub">₹${f2(x[2])}</span>`).join('<br>') || '—'}</td>
+      <td class="l">${esc(r.ow)}</td><td class="l">${esc(r.rg)}</td>
+      <td>${new Date(r.d).toLocaleDateString('en-IN', {day:'2-digit', month:'short'})}</td>
+      <td>${r.est ? `<span class="est" data-tip="No product lines in Zoho: Order Value split equally between the products named">≈ ${f2(r.v)}</span>` : f2(r.v)}</td></tr>`).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--t3)">No leads match</td></tr>'}
+    <tr class="tot"><td class="l">Total · ${L.length} leads</td><td></td><td></td><td></td><td></td><td>${f2(tv)}</td></tr></tbody></table>`;
+  enableSort($('ddDocs'));
 }
 
 // (d) Open potentials closing in a month → Region › Sales engineer › potentials (links to Zoho)
@@ -948,9 +990,9 @@ async function ddClick(e){
   if (e.target === ov) return ddClose();
   if (a) {
     if (a.dataset.a === 'close') return ddClose();
-    if (a.dataset.a === 'unrg' && DD.mode !== 'pipe') { DD.rg = null; return DD.mode === 'pm' ? ddLoadPm() : ddRenderSe(); }
+    if (a.dataset.a === 'unrg' && DD.mode !== 'pipe' && DD.mode !== 'lead') { DD.rg = null; return DD.mode === 'pm' ? ddLoadPm() : ddRenderSe(); }
     if (a.dataset.a === 'unsr') { DD.sr = null; return ddLoadPm(); }
-    if (a.dataset.a === 'unse' && DD.mode !== 'pipe') { DD.se = null; return ddRenderSe(); }
+    if (a.dataset.a === 'unse' && DD.mode !== 'pipe' && DD.mode !== 'lead') { DD.se = null; return ddRenderSe(); }
     if (a.dataset.a === 'csv') return ddCsv();
     if (a.dataset.a === 'doc') { DD.doc = a.dataset.d; DD.rg = DD.se = null; DD.open.clear(); DD.items = {};
       a.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); $('ddBd').innerHTML = '<div class="dd-load">Loading…</div>'; return ddLoadSe(); }
@@ -961,7 +1003,12 @@ async function ddClick(e){
     const s2 = e.target.closest('tr[data-se]'); if (s2) { DD.se = DD.se === s2.dataset.se ? null : s2.dataset.se; DD.rg = s2.dataset.serg; return ddRenderPipe(); }
     const r2 = e.target.closest('tr[data-rgo]'); if (r2) { const k = r2.dataset.rgo; DD.openRg.has(k) ? DD.openRg.delete(k) : DD.openRg.add(k); DD.rg = DD.openRg.has(k) ? k : null; DD.se = null; return ddRenderPipe(); }
     return; }
-  if (DD.mode === 'lead') { const r = e.target.closest('tr[data-rgo]'); if (r) { const k = r.dataset.rgo; DD.openRg.has(k) ? DD.openRg.delete(k) : DD.openRg.add(k); ddRenderLeads(); } return; }
+  if (DD.mode === 'lead') {
+    if (a && a.dataset.a === 'unrg') { DD.rg = null; DD.se = null; return ddRenderLeads(); }
+    if (a && a.dataset.a === 'unse') { DD.se = null; return ddRenderLeads(); }
+    const s2 = e.target.closest('tr[data-lse]'); if (s2) { DD.se = DD.se === s2.dataset.lse ? null : s2.dataset.lse; DD.rg = s2.dataset.lserg; return ddRenderLeads(); }
+    const r = e.target.closest('tr[data-rgo]'); if (r) { const k = r.dataset.rgo; DD.openRg.has(k) ? DD.openRg.delete(k) : DD.openRg.add(k); DD.rg = DD.openRg.has(k) ? k : null; DD.se = null; ddRenderLeads(); }
+    return; }
   if (DD.mode === 'se') {
     const s = e.target.closest('tr[data-se]'); if (s) { DD.se = DD.se === s.dataset.se ? null : s.dataset.se; DD.rg = DD.se ? s.dataset.serg : null; return ddRenderSe(); }
     const r = e.target.closest('tr[data-rgo]'); if (r) { const k = r.dataset.rgo; DD.openRg.has(k) ? DD.openRg.delete(k) : DD.openRg.add(k); DD.rg = DD.openRg.has(k) ? k : (DD.rg === k ? null : DD.rg); DD.se = null; return ddRenderSe(); }
@@ -1103,7 +1150,7 @@ async function loadAll(quiet){
   } catch (e) { showErr(e.message); }
   finally { $('loading').classList.remove('on'); }
 }
-$('fySel').onchange = async e => { S.fy = +e.target.value; S.pipe = null; S.list = {}; S.leads = null; await loadAll(); };
+$('fySel').onchange = async e => { S.fy = +e.target.value; S.pipe = null; S.list = {}; S.leads = null; S.lf = {}; await loadAll(); };
 
 const AUTO = { ver:null, pending:false, busy:false };
 function isShown(){ try { return !document.hidden && (!window.frameElement || window.frameElement.classList.contains('active')); } catch (e) { return !document.hidden; } }

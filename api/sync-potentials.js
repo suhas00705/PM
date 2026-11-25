@@ -46,30 +46,41 @@ function nextSecond(ts) {
 // It walks all lines by id, 2,000 per Zoho call, for ~40 s per run, and remembers where it stopped
 // (pot_lines_state). When a full pass ends, lines not seen in that pass (deleted in Zoho) are removed.
 // Called from /api/cron-2h every slot, so a full pass finishes every few hours. Writes need SUPABASE_SERVICE_KEY.
-async function syncLines(accessToken, req) {
+// 25-Nov-2026: ?mode=leadlines does the same for LEADS: their "Products Information" table (Zoho module
+// Products_Information; Single_Line_3 = Product Basket, Single_Line_2 = Product Series) -> Supabase lead_lines.
+const LINE_SYNC = {
+  lines: { table: 'pot_lines', state: 'pot_lines_state', key: 'deal_id', module: 'Products_Information1',
+           cols: 'Product_Basket1, Product_Basket, Product_Series, Product_Name',
+           basket: r => r.Product_Basket1 || r.Product_Basket || null, series: r => r.Product_Series || r.Product_Name || null },
+  leadlines: { table: 'lead_lines', state: 'lead_lines_state', key: 'lead_id', module: 'Products_Information',
+           cols: 'Single_Line_3, Single_Line_2, Product_Basket, Product_Name',
+           basket: r => r.Single_Line_3 || r.Product_Basket || null, series: r => r.Single_Line_2 || r.Product_Name || null }
+};
+async function syncLines(accessToken, req, kind = 'lines') {
+  const C = LINE_SYNC[kind];
   const deadline = Date.now() + 40000;
-  const st = (await sb('pot_lines_state?id=eq.1&select=*'))[0] || {};
+  const st = (await sb(`${C.state}?id=eq.1&select=*`))[0] || {};
   let cursor = req.query?.restart === '1' ? null : st.cursor_id || null;
   let sweepStart = cursor && st.sweep_start ? st.sweep_start : new Date().toISOString();
   const runAt = new Date().toISOString();
   let fetched = 0, saved = 0, done = false, removed = 0;
   while (Date.now() < deadline) {
     const where = cursor ? `id > ${cursor}` : 'id is not null';
-    const q = `select id, Parent_Id, Product_Basket1, Product_Basket, Product_Series, Product_Name, Model_Name, Quantity, Amount, Modified_Time from Products_Information1 where ${where} order by id asc limit 2000`;
+    const q = `select id, Parent_Id, ${C.cols}, Model_Name, Quantity, Amount, Modified_Time from ${C.module} where ${where} order by id asc limit 2000`;
     const { data, more } = await coql(accessToken, q);
     fetched += data.length;
     const rows = data
-      .filter(r => r.Parent_Id && r.Parent_Id.id && (r.Amount != null || r.Product_Basket1 || r.Product_Basket))
+      .filter(r => r.Parent_Id && r.Parent_Id.id && (r.Amount != null || C.basket(r)))
       .map(r => ({
-        id: String(r.id), deal_id: String(r.Parent_Id.id),
-        basket: r.Product_Basket1 || r.Product_Basket || null,
-        series: r.Product_Series || r.Product_Name || null,
+        id: String(r.id), [C.key]: String(r.Parent_Id.id),
+        basket: C.basket(r),
+        series: C.series(r),
         model: r.Model_Name || null,
         qty: r.Quantity ?? null, amount: r.Amount ?? null,
         modified: r.Modified_Time || null, seen_at: runAt
       }));
     for (let i = 0; i < rows.length; i += 1000) {
-      await sb('pot_lines', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      await sb(C.table, { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
                               body: JSON.stringify(rows.slice(i, i + 1000)) });
     }
     saved += rows.length;
@@ -78,15 +89,15 @@ async function syncLines(accessToken, req) {
   }
   if (done) {
     // lines not seen since this pass started were deleted in Zoho
-    const del = await sb(`pot_lines?seen_at=lt.${encodeURIComponent(sweepStart)}&select=id`,
+    const del = await sb(`${C.table}?seen_at=lt.${encodeURIComponent(sweepStart)}&select=id`,
                          { method: 'DELETE', headers: { Prefer: 'return=representation' } });
     removed = Array.isArray(del) ? del.length : 0;   // only ids come back, and only for deleted lines
   }
-  await sb('pot_lines_state?id=eq.1', { method: 'PATCH', headers: { Prefer: 'return=minimal' },
+  await sb(`${C.state}?id=eq.1`, { method: 'PATCH', headers: { Prefer: 'return=minimal' },
     body: JSON.stringify({ cursor_id: done ? null : cursor, sweep_start: done ? null : sweepStart,
                            last_run: runAt, ...(done ? { last_done: runAt } : {}),
                            note: `fetched ${fetched}, saved ${saved}${done ? `, pass done, removed ${removed}` : ''}` }) });
-  return { ok: true, mode: 'lines', fetched, saved, done, removed, hasMore: !done };
+  return { ok: true, mode: kind, fetched, saved, done, removed, hasMore: !done };
 }
 
 module.exports = async (req, res) => {
@@ -96,6 +107,7 @@ module.exports = async (req, res) => {
     const accessToken = await zohoAuth.getZohoAccessToken();
     const authHeader = { Authorization: `Zoho-oauthtoken ${accessToken}` };
     if (req.query?.mode === 'lines') return res.status(200).json(await syncLines(accessToken, req));
+    if (req.query?.mode === 'leadlines') return res.status(200).json(await syncLines(accessToken, req, 'leadlines'));
 
     // ─── MODE SELECTION ───────────────────────────────────────────────────────
     // ?mode=full   → Full FY scan sorted by Created_Time ASC (no time cutoff).

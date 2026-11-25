@@ -23,6 +23,7 @@
 // (the 23:00 slot is a catch-up: it copies only if 21:00 found no finished new build – otherwise "no new Zoho build").
 // 17-Nov-2026: every slot also continues the copy of potential product lines (/api/sync-potentials?mode=lines,
 // ~40 s per run) used by the Products tab; a full pass over all lines finishes every few hours.
+// 25-Nov-2026: and of lead product lines (/api/sync-potentials?mode=leadlines) for the Products leads block.
 
 const crypto = require('crypto');
 const OB_INV_FROM = 7, OB_INV_TO = 21;          // IST hours (inclusive) when orders / invoices are synced
@@ -69,7 +70,7 @@ module.exports = async (req, res) => {
   const base = PROD;
   const started = new Date().toISOString();
   const byCron = /vercel-cron/i.test(req.headers['user-agent'] || '');
-  const jobs = ['/api/lvs-stock?save=1', '/api/sync-potentials?mode=lines'];
+  const jobs = ['/api/lvs-stock?save=1', '/api/sync-potentials?mode=lines', '/api/sync-potentials?mode=leadlines'];
   if (h === 21 || h === 23) jobs.push('/api/sync-invoice?mode=pending');   // pending to bill: once a day, frozen till next 9 pm
   const obInv = q.obinv === '1' || (q.obinv !== '0' && h >= OB_INV_FROM && h <= OB_INV_TO);
   if (obInv) {
