@@ -78,7 +78,8 @@
   .rc .fyv{font-size:11.5px;color:var(--t3);white-space:nowrap}
   .rc .fyt{text-align:right;font-size:11.5px;color:var(--t2);font-weight:700;margin-top:3px}
   .rc .fyt b{color:var(--t1)}
-  .rc .won{margin-top:4px;font-size:11.5px;color:var(--won)}
+  .rc .won{margin-top:4px;font-size:11.5px;color:var(--won);display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .pgap{font-weight:800;font-size:11.5px;padding:2px 9px;border-radius:10px;white-space:nowrap}.pgap.neg{background:#fde8e8;color:#c62828}.pgap.pos{background:#e5f5ea;color:#0f8a3c}
   .rc:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--rcc,#ccc)}
   .gmh{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:16px 0 8px;padding:9px 14px;border-radius:10px;background:linear-gradient(90deg,#eaf3fd,#f6f9fd);border:1px solid #d8e6f6}
   .gmh:first-child{margin-top:0}
@@ -163,6 +164,22 @@
   /* drawer */
   .ov{position:fixed;inset:0;background:rgba(11,41,66,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:80}
   .ov.on{opacity:1;pointer-events:auto}
+  /* channel partner performance (25-Nov-2026) */
+  .cp-ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .cp-ctl .tog{display:inline-flex;background:#dfe6f1;border-radius:9px;padding:3px}
+  .cp-ctl .tog button{border:0;background:transparent;padding:5px 11px;border-radius:7px;font:inherit;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer}
+  .cp-ctl .tog button.on{background:#fff;color:var(--volt);box-shadow:0 1px 4px rgba(11,41,66,.15)}
+  .cp-ctl input{border:1px solid #cfd6e3;border-radius:8px;padding:5px 9px;font:inherit;font-size:12.5px;width:160px}
+  .cpk{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--t2);margin:0 0 8px}.cpk span{background:#f1f5fb;border-radius:8px;padding:3px 9px}
+  .cpk .g b{color:#0f8a3c}.cpk .a b{color:#b56b00}.cpk .r b{color:#c62828}
+  .cp-t{max-height:520px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .cp-t table{font-size:12px}.cp-t th{position:sticky;top:0;z-index:2}
+  .cp-t td.l,.cp-t th.l{text-align:left}
+  .cp-t tr.cpp{cursor:pointer}.cp-t tr.cpp td{border-top:1px solid #e9eef6}.cp-t tr.cpp:hover td{background:#f6f9fd}
+  .cp-t tr.cpp small{display:block;color:var(--t3);font-size:10.5px}.cp-t .cpn{color:#b56b00}
+  .cp-t tr.cpb{cursor:pointer}.cp-t tr.cpb td{background:#f6f9fd}.cp-t tr.cpb td:first-child{padding-left:26px}
+  .cp-t tr.cps td{background:#fbfcfe;color:var(--t2)}.cp-t tr.cps td:first-child{padding-left:46px}
+  .cp-t .cv{display:inline-block;width:14px;color:var(--t3);font-size:10px}
   .dr{position:fixed;top:0;right:0;bottom:0;width:min(860px,100%);background:#f6f8fc;z-index:81;transform:translateX(100%);transition:transform .25s ease;overflow:auto;box-shadow:-10px 0 30px rgba(11,41,66,.2)}
   .dr.on{transform:none}
   .dr .dh{position:sticky;top:0;z-index:2;background:linear-gradient(120deg,#0b2942,#0073c8);color:#fff;padding:16px 20px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
@@ -645,7 +662,7 @@ function renderLeague(){
         <div class="nums"><span>Achieved <b>${fL(x.a)}</b></span><span>Target <b>${fL(x.tgt)}</b></span><span>${grTxt(x.a, x.l)}</span></div>
         <div class="trow"><div class="track"><div class="fill" style="width:${w}%;background:${colOf(x.pct)}"></div>${x.tgt != null ? `<div class="mark" style="left:${mk}%"></div>` : ''}</div>${x.T != null ? `<div class="fyv">FY target <b>${fL(x.T)}</b></div>` : ''}</div>
         ${x.T != null ? `<div class="fyt">${(x.a / x.T * 100).toFixed(0)}% of FY done</div>` : ''}
-        <div class="won">${x.won.v == null ? '<span class="sub">Potentials not shown for OEM</span>' : `◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L`}</div></div>`; }).join('') + '</div>').join('');
+        <div class="won"><span>${x.won.v == null ? '<span class="sub">Potentials not shown for OEM</span>' : `◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L`}</span>${x.gap == null ? '' : x.gap > 0.05 ? `<span class="pgap neg" title="Still to get to reach the target of ${esc(periodLabel())}">Pending ₹${fL(x.gap)} L</span>` : `<span class="pgap pos" title="Above the target of ${esc(periodLabel())}">Extra ₹${fL(-x.gap)} L</span>`}</div></div>`; }).join('') + '</div>').join('');
   } else {
     const H = [['r','Region'],['t','Target'],['a','Achieved'],['p','% achieved'],['g','Gap'],['l','LY same period'],['gr','Growth'],['w','Won · period'],['wf','Won · FY']];
     const tot = R.reduce((o, x) => ({ a:o.a + x.a, l:o.l + x.l, t:o.t + (x.tgt || 0), w:o.w + x.won.v, wn:o.wn + x.won.n, f:o.f + x.wonFy.v }), {a:0, l:0, t:0, w:0, wn:0, f:0});
@@ -723,6 +740,7 @@ function openRegion(r, keep){
       <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.v == null ? 'not shown for OEM' : x.wonFy.n + ' deals'}</div></div>
       ${(() => { const pr = S.pend && S.cy === curFy() ? (S.pend.reg || []).find(a => a[0] === r) : null;
         return S.pend && S.cy === curFy() ? `<div class="k pendd" data-pendr="${esc(r)}"><div class="l">Pending to bill</div><div class="v">${fL(pr ? +pr[3] : 0)}</div><div class="s">₹ L · ${pr ? pr[1] + ' OAs' : 'no open orders'}${pr && +pr[4] ? ' · ' + fL(+pr[4]) + ' last FY' : ''} · tap for OAs</div></div>` : ''; })()}</div>
+    <div class="card" id="cpCard"><div id="cpHost">${cpHtml(r)}</div></div>
     ${NO_WON.includes(r) ? '' : `<div class="card" id="noaCard"><div id="noaHost">${noaHtml(r)}</div></div>`}
     <div class="card"><div class="card-h"><div><h2>Product basket break-up</h2><div class="sub">Share of the region's ${S.doc === 'OB' ? 'order booking' : 'invoicing'} in the period · click a basket for its product series</div></div></div>
       ${list.length ? `<div class="split">${donut(list, tot)}<div class="tbl"><table class="bk"><thead><tr><th>Product basket</th><th>Value ₹ L</th><th>% contribution</th><th>LY same period</th><th>Growth</th></tr></thead><tbody>` +
@@ -735,6 +753,7 @@ function openRegion(r, keep){
     <div class="card"><div class="card-h"><div><h2>Month by month — ${esc(r)}</h2><div class="sub">₹ lakhs · this year vs last year vs plan</div></div></div>${monthChart(r)}</div>`;
   $('ov').classList.add('on'); $('dr').classList.add('on');
   if (!NO_WON.includes(r)) loadNoa(r);
+  loadCp(r);
   if (S.openBk) { loadSeries(r, S.openBk); if (!keep || S.scrollSer) { const c = $('serCard'); if (c) c.scrollIntoView({ behavior:'smooth', block:'start' }); } S.scrollSer = false; }
 }
 /* ---------- won potentials with NO OA yet (30-Oct-2026) ----------
@@ -807,6 +826,61 @@ $('dBody').addEventListener('click', e => {
   const tr = e.target.closest('tr[data-b]'); if (!tr) return;
   const b = tr.dataset.b; S.openBk = S.openBk === b ? null : b; S.scrollSer = !!S.openBk; openRegion(S.open, true);
 });
+/* ---------- channel partner / customer performance of a region (25-Nov-2026) ----------
+   Partner › product basket › product series. Period = the months chosen above; previous month = the month before the latest;
+   FY to date vs last FY same period (cut at the same day). Data: rt_partners (supabase/rt_partners.sql). */
+const isCpT = t => /channel partner/i.test(t || '') || /value added/i.test(t || '');
+function cpKey(r){ return [S.cy, S.doc, r].join('|'); }
+async function loadCp(r){
+  S.cpd = S.cpd || {}; const k = cpKey(r); if (S.cpd[k]) return;
+  S.cpd[k] = { loading:true };
+  try { const j = await rpc('rt_partners', { p_cy:S.cy, p_doc:S.doc, p_rg:r }); S.cpd[k] = { rows:j.rows || [] }; }
+  catch (e) { S.cpd[k] = { err:e.message || String(e) }; }
+  if (S.open === r) { const h = $('cpHost'); if (h) h.innerHTML = cpHtml(r); }
+}
+function cpAgg(rows){ // -> { pv, plv, pm, fy, lfy, q }
+  const sel = new Set(S.months), li = latestIdx(), pm = li > 0 ? MONTHS[li - 1] : null, ytdS = new Set(MONTHS.slice(0, li + 1));
+  const o = { pv:0, plv:0, pm:0, fy:0, lfy:0, q:0 };
+  rows.forEach(a => { const y = +a[4], m = +a[5], v = +a[6], lv = +a[8];
+    if (y === 0) { if (sel.has(m)) { o.pv += v; o.q += +a[7]; } if (m === pm) o.pm += v; if (ytdS.has(m)) o.fy += v; }
+    else { if (sel.has(m)) o.plv += lv; if (ytdS.has(m)) o.lfy += lv; } });
+  return o;
+}
+function cpHtml(r){
+  const D = (S.cpd || {})[cpKey(r)], C = S.cpv = S.cpv || { all:false, open:{}, q:'' };
+  const li = latestIdx(), pmN = li > 0 ? MN[MONTHS[li - 1]] : '—', per = periodLabel().replace(/ \(.*\)/, ''), W = S.doc === 'OB' ? 'order booking' : 'invoicing';
+  const head = `<div class="card-h"><div><h2>Channel partner performance — ${esc(r)}</h2><div class="sub">${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ₹ lakhs · click a partner for its product baskets, then a basket for its product series</div></div>
+    <div class="cp-ctl"><div class="tog" id="cpAll"><button data-cpall="0" class="${C.all ? '' : 'on'}">Channel partners & VARs</button><button data-cpall="1" class="${C.all ? 'on' : ''}">All customers</button></div>
+    <input id="cpQ" type="search" placeholder="Search partner…" value="${esc(C.q)}"></div></div>`;
+  if (!D || D.loading) return head + '<div class="empty">Loading partners…</div>';
+  if (D.err) return head + `<div class="empty">Could not load — ${esc(D.err)}${/rt_partners/.test(D.err) ? ' (run supabase/rt_partners.sql in Supabase)' : ''}</div>`;
+  const byC = {}; D.rows.forEach(a => { if (!C.all && !isCpT(a[1])) return; (byC[a[0]] = byC[a[0]] || { c:a[0], t:a[1], rows:[] }).rows.push(a); });
+  let P = Object.values(byC).map(x => ({ ...x, ...cpAgg(x.rows) })).filter(x => Math.abs(x.pv) + Math.abs(x.fy) + Math.abs(x.lfy) + Math.abs(x.plv) > 0.0005);
+  const q = C.q.trim().toLowerCase(); if (q) P = P.filter(x => x.c.toLowerCase().includes(q));
+  P.sort((a, b) => b.pv - a.pv || b.fy - a.fy);
+  const T = P.reduce((t, x) => ({ pv:t.pv + x.pv, plv:t.plv + x.plv, pm:t.pm + x.pm, fy:t.fy + x.fy, lfy:t.lfy + x.lfy }), { pv:0, plv:0, pm:0, fy:0, lfy:0 });
+  const act = P.filter(x => x.pv > 0.0005).length, dorm = P.filter(x => x.pv <= 0.0005 && x.fy > 0.0005).length, lost = P.filter(x => x.fy <= 0.0005 && x.lfy > 0.0005).length;
+  const cells = (o, pad) => `<td>${fL(o.pv)}</td><td>${fL(o.plv)}</td><td>${grTxt(o.pv, o.plv)}</td><td>${fL(o.pm)}</td><td>${fL(o.fy)}</td><td>${fL(o.lfy)}</td><td>${grTxt(o.fy, o.lfy)}</td>`;
+  const rowsH = P.map(x => { const op = C.open[x.c]; let h = `<tr class="cpp" data-cpc="${esc(x.c)}"><td class="l"><span class="cv">${op ? '▾' : '▸'}</span><b>${esc(x.c)}</b><small>${esc(x.t)}${x.pv <= 0.0005 ? ' · <span class="cpn">nothing in ' + esc(per) + '</span>' : ''}</small></td>${cells(x)}</tr>`;
+    if (op) { const byB = {}; x.rows.forEach(a => (byB[a[2]] = byB[a[2]] || []).push(a));
+      Object.entries(byB).map(([b, rs]) => ({ b, rs, ...cpAgg(rs) })).filter(o => Math.abs(o.pv) + Math.abs(o.fy) + Math.abs(o.lfy) > 0.0005).sort((a, b) => b.pv - a.pv || b.fy - a.fy).forEach(o => {
+        const ob = op[o.b]; h += `<tr class="cpb" data-cpc="${esc(x.c)}" data-cpb="${esc(o.b)}"><td class="l"><span class="cv">${ob ? '▾' : '▸'}</span>${esc(o.b)}</td>${cells(o)}</tr>`;
+        if (ob) { const byS = {}; o.rs.forEach(a => (byS[a[3]] = byS[a[3]] || []).push(a));
+          h += Object.entries(byS).map(([sr, rs]) => ({ sr, ...cpAgg(rs) })).filter(z => Math.abs(z.pv) + Math.abs(z.fy) + Math.abs(z.lfy) > 0.0005).sort((a, b) => b.pv - a.pv || b.fy - a.fy)
+            .map(z => `<tr class="cps"><td class="l">${esc(z.sr)}${z.q ? ` <small style="display:inline">· ${Math.round(z.q).toLocaleString('en-IN')} pcs</small>` : ''}</td>${cells(z)}</tr>`).join(''); } }); }
+    return h; }).join('');
+  return head + `<div class="cpk"><span><b>${P.length}</b> ${C.all ? 'customers' : 'partners'}</span><span class="g"><b>${act}</b> active in ${esc(per)}</span><span class="a"><b>${dorm}</b> bought this FY but not in ${esc(per)}</span><span class="r"><b>${lost}</b> bought last FY, nothing this FY</span></div>
+    <div class="tbl cp-t"><table><thead><tr><th class="l">${C.all ? 'Customer' : 'Partner'} / basket / series</th><th>${esc(per)}</th><th>LY same</th><th>Growth</th><th>${pmN} (prev. month)</th><th>FY to date</th><th>LY to date</th><th>FY growth</th></tr></thead><tbody>
+    ${rowsH || `<tr><td colspan="8" class="l">No ${C.all ? 'customers' : 'channel partners / VARs'} in this region</td></tr>`}
+    <tr class="tot"><td class="l">Total · ${P.length}</td>${cells(T)}</tr></tbody></table></div>
+    <div class="sub" style="margin-top:6px">${esc(per)} = months chosen at the top · LY = ${fyLabel(S.cy - 1)}, same months (running month cut at the same day) · FY to date = Apr → ${MN[curMonth()]}.</div>`;
+}
+$('dBody').addEventListener('click', e => {
+  const t = e.target.closest('[data-cpall]'); if (t) { S.cpv.all = t.dataset.cpall === '1'; S.cpv.open = {}; $('cpHost').innerHTML = cpHtml(S.open); return; }
+  const b = e.target.closest('tr[data-cpb]'); if (b) { const o = S.cpv.open[b.dataset.cpc]; o[b.dataset.cpb] = !o[b.dataset.cpb]; $('cpHost').innerHTML = cpHtml(S.open); return; }
+  const c = e.target.closest('tr[data-cpc]'); if (c) { const k = c.dataset.cpc; S.cpv.open[k] = S.cpv.open[k] ? null : {}; $('cpHost').innerHTML = cpHtml(S.open); return; }
+});
+$('dBody').addEventListener('input', e => { if (e.target.id !== 'cpQ') return; S.cpv.q = e.target.value; const pos = e.target.selectionStart; $('cpHost').innerHTML = cpHtml(S.open); const q = $('cpQ'); if (q) { q.focus(); q.setSelectionRange(pos, pos); } });
 function serKey(r, b){ return [S.cy, S.doc, r, b].join('|'); }
 async function loadSeries(r, b){
   const k = serKey(r, b); if (S.ser[k]) return;

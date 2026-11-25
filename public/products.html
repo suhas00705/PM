@@ -105,6 +105,15 @@
 
   /* F: hero strip */
   .hero{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3);border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,115,200,.18)}
+  .pband{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin:-4px 0 14px;background:#fff8ec;border:1px solid #f5d59c;border-left:4px solid #f5a623;border-radius:12px;padding:10px 14px}
+  .pband .pt{grid-column:1/-1;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#a85f00;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+  .pband .pt span{font-weight:600;letter-spacing:0;text-transform:none;color:var(--t3)}
+  .pband .pk{font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--t3);text-transform:uppercase}
+  .pband .pv{font-size:19px;font-weight:800;margin-top:2px;color:var(--navy);white-space:nowrap}.pband .pv.pp{color:#a85f00}
+  .pband .pv .up{color:#0f9f8f}.pband .pv .dn{color:#d1495b}
+  .pband .ps{font-size:11.5px;color:var(--t2);margin-top:1px;line-height:1.35}
+  .pband .ck:hover{background:#fff1d6;border-radius:8px}
+  @media(max-width:1000px){.pband{grid-template-columns:repeat(2,minmax(0,1fr))}}
   .fpk{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--t2);margin-bottom:6px}.fpk b{color:var(--t1)}
   .fpc{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;max-width:760px}
   .fpm{text-align:center;font-size:10px;color:var(--t3)}.fpm.fut{opacity:.4}.fpm em{display:block;font-style:normal;font-weight:700;color:var(--t1);font-size:9.5px;min-height:12px}
@@ -424,7 +433,7 @@ async function loadPend(){
     const by = {};
     (a.bsk || []).forEach(x => { const f = famOfBasket(x[0], false); by[f] = (by[f] || 0) + +x[3]; });
     (g.bsk || []).forEach(x => { if (famOfBasket(x[0], false) === 'Prepaid/Smart') { by['Prepaid/Smart'] -= +x[3]; by[GOVT] = (by[GOVT] || 0) + +x[3]; } });
-    S.pend = { by, tot:+(a.tot || {}).v || 0, at:a.snap && a.snap.at };
+    S.pend = { by, tot:+(a.tot || {}).v || 0, oas:+(a.tot || {}).oas || 0, old:+(a.tot || {}).old || 0, at:a.snap && a.snap.at };
   } catch (e) { S.pend = { err:e.message || String(e), by:{} }; }
 }
 // 25-Nov-2026: no Potentials / Leads modules (and no pipeline tile) for these products
@@ -545,6 +554,7 @@ function renderCum(){
   const P = pipeOf(null);
   let h = heroHtml({ ob:all.ob, inv:all.inv, T:TOTAL_TARGET, plan:TOTAL_TARGET * share, pend:S.pend && !S.pend.err ? all.pend : null,
                      pipe:P, lyOb:all.lyOb, share, label:'All products', tl:'₹520 Cr' });
+  h += pendBand({ T:TOTAL_TARGET, inv:all.inv, pend:S.pend && !S.pend.err ? all.pend : null });
   MS.cumM = { num:true, get:() => S.cumM.m, set:v => S.cumM.m = v, quick:MONTH_QUICK() };
   h += `<div class="cumflt"><div><div class="ttl">Filters</div><div class="per">Applies to the PM tracking table and the OB % chart below</div></div>
     ${msHtml('cumM', 'Months', selM.length === 12 ? 'All months' : selM.length ? per : 'Choose months', MONTH_ITEMS(), selM, MONTH_QUICK())}
@@ -612,6 +622,24 @@ function renderCum(){
   bindTips();
 }
 
+/* Pending to bill band (25-Nov-2026) — same as Path to Target: achieved + pending vs plan and FY target, what is still to get */
+function pendBand(o){ // o: { T, inv, pend, fam }
+  if (!S.pend || S.pend.err || o.pend == null) return '';
+  const cm = curMonth(), ci = curIdx(), { day, dim } = monthDays(), share = planShareTo(cm);
+  const done = ci + day / dim, left = Math.max(0, 12 - done), run = done > 0 ? o.inv / done : 0;
+  const both = o.inv + o.pend, at = S.pend.at ? new Date(S.pend.at).toLocaleString('en-IN', { day:'2-digit', month:'short', hour:'numeric', minute:'2-digit' }) : '—';
+  const k = (t, v, s2, cls, attr) => `<div${attr || ''}><div class="pk">${t}</div><div class="pv ${cls || ''}">${v}</div><div class="ps">${s2}</div></div>`;
+  const cells = [k('Pending to bill ↗', '₹' + f2(o.pend) + ' L', o.fam ? 'approved orders not yet invoiced · click for basket › series › OA' : `${nf(S.pend.oas)} OAs · ₹${f2(S.pend.old)} L from last FY orders (before 1-Apr)`, 'pp', ` class="ck" data-pend="${esc(o.fam || '')}" title="Click for product basket › series › OA details"`),
+                 k('Achieved + pending', '₹' + f2(both) + ' L', o.T ? `₹${f2(o.inv)} + ₹${f2(o.pend)} · <b>${fp(pc(both, o.T))}</b> of FY target` : `₹${f2(o.inv)} + ₹${f2(o.pend)}`)];
+  if (o.T) {
+    const planTD = o.T * share, d = both - planTD, rem = Math.max(0, o.T - both), needM = left > 0 ? rem / left : null;
+    cells.push(k(`Plan to date (end ${MNAME[cm]}) vs achieved + pending`, `<span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? 'Excess' : 'Short'} ₹${f2(Math.abs(d))} L</span>`, `₹${f2(both)} vs plan ₹${f2(planTD)} · <b>${fp(pc(both, planTD))}</b>`));
+    cells.push(k('Still to get after pending', '₹' + f2(rem) + ' L', `FY target ₹${f0(o.T)} − invoiced ₹${f2(o.inv)} − pending ₹${f2(o.pend)} · was ₹${f2(Math.max(0, o.T - o.inv))}`));
+    cells.push(k('Needed / month after pending', needM != null ? '₹' + f2(needM) + ' L' : '—', `${left.toFixed(1)} months left · run-rate ₹${f2(run)} L${needM != null && run > 0 ? ` · <b>${(needM / run).toFixed(2)}×</b>` : ''}`));
+  }
+  return `<div class="pband"><div class="pt">Pending to bill — orders in hand, not yet invoiced<span>₹ L incl. tax · Zoho pending orders as on ${at} (refreshed daily at 9 pm)</span></div>${cells.join('')}</div>`;
+}
+
 /* hero strip (F) */
 function heroHtml(o){
   const planPct = o.share * 100, obP = pc(o.obT ?? o.ob, o.T), gap = o.plan != null ? (o.obT ?? o.ob) - o.plan : null;
@@ -673,10 +701,10 @@ function renderFam(fam){
           <div>${running ? 'Invoicing lands at' : 'Invoiced'}<b>₹${f2(running ? fi : pInv.a)} L</b></div><div class="w">${PLANM ? 'INV short of plan' : 'INV carried to ' + nxtM}<b class="need">${cI > 0.005 ? '₹' + f2(cI) + ' L' : 'nil ✓'}</b></div></div>
         <div class="rr-ft">${PLANM ? `Plan only — shortfall carried in (OB ₹${f2(pOb.cin)} L · INV ₹${f2(pInv.cin)} L) not counted` : `Shortfall carried in: OB ₹${f2(pOb.cin)} L · INV ₹${f2(pInv.cin)} L`}</div></div>
     </div>`;
-    h += heroH;   // 25-Nov-2026: blue bar just below this month's run-rate KPIs
+    h += heroH + pendBand({ T:s.T, inv:s.inv, pend:s.pend, fam });   // 25-Nov-2026: blue bar just below this month's run-rate KPIs
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   } else {
-    h += heroH;
+    h += heroH + pendBand({ T:s.T, inv:s.inv, pend:s.pend, fam });
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   }
   // 25-Nov-2026: no Potentials / Leads modules for OEM and Other
