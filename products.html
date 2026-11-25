@@ -66,18 +66,18 @@
   @media(max-width:480px){.chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
   /* 25-Nov-2026: Clean white modules — accent line on titles, Ocean table headers, zebra rows, % as soft pills */
   .card{box-shadow:0 4px 16px rgba(11,41,66,.06);border-color:#e3e9f2}
-  /* 25-Nov-2026: Night header band with mint line on every module box */
+  /* 25-Nov-2026: Ocean header band (brand blue -> teal) on every module box */
   .card{overflow:hidden}
-  .card>.card-h{margin:-18px -20px 14px;padding:12px 20px;background:linear-gradient(110deg,#0b2942,#12406b);border-bottom:2px solid #2ee6c9;align-items:center;color:#fff}
+  .card>.card-h{margin:-18px -20px 14px;padding:12px 20px;background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3);align-items:center;color:#fff}
   .card>.card-h h2{color:#fff;font-size:15px;display:flex;align-items:center;gap:10px}
-  .card>.card-h h2:before{content:'';flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:rgba(46,230,201,.15) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232ee6c9' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E") center/15px no-repeat}
-  .card>.card-h .sub{color:#9fb3d1}
-  .card>.card-h .legend{color:#cfe0f5}
-  .card>.card-h .toggle{background:rgba(255,255,255,.12)}
-  .card>.card-h .toggle button{color:#cfe0f5}
+  .card>.card-h h2:before{content:'';flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:rgba(255,255,255,.2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E") center/15px no-repeat}
+  .card>.card-h .sub{color:#dff4ff}
+  .card>.card-h .legend{color:#eaf6ff}
+  .card>.card-h .toggle{background:rgba(255,255,255,.18)}
+  .card>.card-h .toggle button{color:#fff}
   .card>.card-h .toggle button.on{background:#fff;color:#0073C8}
-  .card>.card-h .f label{color:#9fc0e6}
-  .card>.card-h .btn{background:rgba(255,255,255,.1);color:#2ee6c9;border-color:rgba(46,230,201,.5)}
+  .card>.card-h .f label{color:#dff4ff}
+  .card>.card-h .btn{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.55)}
   #view .tbl{border:1px solid #e3e9f2;border-radius:12px}
   /* the portal's table-scroll.js paints header cells #f5f7fb when they look transparent, so the gradient sits on thead and the cells are forced clear */
   #view table:not(.mini)>thead{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3)}
