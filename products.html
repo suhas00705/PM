@@ -132,12 +132,17 @@
   .rr-l{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a9dcf5;display:flex;justify-content:space-between;gap:8px;align-items:center}
   .rr-st{font-size:9.5px;letter-spacing:.02em;padding:1px 8px;border-radius:10px;white-space:nowrap}
   .rr-st.bad{background:rgba(255,154,154,.18);color:#ffb0b0} .rr-st.mid{background:rgba(255,196,92,.18);color:#ffd27a} .rr-st.ok{background:rgba(111,227,155,.18);color:#8ff0b2}
-  .rr-big{font-size:22px;font-weight:800;color:#fff;margin-top:2px;line-height:1.15}.rr-big small{font-size:11.5px;color:#9fb3d1;font-weight:600}
+  .rr-top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:3px}
+  .rr-big{font-size:21px;font-weight:800;color:#fff;line-height:1.1;white-space:nowrap}.rr-big small{font-size:11px;color:#a9cde6;font-weight:600}
+  .rr-pc{font-size:11.5px;font-weight:800;padding:1px 8px;border-radius:10px;white-space:nowrap}
+  .rr-pc.bad{background:rgba(255,154,154,.18);color:#ffc1c1}.rr-pc.mid{background:rgba(255,196,92,.18);color:#ffd27a}.rr-pc.ok{background:rgba(111,227,155,.18);color:#a8f5c4}
+  .rr-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px;background:rgba(255,255,255,.08);border-radius:8px;padding:5px 9px}
+  .rr-strip span{font-size:10px;color:#a9cde6;line-height:1.25}.rr-strip b{display:block;font-size:13.5px;color:#fff}.rr-strip b.need{color:#ffc27a}.rr-strip b.doing{color:#5ff5dc}
   .rr-sub{font-size:11.5px;color:#d6e3f5;margin-top:1px}.rr-sub b{color:#fff}
-  .rr-bar{position:relative;height:10px;border-radius:6px;margin:18px 0 5px;display:flex;background:rgba(255,255,255,.12)}
+  .rr-bar{position:relative;height:8px;border-radius:6px;margin:8px 0 4px;display:flex;background:rgba(255,255,255,.12)}
   .rr-bar .pl{background:rgba(170,225,255,.45);border-radius:8px 0 0 8px}
   .rr-bar .ca{background:repeating-linear-gradient(45deg,rgba(245,166,35,.45),rgba(245,166,35,.45) 5px,rgba(245,166,35,.2) 5px,rgba(245,166,35,.2) 10px);border-radius:0 8px 8px 0}
-  .rr-bar i{position:absolute;left:0;top:2px;height:6px;border-radius:4px;background:#2ee6c9;box-shadow:0 0 8px rgba(46,230,201,.45)}
+  .rr-bar i{position:absolute;left:0;top:1px;height:6px;border-radius:4px;background:#5ff5dc;box-shadow:0 0 8px rgba(95,245,220,.5)}
   .rr-bar em{position:absolute;top:-5px;bottom:-5px;width:3px;margin-left:-1px;background:#fff;border-radius:2px}
   .rr-bar em:after{content:attr(data-l);position:absolute;top:-15px;right:-4px;font-size:10px;font-style:normal;font-weight:700;color:#fff;white-space:nowrap}
   .rr-leg{display:flex;flex-wrap:wrap;gap:2px 12px;font-size:10.5px;color:#9fb3d1}.rr-leg b{color:#d6e3f5}
@@ -146,8 +151,8 @@
   .rr-pace{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}
   .rr-pace>div{background:rgba(255,255,255,.08);border-radius:8px;padding:5px 9px;font-size:10.5px;color:#9fb3d1}
   .rr-pace>div.w{background:rgba(255,140,90,.14)}
-  .rr-pace b{display:block;font-size:14.5px;color:#fff;margin-top:0}.rr-pace b.need{color:#ffb37a}.rr-pace b.doing{color:#2ee6c9}
-  .rr-ft{margin-top:7px;padding-top:6px;border-top:1px dashed rgba(255,255,255,.18);font-size:11px;color:#d6e3f5}.rr-ft b{color:#fff}
+  .rr-pace b{display:block;font-size:14px;color:#fff;margin-top:0}.rr-pace b.need{color:#ffc27a}.rr-pace b.doing{color:#5ff5dc}
+  .rr-ft{margin-top:6px;padding-top:5px;border-top:1px dashed rgba(255,255,255,.18);font-size:11px;color:#d6e3f5}.rr-ft b{color:#fff}
   @media(max-width:1000px){.rr-row{grid-template-columns:minmax(0,1fr)}}
   @media(max-width:1000px){.tiles{grid-template-columns:minmax(0,1fr)}}
   .tile{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
@@ -629,12 +634,12 @@ function renderFam(fam){
       const pw = PLANM || !T ? 100 : r.plan / T * 100, f = fc(r);
       const foot = inv && s.pend != null ? (gap > 0 ? `Pending to bill <b>₹${f2(s.pend)} L</b> covers <b>${fp(Math.min(999, pc(s.pend, gap)))}</b> of the gap` : `Pending to bill <b>₹${f2(s.pend)} L</b> · month target reached`)
         : `At this pace: <b>₹${f2(f)} L (${fp(pc(f, T))})</b> by month-end`;
+      // 25-Nov-2026 compact: value big, % small; plan / carried / day in one line; need vs doing in one strip
       return `<div class="rr"><div class="rr-l">${MNAME[cm]} · ${lbl}<span class="rr-st ${sc}">${st}</span></div>
-        <div class="rr-big">${fp(p)} <small>of ${tLbl}</small></div>
-        <div class="rr-sub"><b>₹${f2(r.a)} L</b> of ₹${f2(T)} L · ${gap > 0 ? `gap <b>₹${f2(gap)} L</b>` : '<b>target reached</b>'}</div>
-        <div class="rr-bar"><span class="pl" style="width:${pw}%"></span><span class="ca" style="width:${100 - pw}%"></span><i style="width:${Math.min(100, p || 0)}%"></i><em style="left:${tp}%" data-l="day ${day} of ${dim}"></em></div>
-        <div class="rr-leg"><span><i class="pl"></i>${MNAME[cm]} plan <b>₹${f2(r.plan)} L</b></span>${r.cin > 0.005 ? (PLANM ? `<span style="opacity:.7">Carried ₹${f2(r.cin)} L not counted</span>` : `<span><i class="ca"></i>Carried <b>₹${f2(r.cin)} L</b></span>`) : ''}</div>
-        <div class="rr-pace"><div>Need per day<b class="need">${gap <= 0 ? '✓ reached' : left ? '₹' + f2(gap / left) + ' L' : 'month over'}</b></div><div>Doing per day<b class="doing">₹${f2(day ? r.a / day : 0)} L</b></div></div>
+        <div class="rr-top"><div class="rr-big">₹${f2(r.a)} <small>L of ₹${f2(T)} L</small></div><span class="rr-pc ${sc}">${fp(p)}</span></div>
+        <div class="rr-bar"><span class="pl" style="width:${pw}%"></span><span class="ca" style="width:${100 - pw}%"></span><i style="width:${Math.min(100, p || 0)}%"></i><em style="left:${tp}%"></em></div>
+        <div class="rr-leg"><span><i class="pl"></i>Plan <b>₹${f2(r.plan)}</b></span>${r.cin > 0.005 ? (PLANM ? `<span style="opacity:.7">carried ₹${f2(r.cin)} not counted</span>` : `<span><i class="ca"></i>Carried <b>₹${f2(r.cin)}</b></span>`) : ''}<span style="margin-left:auto">day ${day}/${dim}</span></div>
+        <div class="rr-strip"><span>Gap<b>${gap > 0 ? '₹' + f2(gap) : '✓'}</b></span><span>Need/day<b class="need">${gap <= 0 ? '✓' : left ? '₹' + f2(gap / left) : '—'}</b></span><span>Doing/day<b class="doing">₹${f2(day ? r.a / day : 0)}</b></span></div>
         <div class="rr-ft">${foot}</div></div>`; };
     const fo = fc(s.cur.ob), fi = fc(s.cur.inv), co = Math.max(0, TG(s.cur.ob) - fo), cI = Math.max(0, TG(s.cur.inv) - fi);
     h += `<div class="rr-hd"><div class="secttl" style="margin:0">This month run-rate (${PLANM ? 'plan target = this month\'s share of the FY target' : 'revised target = plan + carried shortfall'})</div>
