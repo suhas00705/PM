@@ -86,6 +86,10 @@
   /* 25-Nov-2026 run-rate tiles ("Night") */
   .nchart{background:linear-gradient(160deg,#0b2942,#12406b);border-radius:12px;padding:10px 12px 8px;margin:0 0 12px}
   .nchart .legend{color:#9fb3d1;margin:2px 0 0}
+  .nchart .chart.fit{max-width:1000px;margin:0 auto}
+  .nchart .more{max-width:1000px!important;margin-left:auto;margin-right:auto}
+  .nchart svg .nrow:hover>rect:first-child{fill:rgba(46,230,201,.10)}
+  .nbtn{background:rgba(255,255,255,.08);color:#2ee6c9;border-color:rgba(46,230,201,.5)}
   .nchart svg .ck:hover{filter:brightness(1.15)}
   .rr-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:14px}
   .rr{background:linear-gradient(160deg,#0b2942,#12406b);border-radius:14px;padding:14px 16px;color:#d6e3f5;min-width:0}
@@ -615,6 +619,8 @@ function renderFam(fam){
 function govtLine(){ const g = famStats(GOVT); return (g.ob || g.inv) ? `Govt Projects this FY: OB ₹${f2(g.ob)} L · billed ₹${f2(g.inv)} L${g.pend ? ' · pending ₹' + f2(g.pend) + ' L' : ''}.` : ''; }
 
 /* ================= 24-Nov-2026 round 2 (user choices: 1A month chart, 2A series bars, 3B stacked regions, 4A week bars) ================= */
+// colours that read well on the dark chart panels (25-Nov-2026)
+const PAL_N = ['#3aa0ff', '#2ee6c9', '#ffc35a', '#a78bfa', '#ff8a65', '#5ee07a'], OTH_N = '#5d7598';
 const PAL = ['#0073C8', '#00a3a3', '#f5a623', '#7b4fd6', '#e0703c', '#16a34a', '#c2185b', '#5d6d7e'];
 const FAM_BASKETS = { 'Panel Meters':['Panel Meters','High End MFM','Nano VIP','Power Quality'], 'ACCL':['ACCL'], 'ATES':['Transfer Switch'],
   'Prepaid/Smart':['Prepaid & Smart Meters','Prepaid','Smart Meters'], 'LVS':['SWITCHGEAR'], 'FDP':['FDP'], 'OEM':['OEM'] };
@@ -718,13 +724,16 @@ function serFiltered(fam){
 function seriesBars2A(list, k, all){
   const val = o => k === 'q' ? o.oq : o.ov, lyv = o => k === 'q' ? o.lyq : o.ly;
   list = list.slice().sort((a, b) => val(b) - val(a));
-  const top = all ? list : list.slice(0, 12), W = 900, lbl = 170, R = 70, rowH = 30, T = 8, H = T + top.length * rowH + 6;
+  const top = all ? list : list.slice(0, 12), W = 900, lbl = 170, R = 120, rowH = 30, T = 8, H = T + top.length * rowH + 6;
   const mx = Math.max(1, ...top.flatMap(o => [val(o), lyv(o)])), x = v => lbl + (W - lbl - R) * v / mx;
-  let s = `<svg viewBox="0 0 ${W} ${H}">`;
+  let s = `<svg viewBox="0 0 ${W} ${H}"><defs><linearGradient id="serG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#0a9f9a"/><stop offset="1" stop-color="#2ee6c9"/></linearGradient></defs>`;
+  for (let g = 1; g <= 4; g++) { const gx = lbl + (W - lbl - R) * g / 4; s += `<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H - 4}" stroke="rgba(255,255,255,.06)"/>`; }
   top.forEach((o, i) => { const y0 = T + i * rowH, name = o.s.length > 24 ? o.s.slice(0, 23) + '…' : o.s, cv = val(o), lv = lyv(o), g = lv ? (cv - lv) / lv * 100 : null;
-    s += `<g class="ck" data-ser="${esc(o.s)}"><rect x="0" y="${y0}" width="${W}" height="${rowH}" fill="transparent"/><text x="${lbl - 8}" y="${y0 + 18}" text-anchor="end" font-size="11" fill="#16264d">${esc(name)}</text>`;
-    s += `<rect x="${lbl}" y="${y0 + 5}" width="${Math.max(1, x(cv) - lbl)}" height="10" rx="4" fill="#0073C8"/><rect x="${lbl}" y="${y0 + 17}" width="${Math.max(1, x(lv) - lbl)}" height="7" rx="3" fill="#b9c7dc"/>`;
-    s += `<text x="${x(Math.max(cv, lv)) + 6}" y="${y0 + 18}" font-size="10.5" font-weight="700" fill="#3b5384">${k === 'q' ? f0(cv) : f2(cv)}</text><text x="${x(Math.max(cv, lv)) + 6 + (k === 'q' ? f0(cv) : f2(cv)).length * 6 + 6}" y="${y0 + 18}" font-size="10.5" font-weight="700" fill="${g == null ? '#7a8fb8' : g >= 0 ? '#0f7a36' : '#b42323'}">${g == null ? (cv ? 'new' : '—') : (g >= 0 ? '▲' : '▼') + Math.abs(g).toFixed(0) + '%'}</text>`;
+    s += `<g class="ck nrow" data-ser="${esc(o.s)}"><rect x="0" y="${y0}" width="${W}" height="${rowH}" rx="6" fill="${i % 2 ? 'rgba(255,255,255,.025)' : 'transparent'}"/>`;
+    s += `<circle cx="12" cy="${y0 + 15}" r="9" fill="${i < 3 ? 'rgba(46,230,201,.18)' : 'rgba(255,255,255,.07)'}"/><text x="12" y="${y0 + 18.5}" text-anchor="middle" font-size="9.5" font-weight="700" fill="${i < 3 ? '#2ee6c9' : '#9fb3d1'}">${i + 1}</text>`;
+    s += `<text x="${lbl - 8}" y="${y0 + 18}" text-anchor="end" font-size="11" fill="#dbe6f5">${esc(name)}</text>`;
+    s += `<rect x="${lbl}" y="${y0 + 5}" width="${Math.max(1, x(cv) - lbl)}" height="11" rx="5" fill="url(#serG)"/><rect x="${lbl}" y="${y0 + 18}" width="${Math.max(1, x(lv) - lbl)}" height="6" rx="3" fill="rgba(159,208,255,.35)"/>`;
+    s += `<text x="${x(Math.max(cv, lv)) + 6}" y="${y0 + 18}" font-size="10.5" font-weight="700" fill="#fff">${k === 'q' ? f0(cv) : f2(cv)}</text><text x="${x(Math.max(cv, lv)) + 6 + (k === 'q' ? f0(cv) : f2(cv)).length * 6 + 6}" y="${y0 + 18}" font-size="10.5" font-weight="700" fill="${g == null ? '#9fb3d1' : g >= 0 ? '#8ff0b2' : '#ffb0b0'}">${g == null ? (cv ? 'new' : '—') : (g >= 0 ? '▲' : '▼') + Math.abs(g).toFixed(0) + '%'}</text>`;
     s += `<title>${esc(o.s)}: ${k === 'q' ? f0(cv) + ' pcs' : '₹' + f2(cv) + ' L'} this year · ${k === 'q' ? f0(lv) + ' pcs' : '₹' + f2(lv) + ' L'} last year · click for Region › Sales engineer</title></g>`; });
   return s + '</svg>';
 }
@@ -753,9 +762,9 @@ function seriesCard(fam){
       <div class="k"><div class="l">OB last year</div><div class="v">₹${f2(t.ly)} L</div><div class="n">${grTxt(t.ov, t.ly)}</div></div>
       <div class="k"><div class="l">Series</div><div class="v">${list.length}</div><div class="n">top: ${esc(list[0]?.s || '—')}</div></div></div>
     <div class="secttl">${F.all || list.length <= 12 ? 'All ' + list.length : 'Top 12 of ' + list.length} series — OB ${Q ? 'quantity (pcs)' : 'value (₹ L)'}, this year vs last year</div>
-    <div class="legend" style="margin:0 0 6px"><span><i class="sw" style="background:#0073C8"></i>${fyLabel(S.fy)}</span><span><i class="sw" style="background:#b9c7dc"></i>${fyLabel(S.fy - 1)} (same period)</span></div>
-    <div class="chart fit" id="serChart">${list.length ? seriesBars2A(list, K, F.all) : '<div class="note">No sales for this selection</div>'}</div>
-    ${list.length > 12 ? `<div class="more" style="max-width:900px"><button class="btn" id="serAll">${F.all ? 'Show top 12 only' : `Show all ${list.length} series`}</button></div>` : ''}
+    <div class="nchart"><div class="legend" style="margin:0 0 6px"><span><i class="sw" style="background:linear-gradient(90deg,#0a9f9a,#2ee6c9)"></i>${fyLabel(S.fy)}</span><span><i class="sw" style="background:rgba(159,208,255,.5)"></i>${fyLabel(S.fy - 1)} (same period)</span><span><b style="color:#8ff0b2">▲</b> / <b style="color:#ffb0b0">▼</b> growth vs last year</span></div>
+    <div class="chart fit" id="serChart">${list.length ? seriesBars2A(list, K, F.all) : '<div class="note" style="color:#9fb3d1">No sales for this selection</div>'}</div>
+    ${list.length > 12 ? `<div class="more" style="max-width:900px"><button class="btn nbtn" id="serAll">${F.all ? 'Show top 12 only' : `Show all ${list.length} series`}</button></div>` : ''}</div>
     <div class="tbl" style="margin-top:12px"><table id="serTable"><thead><tr><th class="l">Series</th><th>OB qty</th><th>OB value (₹ L)</th><th>Inv qty</th><th>Invoice value (₹ L)</th><th>OB last year${Q ? ' (qty)' : ''}</th><th>OB growth${Q ? ' (qty)' : ''}</th><th>Share${Q ? ' (qty)' : ''}</th></tr></thead><tbody>${rowsH}</tbody></table></div>
     <div class="note">OB and invoice values incl. GST. Last year = same months, the latest month cut at the same day.</div></div>`;
 }
@@ -767,17 +776,18 @@ function regionCard(fam){
     const o = (by[x.r] = by[x.r] || { q:0, v:0, s:{} }); o.q += x.q; o.v += x.v; const z = (o.s[x.s] = o.s[x.s] || { q:0, v:0 }); z.q += x.q; z.v += x.v; serTot[x.s] = (serTot[x.s] || 0) + (F.k === 'q' ? x.q : x.v); });
   const K = F.k, mv_ = o => K === 'q' ? o.q : o.v;
   const list = Object.entries(by).map(([r, o]) => ({ r, ...o })).sort((a, b) => mv_(b) - mv_(a)), totV = list.reduce((t, o) => t + o.v, 0), totQ = list.reduce((t, o) => t + o.q, 0), tot = K === 'q' ? totQ : totV;
-  const topS = Object.keys(serTot).sort((a, b) => serTot[b] - serTot[a]).slice(0, 6), colOf = s => { const i = topS.indexOf(s); return i < 0 ? '#c5cfdf' : PAL[i]; };
+  const topS = Object.keys(serTot).sort((a, b) => serTot[b] - serTot[a]).slice(0, 6), colOf = s => { const i = topS.indexOf(s); return i < 0 ? OTH_N : PAL_N[i]; };
   MS.regM = { num:true, get:() => S.reg.months, set:v => S.reg.months = v, quick:MONTH_QUICK() };
   MS.regS = { get:() => S.reg.series, set:v => S.reg.series = v, quick:[['All series', () => []]] };
   // stacked bars
   const W = 900, lbl = 130, R = 110, rowH = 26, T = 6, H = T + list.length * rowH + 4, mx = Math.max(1, ...list.map(mv_)), xs = v => (W - lbl - R) * v / mx;
   let svg = `<svg viewBox="0 0 ${W} ${H}">`;
+  for (let g = 1; g <= 4; g++) { const gx = lbl + (W - lbl - R) * g / 4; svg += `<line x1="${gx}" x2="${gx}" y1="${T}" y2="${H - 4}" stroke="rgba(255,255,255,.06)"/>`; }
   list.forEach((o, i) => { const y0 = T + i * rowH; let x0 = lbl;
-    svg += `<g class="ck" data-rg="${esc(o.r)}"><rect x="0" y="${y0}" width="${W}" height="${rowH}" fill="transparent"/><text x="${lbl - 8}" y="${y0 + 16}" text-anchor="end" font-size="11" fill="#16264d">${esc(o.r)}</text>`;
+    svg += `<g class="ck nrow" data-rg="${esc(o.r)}"><rect x="0" y="${y0}" width="${W}" height="${rowH}" rx="6" fill="${F.open === o.r ? 'rgba(46,230,201,.12)' : i % 2 ? 'rgba(255,255,255,.025)' : 'transparent'}"/><text x="${lbl - 8}" y="${y0 + 16}" text-anchor="end" font-size="11" fill="${F.open === o.r ? '#2ee6c9' : '#dbe6f5'}" font-weight="${i < 3 ? 700 : 400}">${esc(o.r)}</text>`;
     const parts = [...topS.filter(s => o.s[s]).map(s => [s, mv_(o.s[s])]), ['Others', Object.entries(o.s).filter(([s]) => !topS.includes(s)).reduce((t, [, z]) => t + mv_(z), 0)]].filter(p => p[1] > 0);
-    parts.forEach(([s, v]) => { const w = xs(v); svg += `<rect x="${x0}" y="${y0 + 5}" width="${Math.max(0.5, w)}" height="14" fill="${s === 'Others' ? '#c5cfdf' : colOf(s)}"><title>${esc(o.r)} · ${esc(s)}: ${K === 'q' ? f0(v) + ' pcs' : '₹' + f2(v) + ' L'}</title></rect>`; x0 += w; });
-    svg += `<text x="${x0 + 6}" y="${y0 + 16}" font-size="10.5" fill="#3b5384">${K === 'q' ? f0(o.q) + ' pcs' : f2(o.v)} · ${fp(pc(mv_(o), tot))}</text></g>`; });
+    parts.forEach(([s, v], j) => { const w = xs(v); svg += `<rect x="${x0}" y="${y0 + 5}" width="${Math.max(0.5, w)}" height="14" ${j === 0 ? 'rx="3"' : ''} fill="${s === 'Others' ? OTH_N : colOf(s)}" stroke="#0f3558" stroke-width=".8"><title>${esc(o.r)} · ${esc(s)}: ${K === 'q' ? f0(v) + ' pcs' : '₹' + f2(v) + ' L'}</title></rect>`; x0 += w; });
+    svg += `<text x="${x0 + 6}" y="${y0 + 16}" font-size="10.5" font-weight="700" fill="#fff">${K === 'q' ? f0(o.q) + ' pcs' : f2(o.v)}</text><text x="${x0 + 12 + (K === 'q' ? f0(o.q) + ' pcs' : f2(o.v)).length * 6}" y="${y0 + 16}" font-size="10.5" fill="#9fb3d1">${fp(pc(mv_(o), tot))}</text></g>`; });
   svg += '</svg>';
   let rows = list.map(o => { let r = `<tr class="ck" data-rg="${esc(o.r)}"><td class="l"><span class="caret">${F.open === o.r ? '▾' : '▸'}</span><b>${esc(o.r)}</b> <span class="sub">(${Object.keys(o.s).length} series)</span></td><td class="l pm">${esc(gmOf(o.r))}</td>
       <td>${f0(o.q)}</td><td>${f2(o.v)}</td><td>${fp(pc(mv_(o), tot))}</td></tr>`;
@@ -789,8 +799,8 @@ function regionCard(fam){
     <div class="fl" style="margin:0"><div class="toggle" id="regK"><button data-k="v" class="${K === 'v' ? 'on' : ''}">Value</button><button data-k="q" class="${K === 'q' ? 'on' : ''}">Qty</button></div><div class="toggle" id="regDoc"><button data-d="OB" class="${F.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${F.doc === 'INV' ? 'on' : ''}">Invoicing</button></div>
       ${msHtml('regS', 'Product series', sLbl, sers.map(s => ({ v:s, t:s })), F.series, MS.regS.quick)}
       ${msHtml('regM', 'Months', monthsLabel(F.months), MONTH_ITEMS(), F.months, MONTH_QUICK())}</div></div>
-    <div class="legend" style="margin:0 0 6px">${topS.map(s => `<span><i class="sw" style="background:${colOf(s)}"></i>${esc(s)}</span>`).join('')}${Object.keys(serTot).length > topS.length ? '<span><i class="sw" style="background:#c5cfdf"></i>Others</span>' : ''}</div>
-    <div class="chart fit" id="regChart">${list.length ? svg : '<div class="note">No sales for this selection</div>'}</div>
+    <div class="nchart"><div class="legend" style="margin:0 0 8px">${topS.map(s => `<span><i class="sw" style="background:${colOf(s)}"></i>${esc(s)}</span>`).join('')}${Object.keys(serTot).length > topS.length ? `<span><i class="sw" style="background:${OTH_N}"></i>Others</span>` : ''}</div>
+    <div class="chart fit" id="regChart">${list.length ? svg : '<div class="note" style="color:#9fb3d1">No sales for this selection</div>'}</div></div>
     <div class="tbl" style="margin-top:12px"><table id="regTable"><thead><tr><th class="l">Region / series</th><th class="l">GM</th><th>Qty</th><th>Value (₹ L)</th><th>Share${K === 'q' ? ' (qty)' : ''}</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
 }
 
