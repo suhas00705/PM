@@ -65,6 +65,9 @@
   tr.grand td{background:#eaf2fd;border-top:2px solid #9cc3ea}
   .gobtn{font:inherit;font-size:11px;font-weight:700;border:1px solid #cfe0f5;background:#fff;color:var(--volt);border-radius:12px;padding:1px 8px;margin-left:8px;cursor:pointer}
   .hero .ck:hover{background:rgba(255,255,255,.08)}
+  .cumflt{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;background:#fff;border:1px solid var(--line);border-left:4px solid var(--volt);border-radius:12px;padding:12px 16px;margin-bottom:12px}
+  .cumflt .ttl{font-size:11px;font-weight:800;letter-spacing:.08em;color:var(--t3);text-transform:uppercase}
+  .cumflt .per{font-size:13px;color:var(--t2)} .cumflt .per b{color:var(--navy)}
 
   /* F: hero strip */
   .hero{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:var(--navy);border-radius:14px;overflow:hidden;margin-bottom:14px}
@@ -344,9 +347,10 @@ async function loadPend(){
 async function loadPipe(fam){
   try {
     if (!S.pipe || S.pipe.cy !== S.fy) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:null }); S.pipe = { cy:S.fy, sum:p.sum || [], lines:p.lines_synced, asof:p.asof }; S.list = {}; }
+    if (fam === 'OEM' || fam === 'Other') return;   // no Potentials / Leads modules there
     if (fam && !S.list[fam]) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:fam }); S.list[fam] = p.list || []; }
   } catch (e) { S.pipe = { cy:S.fy, err:e.message || String(e), sum:[] }; }
-  if (fam) await loadLeadsFam(fam);
+  if (fam && fam !== 'OEM' && fam !== 'Other') await loadLeadsFam(fam);
 }
 // 25-Nov-2026: leads of one family, valued from each lead's own product lines (Zoho "Products Information")
 async function loadLeadsFam(fam){
@@ -437,18 +441,32 @@ function render(){
 
 /* ===== Cumulative (all products) — 25-Nov-2026: PM Cumulative Tracking table + Overview + 520 Cr target ===== */
 const TOTAL_TARGET = 52000;   // ₹ Lakhs = ₹520 Cr, same as Path to Target
+// Period figures for the chosen months (same rule as PM Cumulative): target = plan of each chosen month
+// + shortfall brought in at the start of each run of chosen months; actual = everything booked / billed in them.
+function perOf(run, sel){
+  let tgt = 0, a = 0, last = null, has = false;
+  run.forEach((x, i) => { if (!sel.has(x.m)) return; a += x.a;
+    if (x.plan != null) { has = true; tgt += x.plan + (i > 0 && sel.has(run[i - 1].m) ? 0 : x.cin); } last = x; });
+  return { tgt:has ? tgt : null, a, short:last ? last.cout : 0 };
+}
 function renderCum(){
   const cm = curMonth(), share = planShareTo(cm), stats = FAMS.map(f => famStats(f.name)), g = famStats(GOVT);
-  const per = monthsLabel(pastMonths()), ci = curIdx();
+  if (!S.cumM || S.cumM.fy !== S.fy) S.cumM = { fy:S.fy, m:pastMonths() };
+  const selM = MONTHS.filter(m => S.cumM.m.includes(m)), sel = new Set(selM), ci = curIdx();
+  const per = monthsLabel(selM), fromApr = selM.length > 1 && MONTHS.slice(0, selM.length).every(m => sel.has(m));
+  const mvSel = (fam, doc) => selM.reduce((t, m) => t + mv(fam, doc, 0, m), 0);
   const all = stats.reduce((a, s) => ({ ob:a.ob + s.ob, inv:a.inv + s.inv, pend:a.pend + (s.pend || 0), lyOb:a.lyOb + s.lyOb }), { ob:0, inv:0, pend:0, lyOb:0 });
   const P = pipeOf(null);
   let h = heroHtml({ ob:all.ob, inv:all.inv, T:TOTAL_TARGET, plan:TOTAL_TARGET * share, pend:S.pend && !S.pend.err ? all.pend : null,
                      pipe:P, lyOb:all.lyOb, share, label:'All products', tl:'₹520 Cr' });
-  h += ovBarsHtml(stats, share * 100);
+  MS.cumM = { num:true, get:() => S.cumM.m, set:v => S.cumM.m = v, quick:MONTH_QUICK() };
+  h += `<div class="cumflt"><div><div class="ttl">Filters</div><div class="per">Applies to the PM tracking table and the OB % chart below</div></div>
+    ${msHtml('cumM', 'Months', selM.length === 12 ? 'All months' : selM.length ? per : 'Choose months', MONTH_ITEMS(), selM, MONTH_QUICK())}
+    <div class="per">${fyLabel(S.fy)} · <b>${esc(per)}</b></div></div>`;
   // ---- PM Cumulative Tracking table (same columns, rows and month-by-month working) ----
   S.cumOpen = S.cumOpen || new Set();
-  const P2 = stats.filter(s => s.T != null).map(s => { const F = famOf(s.fam), last = s.rOb[ci] || {}, lastI = s.rInv[ci] || {};
-    return { name:s.fam, pm:F.pm, core:F.core, fyT:s.T, obT:s.plan, invT:s.plan, ob:s.ob, inv:s.inv, obShort:last.cout || 0, invShort:lastI.cout || 0, rOb:s.rOb, rInv:s.rInv }; });
+  const P2 = stats.filter(s => s.T != null).map(s => { const F = famOf(s.fam), O = perOf(s.rOb, sel), I = perOf(s.rInv, sel);
+    return { name:s.fam, pm:F.pm, core:F.core, fyT:s.T, obT:O.tgt, invT:I.tgt, ob:O.a, inv:I.a, obShort:O.short, invShort:I.short, rOb:s.rOb, rInv:s.rInv }; });
   const core = P2.filter(p => p.core), oem = P2.filter(p => !p.core);
   const sumk = (l, k) => l.reduce((a, p) => a + (p[k] || 0), 0);
   const chipT = (a, t, short) => { if (!t) return '<span class="chip c-na">—</span>'; const p = a / t * 100;
@@ -465,19 +483,22 @@ function renderCum(){
         <div style="margin-top:8px"><b>Month by month — target with shortfall carried forward</b> (plan = yearly target × quarter share ÷ 3; a shortfall is added to the next month's target; extra above target clears a shortfall carried in and the rest is kept for later shortfalls)</div>
         <div class="tbl"><table class="mini"><thead><tr><th>Month</th><th>Plan target</th><th>OB shortfall carried in</th><th>OB target</th><th>Order booked</th><th>OB short → next</th><th>OB extra kept</th><th>INV shortfall carried in</th><th>INV target</th><th>Billed</th><th>INV short → next</th><th>INV extra kept</th><th>Cum. plan</th><th>Cum. booked</th><th>Cum. OB ±</th><th>Cum. billed</th><th>Cum. INV ±</th></tr></thead><tbody>
         ${p.rOb.map((o, i) => { cP += o.plan || 0; cO += o.a || 0; cI += p.rInv[i].a || 0; if (i > ci + 1) return ''; const v = p.rInv[i], nxt = i === ci + 1;
-          return `<tr style="${nxt ? 'background:#f1f7ff' : ''}"><td>${MNAME[o.m]}${nxt ? ' — next month target' : ''}</td><td>${f2(o.plan)}</td><td>${f2(o.cin)}</td><td><b>${f2(o.tgt)}</b></td><td>${f2(o.a)}</td><td>${nxt ? '—' : o.cout > 0.005 ? f2(o.cout) : '—'}</td><td>${nxt ? '—' : o.bank > 0.005 ? `<span class="gr-up">${f2(o.bank)}</span>` : '—'}</td>
+          const on = sel.has(o.m);
+          return `<tr style="${nxt ? 'background:#f1f7ff' : on ? '' : 'color:#9aa6bf'}"><td>${MNAME[o.m]}${nxt ? ' — next month target' : on ? '' : ' (not selected)'}</td><td>${f2(o.plan)}</td><td>${f2(o.cin)}</td><td><b>${f2(o.tgt)}</b></td><td>${f2(o.a)}</td><td>${nxt ? '—' : o.cout > 0.005 ? f2(o.cout) : '—'}</td><td>${nxt ? '—' : o.bank > 0.005 ? `<span class="gr-up">${f2(o.bank)}</span>` : '—'}</td>
             <td>${f2(v.cin)}</td><td><b>${f2(v.tgt)}</b></td><td>${f2(v.a)}</td><td>${nxt ? '—' : v.cout > 0.005 ? f2(v.cout) : '—'}</td><td>${nxt ? '—' : v.bank > 0.005 ? `<span class="gr-up">${f2(v.bank)}</span>` : '—'}</td>
             <td>${f2(cP)}</td><td>${nxt ? '—' : f2(cO)}</td><td>${nxt ? '—' : gap(cO)}</td><td>${nxt ? '—' : f2(cI)}</td><td>${nxt ? '—' : gap(cI)}</td></tr>`; }).join('')}</tbody></table></div></td></tr>`; }
     return r; };
   const oth = stats.filter(s => s.T == null);
-  const extra = [...oth.map(s => [s.fam + ' (no target)', s.ob, s.inv]), ...((g.ob || g.inv) ? [[GOVT + ' — left out by rule', g.ob, g.inv]] : [])];
-  h += `<div class="card"><div class="card-h"><div><h2>${per} Cumulative Performance (Rs-L) — Product Management Tracking</h2>
+  const gOb = mvSel(GOVT, 'OB'), gInv = mvSel(GOVT, 'INV');
+  const extra = [...oth.map(s => [s.fam + ' (no target)', mvSel(s.fam, 'OB'), mvSel(s.fam, 'INV')]), ...((gOb || gInv) ? [[GOVT + ' — left out by rule', gOb, gInv]] : [])];
+  h += `<div class="card"><div class="card-h"><div><h2>${esc(per)} ${fromApr ? 'Cumulative ' : ''}Performance (Rs-L) — Product Management Tracking</h2>
       <div class="sub">Same table as PM Cumulative Tracking · targets carry forward month to month · click a product for the month-by-month working, click Order booked / Billed for the breakdown</div></div><div class="sub">${fyLabel(S.fy)} · ${per}</div></div>
     <div class="tbl"><table id="cumTable" data-nosort="1"><thead><tr><th class="l">Product</th><th class="l">PM</th><th>Target ${fyLabel(S.fy)}</th><th>${per} OB target</th><th>Order booked</th><th>OB % achieved</th><th>${per} INV target</th><th>Billed</th><th>Billing % achieved</th></tr></thead>
     <tbody>${core.map(rowHtml).join('')}${totRow('TOTAL', core, '__core')}${oem.map(rowHtml).join('')}${totRow('TOTAL', P2, '__all', 'grand')}
     ${extra.map(x => `<tr class="sub"><td class="l" colspan="4">${esc(x[0])} — not in the targets above</td><td>${f2(x[1])}</td><td></td><td></td><td>${f2(x[2])}</td><td></td></tr>`).join('')}</tbody></table></div>
     <div class="note">Targets: monthly plan = yearly target × quarter share (Q1 20%, Q2 25%, Q3 25%, Q4 30%) ÷ 3; a shortfall is added to the next month. % achieved = order booked / billed ÷ the period target.
       Product targets add up to ₹${f0(sumk(P2, 'fyT'))} L; the blue bar above uses the company target of ₹${f0(TOTAL_TARGET)} L (₹520 Cr, as in Path to Target) for all products.</div></div>`;
+  h += ovBarsHtml(stats, sel, per);
   h += ovPerfHtml(stats);
   // quarter table + chart (company target 520 Cr)
   const qRows = [1,2,3,4].map(q => { let oa = 0, ia = 0; const tg = TOTAL_TARGET * QUARTER_SHARE[q];
@@ -493,9 +514,10 @@ function renderCum(){
     <div class="chart">${groupBars(qRows.map(r => ({ k:'Q' + r.q, vals:[r.ot, r.oa, r.ia] })), ['#cfdcef', '#0073C8', '#16a34a'], ['Target', 'OB', 'Invoice'])}</div></div></div>`;
   $('view').innerHTML = h;
   enableSort($('view'));
+  msBind($('view'), () => { const y = scrollY; renderCum(); scrollTo(0, y); });
   const go = fam => { S.view = fam; drawChips(); render(); scrollTo(0, 0); loadPipe(fam).then(() => { if (S.view === fam) render(); }); };
   $('cumTable').onclick = e => {
-    const d = e.target.closest('a.dd[data-ddk]'); if (d) { e.preventDefault(); return openPm(d.dataset.ddk, d.dataset.ddd, pastMonths()); }
+    const d = e.target.closest('a.dd[data-ddk]'); if (d) { e.preventDefault(); return openPm(d.dataset.ddk, d.dataset.ddd, selM); }
     const b = e.target.closest('[data-go]'); if (b) { e.stopPropagation(); return go(b.dataset.go); }
     const tr = e.target.closest('tr[data-cp]'); if (tr) { const k = tr.dataset.cp, y = scrollY; S.cumOpen.has(k) ? S.cumOpen.delete(k) : S.cumOpen.add(k); renderCum(); scrollTo(0, y); } };
   const od = $('ovDoc'); if (od) od.onclick = e => { const b = e.target.closest('button'); if (b) { S.ov.doc = b.dataset.d; const y = scrollY; renderCum(); scrollTo(0, y); } };
@@ -514,7 +536,7 @@ function heroHtml(o){
     <div><div class="l">Invoicing · FY</div><div class="v">${f2(o.inv)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.inv, o.T)) + ' of ' + f0(o.T) + (o.tl ? ' L (' + o.tl + ')' : '') : 'no target'}</div></div>
     <div><div class="l">OB vs plan to date</div><div class="v ${gap == null ? '' : gap >= 0 ? 'up' : 'dn'}">${gap == null ? '—' : (gap >= 0 ? '+' : '−') + f2(Math.abs(gap))}</div><div class="s">${gap == null ? 'no target' : (gap >= 0 ? 'ahead of ' : 'short of ') + planPct.toFixed(1) + '% plan'}</div></div>
     <div ${o.pend != null ? `class="ck" data-pend="${esc(o.fam || '')}" title="Click for product basket › series › OA details"` : ''}><div class="l">Pending to bill${o.pend != null ? ' ↗' : ''}</div><div class="v">${o.pend == null ? '—' : f2(o.pend)}</div><div class="s">${cov != null ? cov.toFixed(1) + ' months of billing' : S.pend?.err ? 'not loaded' : 'daily 9 pm copy'}</div></div>
-    <div ${o.fam ? `class="ck" data-pipe="${monthKey(curMonth())}" title="Click for region › sales engineer › potentials"` : ''}><div class="l">Pipeline · ${MNAME[curMonth()]}${o.fam ? ' ↗' : ''}</div><div class="v">${o.pipe ? f2(o.pipe.open) : '—'}</div><div class="s">${o.pipe ? f2(o.pipe.w) + ' L weighted' : S.pipe?.err ? 'not loaded' : 'loading…'}</div></div>
+    <div ${o.fam && !['OEM', 'Other'].includes(o.fam) ? `class="ck" data-pipe="${monthKey(curMonth())}" title="Click for region › sales engineer › potentials"` : ''}><div class="l">Pipeline · ${MNAME[curMonth()]}${o.fam && !['OEM', 'Other'].includes(o.fam) ? ' ↗' : ''}</div><div class="v">${o.pipe ? f2(o.pipe.open) : '—'}</div><div class="s">${o.pipe ? f2(o.pipe.w) + ' L weighted' : S.pipe?.err ? 'not loaded' : 'loading…'}</div></div>
     <div><div class="l">OB vs last year</div><div class="v ${gr == null ? '' : gr >= 0 ? 'up' : 'dn'}">${gr == null ? '—' : (gr >= 0 ? '▲ ' : '▼ ') + Math.abs(gr).toFixed(1) + '%'}</div><div class="s">${o.lyOb ? f2(o.lyOb) + ' L same period LY' : 'no LY data'}</div></div>
   </div>`;
 }
@@ -546,7 +568,9 @@ function renderFam(fam){
     h += heroH;
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   }
-  h += seriesCard(fam) + regionCard(fam) + growthCard(fam) + pipeCard(fam) + leadsCard(fam);
+  // 25-Nov-2026: no Potentials / Leads modules for OEM and Other
+  const NO_PL = fam === 'OEM' || fam === 'Other';
+  h += seriesCard(fam) + regionCard(fam) + growthCard(fam) + (NO_PL ? '' : pipeCard(fam) + leadsCard(fam));
   $('view').innerHTML = h;
   bindFam(fam); bindTips(); enableSort($('view'));
 }
@@ -1103,11 +1127,11 @@ function ddCsv(){
 
 
 /* ===== Overview (25-Nov-2026: shown inside Cumulative; no separate chip) ===== */
-function ovBarsHtml(stats, planPct){
+function ovBarsHtml(stats, sel, per){
   const O = S.ov;
-  return `<div class="card"><div class="card-h"><div><h2>${O.doc === 'OB' ? 'OB' : 'Invoicing'} % of FY target — by product</h2><div class="sub">Bar = achieved so far · marker = where the bar must reach by month-end (${planPct.toFixed(1)}%) · click a product to open it</div></div>
+  return `<div class="card"><div class="card-h"><div><h2>${O.doc === 'OB' ? 'OB' : 'Invoicing'} % of FY target — by product · ${esc(per)}</h2><div class="sub">Bar = ${O.doc === 'OB' ? 'booked' : 'billed'} in ${esc(per)} as % of the FY target · marker = that period's target as % of the FY target · click a product to open it</div></div>
     <div class="toggle" id="ovDoc"><button data-d="OB" class="${O.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${O.doc === 'INV' ? 'on' : ''}">Invoicing</button></div></div>
-    ${stats.map(s => { const a = O.doc === 'OB' ? s.ob : s.inv, p = s.T != null ? pc(a, s.T) : null;
+    ${stats.map(s => { const r = perOf(O.doc === 'OB' ? s.rOb : s.rInv, sel), a = r.a, p = s.T != null ? pc(a, s.T) : null, planPct = s.T && r.tgt != null ? r.tgt / s.T * 100 : 0;
       return `<div class="ob-row ck" data-go="${esc(s.fam)}" style="cursor:pointer"><div class="n">${esc(s.fam)}<div class="sub">${p != null && p < planPct ? (planPct - p).toFixed(1) + '% pending' : p != null ? 'on track' : '₹' + f2(a) + ' L'}</div></div>
         <div>${p != null ? pbar(p, planPct, barColor(p, planPct), planPct.toFixed(1) + '%') : '<div class="sub">No target set</div>'}</div><div class="p">${p != null ? fp(p) : '—'}</div></div>`; }).join('')}</div>`;
 }
