@@ -60,12 +60,15 @@
   .card{box-shadow:0 4px 16px rgba(11,41,66,.06);border-color:#e3e9f2}
   .card h2:before{content:'';display:inline-block;width:4px;height:15px;border-radius:2px;background:#00a3a3;margin-right:8px;vertical-align:-2px}
   #view .tbl{border:1px solid #e3e9f2;border-radius:12px}
-  #view table:not(.mini) thead tr{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3)}
-  #view table:not(.mini) th{background:transparent}
+  /* the portal's table-scroll.js paints header cells #f5f7fb when they look transparent, so the gradient sits on thead and the cells are forced clear */
+  #view table:not(.mini)>thead{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3)}
+  #view table:not(.mini)>thead>tr{background:transparent}
+  #view table:not(.mini)>thead>tr>th{background:transparent!important;color:#fff}
   #view table:not(.mini) th.srt:hover{background:rgba(255,255,255,.12)}
   #view table:not(.mini) tbody tr:nth-child(even):not(.tot):not(.sub):not(.det):not(.q) td{background:#f6f9fd}
   #view tr.tot td{background:#eaf4fb}
   td.h-good,td.h-ok,td.h-warn,td.h-bad{background:transparent!important}
+  #view table:not(.mini) tbody tr:nth-child(even):not(.tot):not(.sub):not(.det):not(.q) td:is(.h-good,.h-ok,.h-warn,.h-bad){background:#f6f9fd!important}
   .hp{display:inline-block;padding:2px 9px;border-radius:10px;font-weight:700}
   td.h-good .hp{background:#dcf5ec;color:#0f7a5f} td.h-ok .hp{background:#eaf6d9;color:#4d7a0a} td.h-warn .hp{background:#fff1d6;color:#a86400} td.h-bad .hp{background:#fde6e9;color:#c0394b}
   tr.det td{background:#fafbfd;padding:6px 12px 10px 34px;font-size:12px;color:var(--t2);text-align:left;white-space:normal}
@@ -103,6 +106,8 @@
   .nchart svg .nrow:hover>rect:first-child{fill:rgba(46,230,201,.10)}
   .nbtn{background:rgba(255,255,255,.08);color:#2ee6c9;border-color:rgba(46,230,201,.5)}
   .nchart svg .ck:hover{filter:brightness(1.15)}
+  .rr-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 2px 8px}
+  .rr-tg button{padding:4px 12px;font-size:12px}
   .rr-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
   .rr{background:linear-gradient(160deg,#0b2942,#12406b);border-radius:12px;padding:10px 13px;color:#d6e3f5;min-width:0}
   .rr-l{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#9fc0e6;display:flex;justify-content:space-between;gap:8px;align-items:center}
@@ -598,24 +603,27 @@ function renderFam(fam){
     const nxtM = MNAME[MONTHS[Math.min(MONTHS.length - 1, curIdx() + 1)]];
     const fc = r => r.a + (day ? r.a / day : 0) * left;
     const stat = p => p >= tp ? ['AHEAD', 'ok'] : p >= tp * 0.9 ? ['ON PACE', 'mid'] : ['BEHIND', 'bad'];
-    const rr = (r, lbl, inv) => { const p = pc(r.a, r.tgt), gap = Math.max(0, r.tgt - r.a), [st, sc] = r.a >= r.tgt ? ['DONE', 'ok'] : stat(p);
-      const pw = r.tgt ? r.plan / r.tgt * 100 : 100, f = fc(r);
+    // 25-Nov-2026: toggle — revised target (plan + carried shortfall) or this month's plan only
+    const PLANM = S.rrMode === 'plan', TG = r => PLANM ? r.plan : r.tgt, tLbl = PLANM ? 'plan target' : 'revised target';
+    const rr = (r, lbl, inv) => { const T = TG(r), p = pc(r.a, T), gap = Math.max(0, T - r.a), [st, sc] = r.a >= T ? ['DONE', 'ok'] : stat(p);
+      const pw = PLANM || !T ? 100 : r.plan / T * 100, f = fc(r);
       const foot = inv && s.pend != null ? (gap > 0 ? `Pending to bill <b>₹${f2(s.pend)} L</b> covers <b>${fp(Math.min(999, pc(s.pend, gap)))}</b> of the gap` : `Pending to bill <b>₹${f2(s.pend)} L</b> · month target reached`)
-        : `At this pace: <b>₹${f2(f)} L (${fp(pc(f, r.tgt))})</b> by month-end`;
+        : `At this pace: <b>₹${f2(f)} L (${fp(pc(f, T))})</b> by month-end`;
       return `<div class="rr"><div class="rr-l">${MNAME[cm]} · ${lbl}<span class="rr-st ${sc}">${st}</span></div>
-        <div class="rr-big">${fp(p)} <small>of revised target</small></div>
-        <div class="rr-sub"><b>₹${f2(r.a)} L</b> of ₹${f2(r.tgt)} L · ${gap > 0 ? `gap <b>₹${f2(gap)} L</b>` : '<b>target reached</b>'}</div>
+        <div class="rr-big">${fp(p)} <small>of ${tLbl}</small></div>
+        <div class="rr-sub"><b>₹${f2(r.a)} L</b> of ₹${f2(T)} L · ${gap > 0 ? `gap <b>₹${f2(gap)} L</b>` : '<b>target reached</b>'}</div>
         <div class="rr-bar"><span class="pl" style="width:${pw}%"></span><span class="ca" style="width:${100 - pw}%"></span><i style="width:${Math.min(100, p || 0)}%"></i><em style="left:${tp}%" data-l="day ${day} of ${dim}"></em></div>
-        <div class="rr-leg"><span><i class="pl"></i>${MNAME[cm]} plan <b>₹${f2(r.plan)} L</b></span>${r.cin > 0.005 ? `<span><i class="ca"></i>Carried <b>₹${f2(r.cin)} L</b></span>` : ''}</div>
+        <div class="rr-leg"><span><i class="pl"></i>${MNAME[cm]} plan <b>₹${f2(r.plan)} L</b></span>${r.cin > 0.005 ? (PLANM ? `<span style="opacity:.7">Carried ₹${f2(r.cin)} L not counted</span>` : `<span><i class="ca"></i>Carried <b>₹${f2(r.cin)} L</b></span>`) : ''}</div>
         <div class="rr-pace"><div>Need per day<b class="need">${gap <= 0 ? '✓ reached' : left ? '₹' + f2(gap / left) + ' L' : 'month over'}</b></div><div>Doing per day<b class="doing">₹${f2(day ? r.a / day : 0)} L</b></div></div>
         <div class="rr-ft">${foot}</div></div>`; };
-    const fo = fc(s.cur.ob), fi = fc(s.cur.inv), co = Math.max(0, s.cur.ob.tgt - fo), cI = Math.max(0, s.cur.inv.tgt - fi);
-    h += `<div class="secttl">This month run-rate (revised target = plan + carried shortfall)</div><div class="rr-row">
+    const fo = fc(s.cur.ob), fi = fc(s.cur.inv), co = Math.max(0, TG(s.cur.ob) - fo), cI = Math.max(0, TG(s.cur.inv) - fi);
+    h += `<div class="rr-hd"><div class="secttl" style="margin:0">This month run-rate (${PLANM ? 'plan target = this month\'s share of the FY target' : 'revised target = plan + carried shortfall'})</div>
+      <div class="toggle rr-tg" id="rrMode"><button data-r="rev" class="${PLANM ? '' : 'on'}" title="Plan + shortfall carried from earlier months">Revised target</button><button data-r="plan" class="${PLANM ? 'on' : ''}" title="This month's plan only">Plan target</button></div></div><div class="rr-row">
       ${rr(s.cur.ob, 'Order booking')}${rr(s.cur.inv, 'Invoicing', true)}
       <div class="rr"><div class="rr-l">Month-end landing (forecast)</div><div class="rr-sub" style="margin-top:6px">If the current pace continues (${left} day${left === 1 ? '' : 's'} left)</div>
-        <div class="rr-pace rr-four"><div>OB lands at<b>₹${f2(fo)} L</b></div><div class="w">OB carried to ${nxtM}<b class="need">${co > 0.005 ? '₹' + f2(co) + ' L' : 'nil ✓'}</b></div>
-          <div>Invoicing lands at<b>₹${f2(fi)} L</b></div><div class="w">INV carried to ${nxtM}<b class="need">${cI > 0.005 ? '₹' + f2(cI) + ' L' : 'nil ✓'}</b></div></div>
-        <div class="rr-ft">Shortfall carried in: OB ₹${f2(s.carriedOb)} L · INV ₹${f2(s.carriedInv)} L (Apr–${MNAME[MONTHS[Math.max(0, curIdx() - 1)]]})</div></div>
+        <div class="rr-pace rr-four"><div>OB lands at<b>₹${f2(fo)} L</b></div><div class="w">${PLANM ? 'OB short of ' + MNAME[cm] + ' plan' : 'OB carried to ' + nxtM}<b class="need">${co > 0.005 ? '₹' + f2(co) + ' L' : 'nil ✓'}</b></div>
+          <div>Invoicing lands at<b>₹${f2(fi)} L</b></div><div class="w">${PLANM ? 'INV short of ' + MNAME[cm] + ' plan' : 'INV carried to ' + nxtM}<b class="need">${cI > 0.005 ? '₹' + f2(cI) + ' L' : 'nil ✓'}</b></div></div>
+        <div class="rr-ft">${PLANM ? 'Plan only — earlier shortfall (OB ₹' + f2(s.carriedOb) + ' L · INV ₹' + f2(s.carriedInv) + ' L) not counted' : `Shortfall carried in: OB ₹${f2(s.carriedOb)} L · INV ₹${f2(s.carriedInv)} L (Apr–${MNAME[MONTHS[Math.max(0, curIdx() - 1)]]})`}</div></div>
     </div>`;
     h += heroH;   // 25-Nov-2026: blue bar just below this month's run-rate KPIs
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
@@ -1373,6 +1381,7 @@ function bindFam(fam){
   on('visTo', 'onchange', e => { S.vis.to = e.target.value; rer(); });
   let t; on('visQ', 'oninput', e => { clearTimeout(t); t = setTimeout(() => { S.vis.q = e.target.value; S.vis.n = 40; rer(); const q = $('visQ'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 300); });
   $('view').querySelectorAll('[data-pipe]').forEach(el => el.onclick = () => openPipe(fam, el.dataset.pipe));
+  on('rrMode', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.rrMode = b.dataset.r; rer(); } });
   on('leadM', 'onchange', e => { S.leadM = +e.target.value; rer(); });
   on('leadChart', 'onclick', e => { const g = e.target.closest('[data-wk]'); if (g) openLeads(fam, +g.dataset.wk); });
   const lc = $('leadCard'); if (lc) lc.querySelectorAll('[data-lw],.k [data-wk]').forEach(el => el.onclick = e => { e.preventDefault(); openLeads(fam, +(el.dataset.lw ?? el.dataset.wk)); });
