@@ -35,30 +35,49 @@
   .loading.on{display:flex}
 
   /* product chips */
-  /* 25-Nov-2026: product selector = Night buttons (navy, status bar, selected = mint glow); Cumulative = Ocean */
-  .chips{display:grid;grid-template-columns:minmax(190px,1.25fr) repeat(8,minmax(118px,1fr));gap:8px;margin-bottom:16px}
-  .chips button{font:inherit;text-align:left;border:1px solid #0b2942;background:linear-gradient(160deg,#0b2942,#12406b);color:#fff;border-radius:12px;padding:9px 11px 10px;cursor:pointer;
-    display:flex;flex-direction:column;gap:3px;min-width:0;position:relative;transition:transform .12s,box-shadow .12s}
-  .chips button:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(11,41,66,.25)}
-  .chips button:focus-visible{outline:2px solid #2ee6c9;outline-offset:2px}
-  .chips .cn{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .chips .ci{flex:0 0 auto;width:24px;height:24px;border-radius:7px;display:grid;place-items:center;font-size:10px;font-weight:800;color:#fff;letter-spacing:0}
-  .chips .cp{font-size:11px;color:#9fb3d1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .chips .cb{height:4px;background:rgba(255,255,255,.12);border-radius:3px;overflow:hidden;margin-top:3px}
-  .chips .cb i{display:block;height:100%;border-radius:3px}
-  .chips .cr{display:flex;justify-content:space-between;align-items:baseline;gap:6px;min-width:0}
-  .chips .cv{font-size:11.5px;font-weight:800;flex:0 0 auto}
-  .chips button.on{border-color:#2ee6c9;box-shadow:0 0 0 2px #2ee6c9,0 8px 22px rgba(46,230,201,.25)}
-  .chips button.cum{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3);border-color:transparent}
-  .chips button.cum .cp{color:#dff4ff} .chips button.cum .cb{background:rgba(255,255,255,.3)} .chips button.cum .ci{background:rgba(255,255,255,.2)!important}
-  .chips button.cum.on{box-shadow:0 0 0 3px #9fe7ff,0 8px 22px rgba(0,115,200,.35);border-color:transparent}
-  .chips button.cum .cv{color:#fff}
+  /* 25-Nov-2026: product selector = compact light buttons + one Ocean "lens" that slides behind the selected product */
+  .chips{position:relative;display:grid;grid-template-columns:minmax(150px,1.2fr) repeat(8,minmax(96px,1fr));gap:7px;margin-bottom:14px}
+  .chips button{font:inherit;text-align:left;border:0;background:rgba(255,255,255,.75);color:#13294b;border-radius:11px;padding:7px 10px 8px;cursor:pointer;
+    display:flex;flex-direction:column;gap:5px;min-width:0;position:relative;z-index:1;box-shadow:inset 0 0 0 1px rgba(11,41,66,.07),0 1px 4px rgba(11,41,66,.04);
+    transition:background .3s,color .3s,transform .25s,box-shadow .3s}
+  .chips button:hover{transform:translateY(-1px);box-shadow:inset 0 0 0 1px rgba(0,115,200,.25),0 6px 14px rgba(0,115,200,.10)}
+  .chips button:focus-visible{outline:2px solid #00a3a3;outline-offset:2px}
+  .chips .cn{display:flex;align-items:center;gap:6px;font-weight:800;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chips .ci{flex:0 0 auto;width:20px;height:20px;border-radius:6px;display:grid;place-items:center;font-size:9px;font-weight:800;color:#fff;letter-spacing:0;transition:transform .35s,background .3s}
+  .chips .cr{display:flex;align-items:center;gap:7px;min-width:0}
+  .chips .cb{flex:1;height:5px;background:#e6edf6;border-radius:3px;overflow:hidden}
+  .chips .cb i{display:block;height:100%;border-radius:3px;transition:width .6s cubic-bezier(.2,.9,.3,1)}
+  .chips .cv{font-size:11px;font-weight:800;flex:0 0 auto}
+  .chips .cp{font-size:10.5px;color:#6b7a99;white-space:nowrap}
+  /* selected = 3D flip into deep ocean + floating teal glow orb */
+  .chips{perspective:700px}
+  .chips button.on{background:linear-gradient(135deg,#0b2942 0%,#005fa8 55%,#00a3a3 100%);color:#fff;overflow:hidden;box-shadow:0 8px 22px rgba(0,95,168,.35);transform:none}
+  .chips button.on.flip{animation:chipFlip .6s cubic-bezier(.3,1.4,.5,1)}
+  @keyframes chipFlip{0%{transform:rotateX(70deg) scale(.9)}100%{transform:rotateX(0) scale(1)}}
+  .chips button.on:after{content:'';position:absolute;width:60px;height:60px;border-radius:50%;right:-18px;top:-22px;background:radial-gradient(circle,rgba(0,255,220,.55),transparent 70%);animation:chipOrb 3s ease-in-out infinite;pointer-events:none}
+  @keyframes chipOrb{50%{transform:translate(-30px,18px)}}
+  .chips button.on .ci{background:rgba(255,255,255,.2)!important}
+  .chips button.on .cb{background:rgba(255,255,255,.25)} .chips button.on .cb i{background:#b9ffd6!important;animation:chipFill .8s ease-out}
+  @keyframes chipFill{from{width:0}}
+  .chips button.on .cv,.chips button.on .cp{color:#fff!important}
+  @media(prefers-reduced-motion:reduce){.chips button.on.flip,.chips button.on:after,.chips button.on .cb i{animation:none}}
   @media(max-width:1250px){.chips{grid-template-columns:repeat(5,minmax(0,1fr))}}
   @media(max-width:760px){.chips{grid-template-columns:repeat(3,minmax(0,1fr))}}
   @media(max-width:480px){.chips{grid-template-columns:repeat(2,minmax(0,1fr))}}
   /* 25-Nov-2026: Clean white modules — accent line on titles, Ocean table headers, zebra rows, % as soft pills */
   .card{box-shadow:0 4px 16px rgba(11,41,66,.06);border-color:#e3e9f2}
-  .card h2:before{content:'';display:inline-block;width:4px;height:15px;border-radius:2px;background:#00a3a3;margin-right:8px;vertical-align:-2px}
+  /* 25-Nov-2026: Night header band with mint line on every module box */
+  .card{overflow:hidden}
+  .card>.card-h{margin:-18px -20px 14px;padding:12px 20px;background:linear-gradient(110deg,#0b2942,#12406b);border-bottom:2px solid #2ee6c9;align-items:center;color:#fff}
+  .card>.card-h h2{color:#fff;font-size:15px;display:flex;align-items:center;gap:10px}
+  .card>.card-h h2:before{content:'';flex:0 0 auto;width:26px;height:26px;border-radius:8px;background:rgba(46,230,201,.15) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232ee6c9' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M4 20V10M10 20V4M16 20v-7M22 20H2'/%3E%3C/svg%3E") center/15px no-repeat}
+  .card>.card-h .sub{color:#9fb3d1}
+  .card>.card-h .legend{color:#cfe0f5}
+  .card>.card-h .toggle{background:rgba(255,255,255,.12)}
+  .card>.card-h .toggle button{color:#cfe0f5}
+  .card>.card-h .toggle button.on{background:#fff;color:#0073C8}
+  .card>.card-h .f label{color:#9fc0e6}
+  .card>.card-h .btn{background:rgba(255,255,255,.1);color:#2ee6c9;border-color:rgba(46,230,201,.5)}
   #view .tbl{border:1px solid #e3e9f2;border-radius:12px}
   /* the portal's table-scroll.js paints header cells #f5f7fb when they look transparent, so the gradient sits on thead and the cells are forced clear */
   #view table:not(.mini)>thead{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3)}
@@ -191,7 +210,8 @@
   .ob-row{display:grid;grid-template-columns:130px minmax(0,1fr) 70px;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid #f0f3f8}
   .ob-row .n{font-weight:700}
   .ob-row .p{font-weight:800;text-align:right}
-  .ob-row .pbar{margin:8px 0}
+  .ob-row .pbar{margin:8px 0;height:12px;background:repeating-linear-gradient(45deg,#eef2f8 0 6px,#f6f8fc 6px 12px)}
+  .ob-row .n .sub{color:#d1495b} .ob-row .n .sub.ok{color:#0f9f8f}
   @media(max-width:560px){.ob-row{grid-template-columns:90px minmax(0,1fr) 54px}}
 
   /* 24-Nov-2026: multiselects, clickable charts, pop-ups (same look as PM Cumulative) */
@@ -463,19 +483,19 @@ const CHIP_IC = { 'Panel Meters':['PM','#0073C8'], 'ACCL':['AC','#00a3a3'], 'ATE
   'LVS':['LV','#e0703c'], 'FDP':['FD','#16a34a'], 'OEM':['OE','#c2185b'], 'Other':['OT','#5d6d7e'] };
 function drawChips(){
   if (S.view === 'ov') S.view = 'cum';
-  const nc = (p, plan) => p >= plan ? '#2ee6c9' : p >= plan * 0.85 ? '#ffc35a' : '#ff8a8a';
-  const ok = !!S.cube, bar = (p, plan) => p == null ? '' : `<div class="cb"><i style="width:${Math.min(100, Math.max(0, p))}%;background:${nc(p, plan)}"></i></div>`;
-  const plan = ok ? planShareTo(curMonth()) * 100 : 0;
-  let cum = '';
-  if (ok) { const all = FAMS.reduce((t, f) => t + famStats(f.name).ob, 0), p = pc(all, TOTAL_TARGET);
-    cum = `<span class="cr"><span class="cp">OB ₹${f0(all)} L of ₹${f0(TOTAL_TARGET / 100)} Cr</span><span class="cv">${fp(p)}</span></span>${`<div class="cb"><i style="width:${Math.min(100, p)}%;background:#b9ffd6"></i></div>`}`; }
-  $('chips').innerHTML = `<button data-k="cum" class="cum${S.view === 'cum' ? ' on' : ''}" title="All products — PM cumulative tracking, overview, pending to bill">
-      <span class="cn"><span class="ci">∑</span>Cumulative</span>${cum || '<span class="cp">All products</span>'}</button>` +
+  const ok = !!S.cube, plan = ok ? planShareTo(curMonth()) * 100 : 0;
+  const nc = p => p >= plan ? '#0fb5a0' : p >= plan * 0.85 ? '#e09a1a' : '#e0526a';
+  const bar = (p, col) => `<span class="cr"><span class="cb"><i style="width:${Math.min(100, Math.max(0, p))}%;background:${col}"></i></span><span class="cv" style="color:${col}">${fp(p)}</span></span>`;
+  let cum = '<span class="cp">All products</span>';
+  if (ok) { const all = FAMS.reduce((t, f) => t + famStats(f.name).ob, 0), p = pc(all, TOTAL_TARGET); cum = bar(p, nc(p)); }
+  const fl = S.chipLast !== S.view ? ' flip' : ''; S.chipLast = S.view;   // flip only when the selection changes
+  $('chips').innerHTML = `<button data-k="cum" class="${S.view === 'cum' ? 'on' + fl : ''}" title="All products — OB vs ₹520 Cr target">
+      <span class="cn"><span class="ci" style="background:#0073C8">∑</span>Cumulative</span>${cum}</button>` +
     FAMS.map(f => { const ic = CHIP_IC[f.name] || ['··', '#5d6d7e'];
-      let x = `<span class="cp">${esc(f.pm || '')}</span>`;
+      let x = '';
       if (ok) { const st = famStats(f.name), p = st.T != null ? pc(st.ob, st.T) : null;
-        x = `<span class="cr"><span class="cp">${esc(f.pm && f.pm !== '—' ? f.pm : 'no target')}</span>${p != null ? `<span class="cv" style="color:${nc(p, plan)}">${fp(p)}</span>` : ''}</span>` + (p != null ? bar(p, plan) : `<span class="cp">OB ₹${f2(st.ob)} L</span>`); }
-      return `<button data-k="${esc(f.name)}" class="${S.view === f.name ? 'on' : ''}" title="${esc(f.name)} — OB % of FY target"><span class="cn"><span class="ci" style="background:${ic[1]}">${ic[0]}</span>${esc(f.name)}</span>${x}</button>`; }).join('');
+        x = p != null ? bar(p, nc(p)) : `<span class="cp">OB ₹${f0(st.ob)} L · no target</span>`; }
+      return `<button data-k="${esc(f.name)}" class="${S.view === f.name ? 'on' + fl : ''}" title="${esc(f.name)}${f.pm && f.pm !== '—' ? ' · PM ' + esc(f.pm) : ''} — OB % of FY target"><span class="cn"><span class="ci" style="background:${ic[1]}">${ic[0]}</span>${esc(f.name)}</span>${x}</button>`; }).join('');
 }
 $('chips').onclick = async e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.k;
   S.reg.open = null; S.reg.series = []; S.ser.rgs = []; S.ser.gm = ''; S.vis.n = 40; drawChips(); render();
@@ -1214,8 +1234,8 @@ function ovBarsHtml(stats, sel, per){
   return `<div class="card"><div class="card-h"><div><h2>${O.doc === 'OB' ? 'OB' : 'Invoicing'} % of FY target — by product · ${esc(per)}</h2><div class="sub">Bar = ${O.doc === 'OB' ? 'booked' : 'billed'} in ${esc(per)} as % of the FY target · marker = that period's target as % of the FY target · click a product to open it</div></div>
     <div class="toggle" id="ovDoc"><button data-d="OB" class="${O.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${O.doc === 'INV' ? 'on' : ''}">Invoicing</button></div></div>
     ${stats.map(s => { const r = perOf(O.doc === 'OB' ? s.rOb : s.rInv, sel), a = r.a, p = s.T != null ? pc(a, s.T) : null, planPct = s.T && r.tgt != null ? r.tgt / s.T * 100 : 0;
-      return `<div class="ob-row ck" data-go="${esc(s.fam)}" style="cursor:pointer"><div class="n">${esc(s.fam)}<div class="sub">${p != null && p < planPct ? (planPct - p).toFixed(1) + '% pending' : p != null ? 'on track' : '₹' + f2(a) + ' L'}</div></div>
-        <div>${p != null ? pbar(p, planPct, barColor(p, planPct), planPct.toFixed(1) + '%') : '<div class="sub">No target set</div>'}</div><div class="p">${p != null ? fp(p) : '—'}</div></div>`; }).join('')}</div>`;
+      return `<div class="ob-row ck" data-go="${esc(s.fam)}" style="cursor:pointer"><div class="n">${esc(s.fam)}<div class="sub${p == null || p >= planPct ? ' ok' : ''}"${p == null ? ' style="color:var(--t3)"' : ''}>${p != null && p < planPct ? (planPct - p).toFixed(1) + '% pending' : p != null ? 'on track' : '₹' + f2(a) + ' L'}</div></div>
+        <div>${p != null ? pbar(p, planPct, p >= planPct ? 'linear-gradient(90deg,#00a3a3,#2ee6c9)' : p >= planPct * 0.85 ? 'linear-gradient(90deg,#f5a623,#ffd27a)' : 'linear-gradient(90deg,#e0526a,#ff9aa8)', planPct.toFixed(1) + '%') : '<div class="sub">No target set</div>'}</div><div class="p">${p != null ? fp(p) : '—'}</div></div>`; }).join('')}</div>`;
 }
 function ovPerfHtml(stats){
   const O = S.ov, tg = stats.filter(s => s.T != null), totT = tg.reduce((t, s) => t + s.T, 0);
