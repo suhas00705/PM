@@ -137,6 +137,7 @@
   .nchart svg .ck:hover{filter:brightness(1.15)}
   .rr-hd{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 2px 8px}
   .rr-tg button{padding:4px 12px;font-size:12px}
+  .rr-ctl{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}.rr-ctl .f label{display:none}.rr-ctl .ms-btn{min-width:150px;padding:6px 28px 6px 10px}.rr-ctl .ms-pop{left:auto;right:0}
   .rr-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:12px}
   .rr{background:linear-gradient(150deg,#06416e,#0a6a8f);border-radius:12px;padding:10px 13px;color:#e6f6ff;min-width:0}
   .rr-l{font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#a9dcf5;display:flex;justify-content:space-between;gap:8px;align-items:center}
@@ -635,32 +636,42 @@ function renderFam(fam){
   if (F.note) h += `<div class="note" style="margin:0 2px 12px">${esc(F.note)}${fam === 'Prepaid/Smart' ? ' ' + govtLine() : ''}</div>`;
   // B: pace bars – removed 24-Nov-2026 (user): the hero strip above already shows OB / invoicing vs plan and pending to bill
   if (s.T != null) {
-    // D: run-rate — 25-Nov-2026 "Night" tiles: % of revised target, plan vs carried bar, need vs doing per day, month-end forecast
-    const { day, dim } = monthDays(), left = Math.max(0, dim - day), tp = day / dim * 100;
-    const nxtM = MNAME[MONTHS[Math.min(MONTHS.length - 1, curIdx() + 1)]];
+    // D: run-rate — 25-Nov-2026: tiles for the months chosen in the filter (default = this month)
+    // Revised target of a period = plan of each chosen month + shortfall brought in at the start of each run (same as PM Cumulative)
+    if (!S.rrM || !S.rrM.length) S.rrM = [curMonth()];
+    const selM = MONTHS.filter(m => S.rrM.includes(m)), selS = new Set(selM), ci = curIdx(), md = monthDays();
+    const yOf = m => m >= 4 ? S.fy : S.fy + 1, dimOf = m => new Date(yOf(m), m, 0).getDate();
+    let dTot = 0, dDone = 0; selM.forEach(m => { const i = MONTHS.indexOf(m), dm = dimOf(m); dTot += dm; dDone += i < ci ? dm : i === ci ? md.day : 0; });
+    const left = Math.max(0, dTot - dDone), running = left > 0, day = dDone, tp = dTot ? dDone / dTot * 100 : 100;
+    const one = selM.length === 1, perL = monthsLabel(selM), lastI = MONTHS.indexOf(selM[selM.length - 1]);
+    const nxtM = MNAME[MONTHS[Math.min(MONTHS.length - 1, lastI + 1)]];
+    const PLANM = S.rrMode === 'plan', tLbl = PLANM ? 'plan target' : 'revised target';
+    const per = run => { let plan = 0, tgt = 0, a = 0, last = null;
+      run.forEach((x, i) => { if (!selS.has(x.m)) return; a += x.a; plan += x.plan || 0; tgt += (x.plan || 0) + (i > 0 && selS.has(run[i - 1].m) ? 0 : x.cin); last = x; });
+      return { plan, tgt, cin:tgt - plan, a, cout:last ? last.cout : 0 }; };
+    const pOb = per(s.rOb), pInv = per(s.rInv), TG = r => PLANM ? r.plan : r.tgt;
     const fc = r => r.a + (day ? r.a / day : 0) * left;
-    const stat = p => p >= tp ? ['AHEAD', 'ok'] : p >= tp * 0.9 ? ['ON PACE', 'mid'] : ['BEHIND', 'bad'];
-    // 25-Nov-2026: toggle — revised target (plan + carried shortfall) or this month's plan only
-    const PLANM = S.rrMode === 'plan', TG = r => PLANM ? r.plan : r.tgt, tLbl = PLANM ? 'plan target' : 'revised target';
+    const stat = p => !running ? (p >= 100 ? ['MET', 'ok'] : ['SHORT', 'bad']) : p >= tp ? ['AHEAD', 'ok'] : p >= tp * 0.9 ? ['ON PACE', 'mid'] : ['BEHIND', 'bad'];
     const rr = (r, lbl, inv) => { const T = TG(r), p = pc(r.a, T), gap = Math.max(0, T - r.a), [st, sc] = r.a >= T ? ['DONE', 'ok'] : stat(p);
       const pw = PLANM || !T ? 100 : r.plan / T * 100, f = fc(r);
-      const foot = inv && s.pend != null ? (gap > 0 ? `Pending to bill <b>₹${f2(s.pend)} L</b> covers <b>${fp(Math.min(999, pc(s.pend, gap)))}</b> of the gap` : `Pending to bill <b>₹${f2(s.pend)} L</b> · month target reached`)
-        : `At this pace: <b>₹${f2(f)} L (${fp(pc(f, T))})</b> by month-end`;
-      // 25-Nov-2026 compact: value big, % small; plan / carried / day in one line; need vs doing in one strip
-      return `<div class="rr"><div class="rr-l">${MNAME[cm]} · ${lbl}<span class="rr-st ${sc}">${st}</span></div>
+      const foot = inv && s.pend != null && running ? (gap > 0 ? `Pending to bill <b>₹${f2(s.pend)} L</b> covers <b>${fp(Math.min(999, pc(s.pend, gap)))}</b> of the gap` : `Pending to bill <b>₹${f2(s.pend)} L</b> · target reached`)
+        : running ? `At this pace: <b>₹${f2(f)} L (${fp(pc(f, T))})</b> by the end of ${esc(perL)}` : `${esc(perL)} closed at <b>${fp(p)}</b> of the ${tLbl}${gap > 0 ? ` · short by <b>₹${f2(gap)} L</b>` : ''}`;
+      return `<div class="rr"><div class="rr-l">${esc(perL)} · ${lbl}<span class="rr-st ${sc}">${st}</span></div>
         <div class="rr-top"><div class="rr-big">₹${f2(r.a)} <small>L of ₹${f2(T)} L</small></div><span class="rr-pc ${sc}">${fp(p)}</span></div>
-        <div class="rr-bar"><span class="pl" style="width:${pw}%"></span><span class="ca" style="width:${100 - pw}%"></span><i style="width:${Math.min(100, p || 0)}%"></i><em style="left:${tp}%"></em></div>
-        <div class="rr-leg"><span><i class="pl"></i>Plan <b>₹${f2(r.plan)}</b></span>${r.cin > 0.005 ? (PLANM ? `<span style="opacity:.7">carried ₹${f2(r.cin)} not counted</span>` : `<span><i class="ca"></i>Carried <b>₹${f2(r.cin)}</b></span>`) : ''}<span style="margin-left:auto">day ${day}/${dim}</span></div>
-        <div class="rr-strip"><span>Gap<b>${gap > 0 ? '₹' + f2(gap) : '✓'}</b></span><span>Need/day<b class="need">${gap <= 0 ? '✓' : left ? '₹' + f2(gap / left) : '—'}</b></span><span>Doing/day<b class="doing">₹${f2(day ? r.a / day : 0)}</b></span></div>
+        <div class="rr-bar"><span class="pl" style="width:${pw}%"></span><span class="ca" style="width:${100 - pw}%"></span><i style="width:${Math.min(100, p || 0)}%"></i>${running ? `<em style="left:${tp}%"></em>` : ''}</div>
+        <div class="rr-leg"><span><i class="pl"></i>Plan <b>₹${f2(r.plan)}</b></span>${r.cin > 0.005 ? (PLANM ? `<span style="opacity:.7">carried ₹${f2(r.cin)} not counted</span>` : `<span><i class="ca"></i>Carried <b>₹${f2(r.cin)}</b></span>`) : ''}<span style="margin-left:auto">${running ? `day ${day}/${dTot}` : `${dTot} days · closed`}</span></div>
+        <div class="rr-strip"><span>Gap<b>${gap > 0 ? '₹' + f2(gap) : '✓'}</b></span><span>Need/day<b class="need">${gap <= 0 ? '✓' : left ? '₹' + f2(gap / left) : '—'}</b></span><span>${running ? 'Doing/day' : 'Avg/day'}<b class="doing">₹${f2(day ? r.a / day : 0)}</b></span></div>
         <div class="rr-ft">${foot}</div></div>`; };
-    const fo = fc(s.cur.ob), fi = fc(s.cur.inv), co = Math.max(0, TG(s.cur.ob) - fo), cI = Math.max(0, TG(s.cur.inv) - fi);
-    h += `<div class="rr-hd"><div class="secttl" style="margin:0">This month run-rate (${PLANM ? 'plan target = this month\'s share of the FY target' : 'revised target = plan + carried shortfall'})</div>
-      <div class="toggle rr-tg" id="rrMode"><button data-r="rev" class="${PLANM ? '' : 'on'}" title="Plan + shortfall carried from earlier months">Revised target</button><button data-r="plan" class="${PLANM ? 'on' : ''}" title="This month's plan only">Plan target</button></div></div><div class="rr-row">
-      ${rr(s.cur.ob, 'Order booking')}${rr(s.cur.inv, 'Invoicing', true)}
-      <div class="rr"><div class="rr-l">Month-end landing (forecast)</div><div class="rr-sub" style="margin-top:6px">If the current pace continues (${left} day${left === 1 ? '' : 's'} left)</div>
-        <div class="rr-pace rr-four"><div>OB lands at<b>₹${f2(fo)} L</b></div><div class="w">${PLANM ? 'OB short of ' + MNAME[cm] + ' plan' : 'OB carried to ' + nxtM}<b class="need">${co > 0.005 ? '₹' + f2(co) + ' L' : 'nil ✓'}</b></div>
-          <div>Invoicing lands at<b>₹${f2(fi)} L</b></div><div class="w">${PLANM ? 'INV short of ' + MNAME[cm] + ' plan' : 'INV carried to ' + nxtM}<b class="need">${cI > 0.005 ? '₹' + f2(cI) + ' L' : 'nil ✓'}</b></div></div>
-        <div class="rr-ft">${PLANM ? 'Plan only — earlier shortfall (OB ₹' + f2(s.carriedOb) + ' L · INV ₹' + f2(s.carriedInv) + ' L) not counted' : `Shortfall carried in: OB ₹${f2(s.carriedOb)} L · INV ₹${f2(s.carriedInv)} L (Apr–${MNAME[MONTHS[Math.max(0, curIdx() - 1)]]})`}</div></div>
+    const fo = fc(pOb), fi = fc(pInv), co = running ? Math.max(0, TG(pOb) - fo) : (PLANM ? Math.max(0, pOb.plan - pOb.a) : pOb.cout), cI = running ? Math.max(0, TG(pInv) - fi) : (PLANM ? Math.max(0, pInv.plan - pInv.a) : pInv.cout);
+    MS.rrM = { num:true, get:() => S.rrM, set:v => S.rrM = v.length ? v : [curMonth()], quick:MONTH_QUICK().filter(q => q[0] !== 'Clear') };
+    h += `<div class="rr-hd"><div class="secttl" style="margin:0">${one && selM[0] === curMonth() ? 'This month' : esc(perL)} run-rate (${PLANM ? 'plan target = share of the FY target' : 'revised target = plan + carried shortfall'})</div>
+      <div class="rr-ctl"><div class="toggle rr-tg" id="rrMode"><button data-r="rev" class="${PLANM ? '' : 'on'}" title="Plan + shortfall carried from earlier months">Revised target</button><button data-r="plan" class="${PLANM ? 'on' : ''}" title="Plan only">Plan target</button></div>
+      ${msHtml('rrM', 'Months', perL, MONTH_ITEMS(), selM, MS.rrM.quick)}</div></div><div class="rr-row">
+      ${rr(pOb, 'Order booking')}${rr(pInv, 'Invoicing', true)}
+      <div class="rr"><div class="rr-l">${running ? (one ? 'Month-end' : 'Period-end') + ' landing (forecast)' : esc(perL) + ' result'}</div><div class="rr-sub" style="margin-top:6px">${running ? `If the current pace continues (${left} day${left === 1 ? '' : 's'} left)` : 'Final figures for the chosen months'}</div>
+        <div class="rr-pace rr-four"><div>${running ? 'OB lands at' : 'OB booked'}<b>₹${f2(running ? fo : pOb.a)} L</b></div><div class="w">${PLANM ? 'OB short of plan' : 'OB carried to ' + nxtM}<b class="need">${co > 0.005 ? '₹' + f2(co) + ' L' : 'nil ✓'}</b></div>
+          <div>${running ? 'Invoicing lands at' : 'Invoiced'}<b>₹${f2(running ? fi : pInv.a)} L</b></div><div class="w">${PLANM ? 'INV short of plan' : 'INV carried to ' + nxtM}<b class="need">${cI > 0.005 ? '₹' + f2(cI) + ' L' : 'nil ✓'}</b></div></div>
+        <div class="rr-ft">${PLANM ? `Plan only — shortfall carried in (OB ₹${f2(pOb.cin)} L · INV ₹${f2(pInv.cin)} L) not counted` : `Shortfall carried in: OB ₹${f2(pOb.cin)} L · INV ₹${f2(pInv.cin)} L`}</div></div>
     </div>`;
     h += heroH;   // 25-Nov-2026: blue bar just below this month's run-rate KPIs
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
@@ -831,9 +842,13 @@ function seriesCard(fam){
 function regionCard(fam){
   const F = S.reg, ms = new Set(F.months), ss = new Set(F.series), by = {}, serTot = {};
   S.rows.forEach(x => { if (x.f !== fam || x.y !== 0 || x.d !== F.doc || !ms.has(x.m) || (ss.size && !ss.has(x.s))) return;
-    const o = (by[x.r] = by[x.r] || { q:0, v:0, s:{} }); o.q += x.q; o.v += x.v; const z = (o.s[x.s] = o.s[x.s] || { q:0, v:0 }); z.q += x.q; z.v += x.v; serTot[x.s] = (serTot[x.s] || 0) + (F.k === 'q' ? x.q : x.v); });
+    const o = (by[x.r] = by[x.r] || { q:0, v:0, s:{}, lq:0, lv:0, ls:{} }); o.q += x.q; o.v += x.v; const z = (o.s[x.s] = o.s[x.s] || { q:0, v:0 }); z.q += x.q; z.v += x.v; serTot[x.s] = (serTot[x.s] || 0) + (F.k === 'q' ? x.q : x.v); });
+  // 25-Nov-2026: last year, same months (the running month cut at the same day)
+  S.rows.forEach(x => { if (x.f !== fam || x.y !== 1 || x.d !== F.doc || !ms.has(x.m) || (ss.size && !ss.has(x.s)) || !by[x.r]) return;
+    const o = by[x.r]; o.lq += x.lq; o.lv += x.lv; const z = (o.ls[x.s] = o.ls[x.s] || { q:0, v:0 }); z.q += x.lq; z.v += x.lv; });
   const K = F.k, mv_ = o => K === 'q' ? o.q : o.v;
   const list = Object.entries(by).map(([r, o]) => ({ r, ...o })).sort((a, b) => mv_(b) - mv_(a)), totV = list.reduce((t, o) => t + o.v, 0), totQ = list.reduce((t, o) => t + o.q, 0), tot = K === 'q' ? totQ : totV;
+  const totLV = list.reduce((t, o) => t + o.lv, 0), totLQ = list.reduce((t, o) => t + o.lq, 0);
   const topS = Object.keys(serTot).sort((a, b) => serTot[b] - serTot[a]).slice(0, 6), colOf = s => { const i = topS.indexOf(s); return i < 0 ? OTH_N : PAL_N[i]; };
   MS.regM = { num:true, get:() => S.reg.months, set:v => S.reg.months = v, quick:MONTH_QUICK() };
   MS.regS = { get:() => S.reg.series, set:v => S.reg.series = v, quick:[['All series', () => []]] };
@@ -848,10 +863,10 @@ function regionCard(fam){
     svg += `<text x="${x0 + 6}" y="${y0 + 16}" font-size="10.5" font-weight="700" fill="#fff">${K === 'q' ? f0(o.q) + ' pcs' : f2(o.v)}</text><text x="${x0 + 12 + (K === 'q' ? f0(o.q) + ' pcs' : f2(o.v)).length * 6}" y="${y0 + 16}" font-size="10.5" fill="#9fb3d1">${fp(pc(mv_(o), tot))}</text></g>`; });
   svg += '</svg>';
   let rows = list.map(o => { let r = `<tr class="ck" data-rg="${esc(o.r)}"><td class="l"><span class="caret">${F.open === o.r ? '▾' : '▸'}</span><b>${esc(o.r)}</b> <span class="sub">(${Object.keys(o.s).length} series)</span></td><td class="l pm">${esc(gmOf(o.r))}</td>
-      <td>${f0(o.q)}</td><td>${f2(o.v)}</td><td>${fp(pc(mv_(o), tot))}</td></tr>`;
-    if (F.open === o.r) r += Object.entries(o.s).sort((a, b) => mv_(b[1]) - mv_(a[1])).map(([s, z]) => `<tr class="sub"><td class="l"><i class="sw" style="background:${colOf(s)}"></i>${esc(s)}</td><td></td><td>${f0(z.q)}</td><td>${f2(z.v)}</td><td>${fp(pc(mv_(z), mv_(o)))}</td></tr>`).join('');
+      <td>${f0(o.q)}</td><td>${f2(o.v)}</td><td>${fp(pc(mv_(o), tot))}</td><td>${f0(o.lq)}</td><td>${f2(o.lv)}</td><td>${grTxt(o.q, o.lq)}</td><td>${grTxt(o.v, o.lv)}</td></tr>`;
+    if (F.open === o.r) r += Object.entries(o.s).sort((a, b) => mv_(b[1]) - mv_(a[1])).map(([s, z]) => `<tr class="sub"><td class="l"><i class="sw" style="background:${colOf(s)}"></i>${esc(s)}</td><td></td><td>${f0(z.q)}</td><td>${f2(z.v)}</td><td>${fp(pc(mv_(z), mv_(o)))}</td><td>${f0((o.ls[s] || {}).q || 0)}</td><td>${f2((o.ls[s] || {}).v || 0)}</td><td>${grTxt(z.q, (o.ls[s] || {}).q || 0)}</td><td>${grTxt(z.v, (o.ls[s] || {}).v || 0)}</td></tr>`).join('');
     return r; }).join('');
-  rows += `<tr class="tot"><td class="l">Total · ${list.length} regions</td><td></td><td>${f0(totQ)}</td><td>${f2(totV)}</td><td>100%</td></tr>`;
+  rows += `<tr class="tot"><td class="l">Total · ${list.length} regions</td><td></td><td>${f0(totQ)}</td><td>${f2(totV)}</td><td>100%</td><td>${f0(totLQ)}</td><td>${f2(totLV)}</td><td>${grTxt(totQ, totLQ)}</td><td>${grTxt(totV, totLV)}</td></tr>`;
   const sers = seriesOf(fam), sLbl = !F.series.length ? 'All series' : F.series.length === 1 ? F.series[0] : `${F.series.length} series`;
   return `<div class="card" id="regCard"><div class="card-h"><div><h2>Region-wise ${F.doc === 'OB' ? 'booking' : 'billing'} — ${esc(fam)} · ${monthsLabel(F.months)}</h2><div class="sub">Bar = region total split by its top series · click a region for its series</div></div>
     <div class="fl" style="margin:0"><div class="toggle" id="regK"><button data-k="v" class="${K === 'v' ? 'on' : ''}">Value</button><button data-k="q" class="${K === 'q' ? 'on' : ''}">Qty</button></div><div class="toggle" id="regDoc"><button data-d="OB" class="${F.doc === 'OB' ? 'on' : ''}">OB</button><button data-d="INV" class="${F.doc === 'INV' ? 'on' : ''}">Invoicing</button></div>
@@ -859,7 +874,8 @@ function regionCard(fam){
       ${msHtml('regM', 'Months', monthsLabel(F.months), MONTH_ITEMS(), F.months, MONTH_QUICK())}</div></div>
     <div class="nchart"><div class="legend" style="margin:0 0 8px">${topS.map(s => `<span><i class="sw" style="background:${colOf(s)}"></i>${esc(s)}</span>`).join('')}${Object.keys(serTot).length > topS.length ? `<span><i class="sw" style="background:${OTH_N}"></i>Others</span>` : ''}</div>
     <div class="chart fit" id="regChart">${list.length ? svg : '<div class="note" style="color:#9fb3d1">No sales for this selection</div>'}</div></div>
-    <div class="tbl" style="margin-top:12px"><table id="regTable"><thead><tr><th class="l">Region / series</th><th class="l">GM</th><th>Qty</th><th>Value (₹ L)</th><th>Share${K === 'q' ? ' (qty)' : ''}</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    <div class="tbl" style="margin-top:12px"><table id="regTable"><thead><tr><th class="l">Region / series</th><th class="l">GM</th><th>Qty</th><th>Value (₹ L)</th><th>Share${K === 'q' ? ' (qty)' : ''}</th><th>LY qty</th><th>LY value (₹ L)</th><th>Qty growth</th><th>Value growth</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="note">LY = ${fyLabel(S.fy - 1)}, same months (${esc(monthsLabel(F.months))}); the running month of last year is cut at the same day.</div></div>`;
 }
 
 /* --- last-year growth by month (unchanged) --- */
@@ -886,6 +902,7 @@ function createdCell(created, closing){
     (o === 'carried' ? ' <span class="og old">Carried over</span>' : o === 'new' ? ' <span class="og new">New</span>' : '');
 }
 function pipeCard(fam){
+  if (!S.vis.init) { const m = curMonth(), y = m >= 4 ? S.fy : S.fy + 1; S.vis.from = monthKey(m) + '-01'; S.vis.to = monthKey(m) + '-' + String(new Date(y, m, 0).getDate()).padStart(2, '0'); S.vis.init = true; }
   const head = `<h2>Visibility of orders — potentials · ${esc(fam)}</h2>`;
   if (!S.pipe) return `<div class="card"><div class="card-h">${head}</div><div class="note">Loading potentials…</div></div>`;
   if (S.pipe.err) return `<div class="card"><div class="card-h">${head}</div><div class="note">Potentials not available yet (${esc(S.pipe.err)}). Run <b>supabase/products.sql</b> in Supabase.</div></div>`;
@@ -913,11 +930,11 @@ function pipeCard(fam){
   const mxA = Math.max(1, ...mRows.map(r => r.a));
   return `<div class="card" id="pipeCard"><div class="card-h">${'<div>' + head}<div class="sub">Synced from Zoho. Value = this product's lines of the deal (₹ L)${S.pipe.lines ? '; product lines synced ' + new Date(S.pipe.lines).toLocaleString('en-IN', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'}) : '; deals without product lines use an equal split (≈)'}</div></div>
       <div class="fl hdr-f"><div class="toggle" id="visSt">${['Open', 'Won', 'Lost', 'All'].map(s => `<button data-s="${s}" class="${V.st === s ? 'on' : ''}">${s}</button>`).join('')}</div>
-        <div class="f"><label>Closing from</label><input type="date" id="visFrom" value="${esc(V.from)}"></div><div class="f"><label>to</label><input type="date" id="visTo" value="${esc(V.to)}"></div>
+        <div class="f"><label>Closing from</label><input type="date" id="visFrom" value="${esc(V.from)}"></div><div class="f"><label>to</label><input type="date" id="visTo" value="${esc(V.to)}"></div><div class="f"><label>&nbsp;</label><button class="btn" id="visAllDates" title="Show every closing date">All dates</button></div>
         <div class="f"><label>Search</label><input type="search" id="visQ" placeholder="Account, project, owner, series…" value="${esc(V.q)}"></div></div></div>
     <div class="kp"><div class="k ck" data-pipe="${cmk}" title="Click for region › sales engineer › potentials"><div class="l">Open · closing ${MNAME[curMonth()]} ↗</div><div class="v">₹${f2(P.open)} L</div><div class="n">${P.n} deals · ₹${f2(P.w)} L weighted</div></div>
       <div class="k"><div class="l">Open · rest of FY</div><div class="v">₹${f2(P.openAll)} L</div><div class="n">₹${f2(P.wAll)} L weighted by probability</div></div>
-      <div class="k"><div class="l">Overdue (closing date passed)</div><div class="v">₹${f2(overdue.a)} L</div><div class="n">${overdue.n} open deals to update</div></div>
+      <div class="k ck" data-pipe="overdue" title="Click for month › region › sales engineer › potentials"><div class="l">Overdue (closing date passed) ↗</div><div class="v">₹${f2(overdue.a)} L</div><div class="n">${overdue.n} open deals to update</div></div>
       <div class="k"><div class="l">Won this FY</div><div class="v">₹${f2(P.won)} L</div><div class="n">closing date in ${fyLabel(S.fy)}</div></div></div>
     <div class="two" style="margin-bottom:14px"><div><div class="secttl">Open pipeline by closing month</div>
       <div class="tbl"><table id="pipeMon"><thead><tr><th class="l">Month</th><th>Deals</th><th>Open pipeline (₹ L)</th><th>Weighted (₹ L)</th></tr></thead><tbody>
@@ -1135,15 +1152,16 @@ function ddLeadList(){
 
 // (d) Open potentials closing in a month → Region › Sales engineer › potentials (links to Zoho)
 async function openPipe(fam, ym){
-  const mn = MNAME[+ym.slice(5)] + ' ' + ym.slice(2, 4);
-  Object.assign(DD, { mode:'pipe', fam, ym, R:null, openRg:new Set(), rg:null, se:null, q:'' });
-  ddShell(`Open potentials · ${esc(fam)} · closing ${mn}`, `Open deals in Zoho (not won / lost) with a closing date in ${mn} · value = this product's lines of the deal · click a region, then a sales engineer, to filter the list`);
+  const od = ym === 'overdue', cmk = monthKey(curMonth()), mn = od ? '' : MNAME[+ym.slice(5)] + ' ' + ym.slice(2, 4);
+  Object.assign(DD, { mode:'pipe', fam, ym, R:null, openRg:new Set(), rg:null, se:null, q:'', mo:null });
+  if (od) ddShell(`Overdue potentials · ${esc(fam)} · closing date passed`, `Open deals in Zoho (not won / lost) whose closing date was before ${MNAME[curMonth()]} · click a month, then a region, then a sales engineer, to filter the list`);
+  else ddShell(`Open potentials · ${esc(fam)} · closing ${mn}`, `Open deals in Zoho (not won / lost) with a closing date in ${mn} · value = this product's lines of the deal · click a region, then a sales engineer, to filter the list`);
   if (!S.list[fam]) await loadPipe(fam);
-  DD.R = (S.list[fam] || []).filter(a => a[6] === 'Open' && String(a[9] || '').slice(0, 7) === ym);
+  DD.R = (S.list[fam] || []).filter(a => a[6] === 'Open' && (od ? a[9] && String(a[9]).slice(0, 7) < cmk : String(a[9] || '').slice(0, 7) === ym));
   ddRenderPipe();
 }
 function ddRenderPipe(){
-  const R = DD.R || [], tv = R.reduce((t, a) => t + +a[10], 0), tw = R.reduce((t, a) => t + +a[10] * (+a[8] || 0) / 100, 0), by = {};
+  const od = DD.ym === 'overdue', ALL = DD.R || [], R = od && DD.mo ? ALL.filter(a => String(a[9]).slice(0, 7) === DD.mo) : ALL, tv = R.reduce((t, a) => t + +a[10], 0), tw = R.reduce((t, a) => t + +a[10] * (+a[8] || 0) / 100, 0), by = {};
   R.forEach(a => { const rg = a[5] || '(blank)', ow = a[4] || '(no owner)'; const o = (by[rg] = by[rg] || { n:0, v:0, w:0, ow:{} }); o.n++; o.v += +a[10]; o.w += +a[10] * (+a[8] || 0) / 100;
     const z = (o.ow[ow] = o.ow[ow] || { n:0, v:0, w:0 }); z.n++; z.v += +a[10]; z.w += +a[10] * (+a[8] || 0) / 100; });
   const list = Object.entries(by).sort((a, b) => b[1].v - a[1].v), mx = Math.max(1, ...list.map(([, o]) => o.v));
@@ -1151,14 +1169,22 @@ function ddRenderPipe(){
     let h = `<tr class="ck${DD.rg === rg && !DD.se ? ' sel' : ''}" data-rgo="${esc(rg)}"><td class="l"><span class="caret">${op ? '▾' : '▸'}</span><b>${esc(rg)}</b></td><td>${o.n}</td><td>${R.length ? (o.n / R.length * 100).toFixed(1) : 0}%</td><td>${f2(o.v)}</td><td>${f2(o.w)}</td><td class="l">${tv ? (o.v / tv * 100).toFixed(1) : '0.0'}%<span class="dd-bar" style="width:${Math.max(2, o.v / mx * 70)}px"></span></td></tr>`;
     if (op) h += Object.entries(o.ow).sort((a, b) => b[1].v - a[1].v).map(([ow, z]) => `<tr class="it ck${DD.se === ow && DD.rg === rg ? ' sel' : ''}" data-se="${esc(ow)}" data-serg="${esc(rg)}"><td class="l" style="padding-left:28px">👤 ${esc(ow)}</td><td>${z.n}</td><td>${o.n ? (z.n / o.n * 100).toFixed(1) : 0}%</td><td>${f2(z.v)}</td><td>${f2(z.w)}</td><td class="l">${o.v ? (z.v / o.v * 100).toFixed(1) : '0.0'}% of region</td></tr>`).join('');
     return h; }).join('');
-  $('ddBd').innerHTML = `<div class="dd-kp"><div class="dd-k"><div class="l">Open potentials</div><div class="v">${R.length}</div><div class="n">closing ${MNAME[+DD.ym.slice(5)]}</div></div>
+  let monT = '';
+  if (od) { const bm = {}; ALL.forEach(a => { const k = String(a[9]).slice(0, 7), o = (bm[k] = bm[k] || { n:0, v:0, w:0 }); o.n++; o.v += +a[10]; o.w += +a[10] * (+a[8] || 0) / 100; });
+    const ks = Object.keys(bm).sort(), av = ALL.reduce((t, a) => t + +a[10], 0), mxm = Math.max(1, ...ks.map(k => bm[k].v));
+    monT = `<div class="dd-cap"><span>MONTH-WISE (CLOSING MONTH)</span><span class="sub">click a month to filter the regions and potentials below</span></div>
+    <div class="dd-tb" style="max-height:240px;margin-bottom:12px"><table><thead><tr><th class="l">Closing month</th><th>Potentials</th><th>Value ₹ L</th><th>Weighted ₹ L</th><th class="l">Value share</th></tr></thead><tbody>
+      ${ks.map(k => `<tr class="ck${DD.mo === k ? ' sel' : ''}" data-pmo="${k}"><td class="l"><b>${MNAME[+k.slice(5)]} ${k.slice(2, 4)}</b></td><td>${bm[k].n}</td><td>${f2(bm[k].v)}</td><td>${f2(bm[k].w)}</td><td class="l">${av ? (bm[k].v / av * 100).toFixed(1) : '0.0'}%<span class="dd-bar" style="width:${Math.max(2, bm[k].v / mxm * 70)}px;background:#e0703c"></span></td></tr>`).join('') || '<tr><td colspan="5">No overdue potentials</td></tr>'}
+      <tr class="tot"><td class="l">Total</td><td>${ALL.length}</td><td>${f2(av)}</td><td>${f2(ALL.reduce((t, a) => t + +a[10] * (+a[8] || 0) / 100, 0))}</td><td class="l">100%</td></tr></tbody></table></div>`; }
+  $('ddBd').innerHTML = `<div class="dd-kp"><div class="dd-k"><div class="l">${od ? 'Overdue potentials' : 'Open potentials'}</div><div class="v">${R.length}</div><div class="n">${od ? (DD.mo ? 'closing ' + MNAME[+DD.mo.slice(5)] + ' ' + DD.mo.slice(2, 4) : 'closing before ' + MNAME[curMonth()]) : 'closing ' + MNAME[+DD.ym.slice(5)]}</div></div>
       <div class="dd-k"><div class="l">Value</div><div class="v">₹${f2(tv)} L</div><div class="n">this product's share of the deals</div></div>
       <div class="dd-k"><div class="l">Weighted</div><div class="v">₹${f2(tw)} L</div><div class="n">value × probability</div></div>
       <div class="dd-k"><div class="l">Sales engineers</div><div class="v">${new Set(R.map(a => a[4])).size}</div><div class="n">in ${list.length} regions</div></div></div>
-    <div class="dd-cap"><span>REGION › SALES ENGINEER</span><span class="sub">click a region to open it · click a sales engineer to filter the potentials below</span></div>
+    ${monT}<div class="dd-cap"><span>REGION › SALES ENGINEER${od && DD.mo ? ' · ' + MNAME[+DD.mo.slice(5)] + ' ' + DD.mo.slice(2, 4) : ''}</span><span class="sub">click a region to open it · click a sales engineer to filter the potentials below</span></div>
     <div class="dd-tb" style="max-height:340px"><table><thead><tr><th class="l">Region / sales engineer</th><th>Potentials</th><th>Count share</th><th>Value ₹ L</th><th>Weighted ₹ L</th><th class="l">Value share</th></tr></thead><tbody>
       ${rows || '<tr><td colspan="6">No open potentials closing this month</td></tr>'}<tr class="tot"><td class="l">Total</td><td>${R.length}</td><td>100%</td><td>${f2(tv)}</td><td>${f2(tw)}</td><td class="l">100%</td></tr></tbody></table></div>
     <div class="dd-tools"><b style="font-size:12px;color:var(--t3);letter-spacing:.06em">POTENTIALS</b>
+      ${DD.mo ? `<span class="dd-flt">Month: ${MNAME[+DD.mo.slice(5)]} ${DD.mo.slice(2, 4)}<button data-a="unmo" title="Remove">×</button></span>` : ''}
       ${DD.rg ? `<span class="dd-flt">Region: ${esc(DD.rg)}<button data-a="unrg" title="Remove">×</button></span>` : ''}
       ${DD.se ? `<span class="dd-flt">Sales engineer: ${esc(DD.se)}<button data-a="unse" title="Remove">×</button></span>` : ''}
       <input id="ddQ" placeholder="Search account, project, series…" value="${esc(DD.q)}"></div>
@@ -1166,13 +1192,13 @@ function ddRenderPipe(){
   enableSort($('ddBd')); ddPipeList();
 }
 function ddPipeList(){
-  const q = DD.q, L = (DD.R || []).filter(a => (!DD.rg || (a[5] || '(blank)') === DD.rg) && (!DD.se || (a[4] || '(no owner)') === DD.se)
+  const q = DD.q, L = (DD.R || []).filter(a => (!DD.mo || String(a[9] || '').slice(0, 7) === DD.mo) && (!DD.rg || (a[5] || '(blank)') === DD.rg) && (!DD.se || (a[4] || '(no owner)') === DD.se)
     && (!q || [a[1], a[2], a[3], (a[12] || []).map(x => x[0]).join(' ')].join(' ').toLowerCase().includes(q)));
   const tv = L.reduce((t, a) => t + +a[10], 0);
   $('ddDocs').innerHTML = `<table id="ddPipeT"><thead><tr><th class="l">Account / project</th><th class="l">Series</th><th class="l">Sales engineer</th><th class="l">Region</th><th>Closing</th><th>Probability</th><th>Value ₹ L</th><th class="l">Stage</th></tr></thead><tbody>
     ${L.map(a => `<tr><td class="l wrapc"><a class="acct zl" href="${ZOHO_DEAL}${encodeURIComponent(a[0])}" target="_blank" rel="noopener" title="Open this potential in Zoho CRM">${esc(a[2] || a[1] || '—')} <span class="zx">↗</span><small>${esc(a[3] || a[1] || '')}</small></a></td>
       <td class="l wrapc">${(a[12] || []).map(x => esc(x[0])).join(', ')}</td><td class="l">${esc(a[4] || '—')}</td><td class="l">${esc(a[5] || '—')}</td>
-      <td>${a[9] ? new Date(a[9]).toLocaleDateString('en-IN', {day:'2-digit', month:'short'}) : '—'}</td><td>${a[8] != null ? f0(a[8]) + '%' : '—'}</td>
+      <td>${a[9] ? new Date(a[9]).toLocaleDateString('en-IN', {day:'2-digit', month:'short', year:'2-digit'}) : '—'}</td><td>${a[8] != null ? f0(a[8]) + '%' : '—'}</td>
       <td>${a[11] ? '≈ ' : ''}${f2(a[10])}</td><td class="l">${esc(a[7] || '')}</td></tr>`).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--t3)">No potentials match</td></tr>'}
     <tr class="tot"><td class="l">Total · ${L.length} potentials</td><td></td><td></td><td></td><td></td><td></td><td>${f2(tv)}</td><td></td></tr></tbody></table>`;
   enableSort($('ddDocs'));
@@ -1211,6 +1237,8 @@ async function ddClick(e){
   if (DD.mode === 'pend') return ddPendClick(e);
   if (DD.mode === 'fcp') return ddFcpClick(e);
   if (DD.mode === 'pipe') {
+    if (a && a.dataset.a === 'unmo') { DD.mo = null; DD.rg = null; DD.se = null; DD.openRg.clear(); return ddRenderPipe(); }
+    const pm = e.target.closest('tr[data-pmo]'); if (pm) { DD.mo = DD.mo === pm.dataset.pmo ? null : pm.dataset.pmo; DD.rg = null; DD.se = null; DD.openRg.clear(); return ddRenderPipe(); }
     if (a && a.dataset.a === 'unrg') { DD.rg = null; DD.se = null; return ddRenderPipe(); }
     if (a && a.dataset.a === 'unse') { DD.se = null; return ddRenderPipe(); }
     const s2 = e.target.closest('tr[data-se]'); if (s2) { DD.se = DD.se === s2.dataset.se ? null : s2.dataset.se; DD.rg = s2.dataset.serg; return ddRenderPipe(); }
@@ -1522,6 +1550,7 @@ function bindFam(fam){
   on('visMore', 'onclick', () => { S.vis.n += 40; rer(); });
   on('visFrom', 'onchange', e => { S.vis.from = e.target.value; rer(); });
   on('visTo', 'onchange', e => { S.vis.to = e.target.value; rer(); });
+  on('visAllDates', 'onclick', () => { S.vis.from = ''; S.vis.to = ''; S.vis.n = 40; rer(); });
   let t; on('visQ', 'oninput', e => { clearTimeout(t); t = setTimeout(() => { S.vis.q = e.target.value; S.vis.n = 40; rer(); const q = $('visQ'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 300); });
   $('view').querySelectorAll('[data-pipe]').forEach(el => el.onclick = () => openPipe(fam, el.dataset.pipe));
   bindFdpCp(rer, fam);
