@@ -88,6 +88,39 @@
   .gmv b{color:var(--t1)}
   .gmp{font-weight:800;font-size:14px}
   .warnT{color:var(--warn);font-weight:800}
+  /* 25-Nov-2026: Deep Ocean region cards, light GM header */
+  .rc{border:0;border-top:3px solid var(--rcc,#9fb3d1);background:linear-gradient(150deg,#06416e,#0a6a8f);color:#fff;box-shadow:0 6px 16px rgba(6,65,110,.22);border-radius:14px;padding:11px 14px}
+  .rc:before{display:none}
+  .rc:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(6,65,110,.32)}
+  .rc .rnm{display:flex;align-items:center;gap:8px}
+  .rc .rank{width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;display:inline-grid;place-items:center;font-size:11px;font-weight:800;margin:0}
+  .rc .nm{color:#fff;font-size:15px}
+  .rc .nums{color:#a9cde6}.rc .nums b{color:#fff;font-size:14px}
+  .rc .gr-up{color:#6ff0a8}.rc .gr-dn{color:#ff9a9a}
+  .rc .track{background:rgba(255,255,255,.15);height:8px}.rc .track .mark{background:#fff}
+  .rc .fyv{color:#a9cde6}.rc .fyv b{color:#fff}
+  .rc .fyt{color:#cfe6f5}
+  .rc .won{color:#d3c4ff}.rc .won .sub{color:#a9cde6}
+  .rc .pgap.neg{background:rgba(255,154,154,.95);color:#7a1020}.rc .pgap.pos{background:rgba(111,240,168,.95);color:#064e2b}
+  .rc .ring{flex:0 0 auto}
+  .gmh{background:#eaf4ff;border:1px solid #d3e6f8;border-radius:12px;padding:9px 14px}
+  .gmn{display:flex;align-items:center;gap:8px}
+  .gmav{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#0073c8,#00a3a3);color:#fff;display:inline-grid;place-items:center;font-size:11.5px;font-weight:800;flex:0 0 auto}
+  .gmbar{display:inline-block;width:90px;height:6px;border-radius:4px;background:#d6e3f3;overflow:hidden;align-self:center}.gmbar i{display:block;height:100%;background:linear-gradient(90deg,#0073c8,#00a3a3);border-radius:4px}
+  /* 25-Nov-2026: Ocean band GM header */
+  .gmh{background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3);border:0;border-radius:12px;padding:8px 14px;color:#fff;box-shadow:0 4px 14px rgba(0,115,200,.18)}
+  .gmn{display:flex;align-items:center;gap:10px;color:#fff}
+  .gmn .gmav{width:34px;height:34px;background:rgba(255,255,255,.2);font-size:12px}
+  .gnm{font-size:16px;font-weight:800;color:#fff}.grg{font-size:11.5px;color:#dff4ff;font-weight:600}
+  .gmv{gap:8px;align-items:center;color:#fff}
+  .gst{background:rgba(255,255,255,.14);border-radius:9px;padding:4px 11px;text-align:right;line-height:1.15}
+  .gst span{display:block;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#cfe9ff;font-weight:700}.gst b{font-size:15px;color:#fff}
+  .gach{background:#fff;border-radius:10px;padding:4px 12px;font-weight:800;font-size:15px;line-height:1.1;text-align:center}
+  .gach small{display:block;font-size:9px;letter-spacing:.06em;opacity:.8}
+  .gach.ok{color:#0f8a6a}.gach.mid{color:#b56b00}.gach.bad{color:#c62828}
+  .gring{flex:0 0 auto}.gfy{font-size:10px;color:#dff4ff;line-height:1.2}
+  .rc .cfw{margin-top:6px;font-size:11.5px;color:#ffd27a;background:rgba(255,196,92,.14);border:1px solid rgba(255,196,92,.35);border-radius:8px;padding:3px 8px;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
+  .rc .cfw b{color:#ffe2a6}.rc .cfw span{color:#cfe6f5;font-size:11px}
   tr.gmr td{background:#eaf3fd;color:var(--navy);font-weight:700;text-align:left;cursor:default}
   .fyband{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,1fr);gap:10px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:12px;padding:10px 12px}
   .fyband .l{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;opacity:.8;font-weight:700}
@@ -179,6 +212,20 @@
   .cp-t tr.cpp small{display:block;color:var(--t3);font-size:10.5px}.cp-t .cpn{color:#b56b00}
   .cp-t tr.cpb{cursor:pointer}.cp-t tr.cpb td{background:#f6f9fd}.cp-t tr.cpb td:first-child{padding-left:26px}
   .cp-t tr.cps td{background:#fbfcfe;color:var(--t2)}.cp-t tr.cps td:first-child{padding-left:46px}
+  .cp-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+  .cp-tabs button{border:1px solid #dbe3ef;background:#fff;border-radius:16px;padding:4px 11px;font:inherit;font-size:12px;font-weight:700;color:var(--t2);cursor:pointer}
+  .cp-tabs button b{margin-left:3px}.cp-tabs button.on{background:var(--volt);border-color:var(--volt);color:#fff}
+  .cp-tabs .t-growing b{color:#0f8a3c}.cp-tabs .t-declining b{color:#b56b00}.cp-tabs .t-lost b{color:#c62828}.cp-tabs .t-nw b{color:#7b4fd6}.cp-tabs button.on b{color:#fff}
+  .cp-t tr.cpd>td{background:#f6f9fd;padding:10px 12px 12px 26px;text-align:left;white-space:normal}
+  .cpd-g{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;position:sticky;left:26px;width:min(740px,calc(100vw - 90px))}
+  .cp-t table{min-width:100%}.cp-t th,.cp-t td{padding:7px 8px}
+  @media(max-width:760px){.cpd-g{grid-template-columns:1fr}}
+  .cpd-t{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--t3);margin-bottom:4px}.cpd-t span{font-weight:600;letter-spacing:0;text-transform:none}
+  .cpd-tb{width:100%;font-size:11.5px;background:#fff;border:1px solid var(--line);border-radius:8px;border-collapse:separate;overflow:hidden}
+  .cpd-tb th{position:static!important;background:#eef2f8!important;color:var(--t3)!important;font-size:10px;padding:5px 7px}
+  .cpd-tb td{padding:4px 7px}.cpd-tb tr.fut td{color:#b3bdd0}
+  .cpd-tb tr.cpb td{background:#fff}.cpd-tb tr.cpb td:first-child{padding-left:7px}.cpd-tb tr.cps td{background:#fbfcfe}.cpd-tb tr.cps td:first-child{padding-left:22px}
+  .cpd-tb small{color:var(--t3);font-size:10px}
   .cp-t .cv{display:inline-block;width:14px;color:var(--t3);font-size:10px}
   .dr{position:fixed;top:0;right:0;bottom:0;width:min(860px,100%);background:#f6f8fc;z-index:81;transform:translateX(100%);transition:transform .25s ease;overflow:auto;box-shadow:-10px 0 30px rgba(11,41,66,.2)}
   .dr.on{transform:none}
@@ -450,13 +497,16 @@ function periodTarget(T, act){
 }
 function wonSum(r, months){ let v = 0, n = 0; const s = new Set(months); if (r && NO_WON.includes(r)) return { v:null, n:null };
   S.won.forEach(w => { if (w.y === 0 && (!r || w.r === r) && s.has(w.m) && !NO_WON.includes(w.r)) { v += w.v; n += w.n; } }); return { v, n }; }
+function cfLabel(){ const sel = MONTHS.filter(m => S.months.includes(m)); if (!sel.length) return 'earlier months'; const i = IDX(sel[0]); return i <= 0 ? 'earlier months' : i === 1 ? MN[MONTHS[0]] : MN[MONTHS[0]] + '–' + MN[MONTHS[i - 1]]; }
 function regionStats(r){
   const act = monthly(r, S.doc, 0), ly = monthly(r, S.doc, 1), sel = S.months;
   const a = sel.reduce((s, m) => s + act[m], 0), l = sel.reduce((s, m) => s + ly[m], 0);
   const T = targetOf(r), plain = T == null ? null : S.months.reduce((s2, m) => s2 + plan(T, m), 0);
   const pct = plain ? a / plain * 100 : null;      // plain target: no carried-forward items on regions (user, 26-Oct-2026)
+  // 25-Nov-2026: shortfall carried in from earlier months (same carry rule as PM Cumulative) — shown beside the plain target
+  const pt = T == null ? null : periodTarget(T, act), cin = pt ? Math.max(0, pt.tgt - plain) : 0;
   return { r, T, act, a, l, plain, tgt:plain, gap:plain == null ? null : plain - a, pct, gr:l ? (a - l) / l * 100 : null,
-           won:wonSum(r, sel), wonFy:wonSum(r, ytd()) };
+           cin, rev:plain == null ? null : plain + cin, won:wonSum(r, sel), wonFy:wonSum(r, ytd()) };
 }
 function allRegions(all){
   const seen = new Set(S.rows.map(x => x.r));
@@ -482,6 +532,10 @@ function fyView(R){
     if (i <= li) done += act[m]; });
   return { T, plan, done, date:d };
 }
+// 25-Nov-2026: % ring for the region cards
+const ringHex = p => p == null ? '#9fb3d1' : p >= 100 ? '#3ee08f' : p >= 80 ? '#ffc35a' : '#ff8a8a';
+const ringOf = p => { const v = p == null ? 0 : Math.min(p, 100), c = ringHex(p);
+  return `<svg class="ring" width="46" height="46" viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" fill="none" stroke="rgba(255,255,255,.15)" stroke-width="5"/><circle cx="23" cy="23" r="19" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(v / 100 * 119.4).toFixed(1)} 200" transform="rotate(-90 23 23)"/><text x="23" y="27" text-anchor="middle" font-size="${p != null && p >= 100 ? 10.5 : 11}" font-weight="800" fill="#fff">${p == null ? '—' : Math.round(p) + '%'}</text></svg>`; };
 const colOf = p => p == null ? '#b7c3d6' : p >= 100 ? 'var(--g1)' : p >= 80 ? 'var(--a1)' : 'var(--r1)';
 const chip = p => p == null ? '<span class="chip c-na">—</span>' : `<span class="chip ${p >= 100 ? 'c-good' : p >= 80 ? 'c-warn' : 'c-bad'}">${p.toFixed(1)}%</span>`;
 const grTxt = (a, l) => !l ? (a ? '<span class="gr-up">new</span>' : '—') : `<span class="${a >= l ? 'gr-up' : 'gr-dn'}">${a >= l ? '▲' : '▼'} ${Math.abs((a - l) / l * 100).toFixed(1)}%</span>`;
@@ -649,18 +703,23 @@ function renderLeague(){
   R.sort((a, b) => { const va = val(a, sk), vb = val(b, sk); return (typeof va === 'string' ? va.localeCompare(vb) : va - vb) * sd; });
   $('lgSub').textContent = `${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ${periodLabel()} · ₹ lakhs · click a region for its product baskets`;
   const groups = [...GMS.map(g => g.gm), NOGM].map(gm => ({ gm, R:R.filter(x => x.gm === gm) })).filter(g => g.R.length);
-  const gmHead = g => { const GT = groupTarget(g.R), T = GT.T, t = GT.plain, a = g.R.reduce((s, x) => s + x.a, 0), p = t ? a / t * 100 : null;
-    return `<div class="gmh"><div class="gmn">${g.gm === NOGM ? esc(NOGM) : '👤 ' + esc(g.gm)}<span class="sub"> · ${g.R.map(x => esc(x.r)).join(', ')}</span></div>
-      <div class="gmv"><span>FY target <b>${fL(T)}</b></span><span>Target <b>${fL(t)}</b></span><span>${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} <b>${fL(a)}</b></span>
-      <span class="gmp ${p == null ? '' : p >= 100 ? 'gr-up' : p >= 80 ? 'warnT' : 'gr-dn'}">${p == null ? '—' : p.toFixed(1) + '% achieved'}</span><span class="sub">${T ? (a / T * 100).toFixed(0) + '% of FY' : ''}</span></div></div>`; };
+  // 25-Nov-2026: Ocean band GM header — glass stat chips, achieved badge, FY ring
+  const gmHead = g => { const GT = groupTarget(g.R), T = GT.T, t = GT.plain, a = g.R.reduce((s, x) => s + x.a, 0), p = t ? a / t * 100 : null, fy = T ? a / T * 100 : null;
+    const ini = g.gm === NOGM ? '··' : g.gm.split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const st = (l, v) => `<div class="gst"><span>${l}</span><b>${v}</b></div>`;
+    const ring = fy == null ? '' : `<svg class="gring" width="40" height="40" viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" fill="none" stroke="rgba(255,255,255,.25)" stroke-width="5"/><circle cx="23" cy="23" r="19" fill="none" stroke="#b9ffd6" stroke-width="5" stroke-linecap="round" stroke-dasharray="${(Math.min(100, fy) / 100 * 119.4).toFixed(1)} 200" transform="rotate(-90 23 23)"/><text x="23" y="27" text-anchor="middle" font-size="11" font-weight="800" fill="#fff">${Math.round(fy)}%</text></svg><span class="gfy">of FY<br>done</span>`;
+    return `<div class="gmh"><div class="gmn"><span class="gmav">${esc(ini)}</span><div><div class="gnm">${esc(g.gm)}</div><div class="grg">${g.R.map(x => esc(x.r)).join(' · ')} · ${g.R.length} region${g.R.length > 1 ? 's' : ''}</div></div></div>
+      <div class="gmv">${st('FY target', fL(T))}${st('Target', fL(t))}${st(S.doc === 'OB' ? 'Booked' : 'Invoiced', fL(a))}
+      <div class="gach ${p == null ? '' : p >= 100 ? 'ok' : p >= 80 ? 'mid' : 'bad'}">${p == null ? '—' : p.toFixed(1) + '%'}<small>ACHIEVED</small></div>${ring}</div></div>`; };
   if (S.view === 'cards') {
     const maxPct = 150;
     $('league').innerHTML = groups.map(g => gmHead(g) + '<div class="league">' + g.R.map((x, i) => {
       const w = x.pct == null ? 0 : Math.min(x.pct, maxPct) / maxPct * 100, mk = 100 / maxPct * 100;
       return `<div class="rc" data-r="${esc(x.r)}" style="--rcc:${colOf(x.pct)}">
-        <div class="top"><div><span class="rank">#${i + 1}</span><span class="nm">${esc(x.r)}</span></div>${chip(x.pct)}</div>
+        <div class="top"><div class="rnm"><span class="rank">${i + 1}</span><span class="nm">${esc(x.r)}</span></div>${ringOf(x.pct)}</div>
         <div class="nums"><span>Achieved <b>${fL(x.a)}</b></span><span>Target <b>${fL(x.tgt)}</b></span><span>${grTxt(x.a, x.l)}</span></div>
-        <div class="trow"><div class="track"><div class="fill" style="width:${w}%;background:${colOf(x.pct)}"></div>${x.tgt != null ? `<div class="mark" style="left:${mk}%"></div>` : ''}</div>${x.T != null ? `<div class="fyv">FY target <b>${fL(x.T)}</b></div>` : ''}</div>
+        ${x.cin > 0.05 ? `<div class="cfw" title="Shortfall of earlier months still pending (net of any extra), added on top of the plain target">↻ Carried from ${esc(cfLabel())} <b>₹${fL(x.cin)} L</b><span>with it: ₹${fL(x.rev)} L · ${x.a >= x.rev ? 'covered ✓' : 'still ₹' + fL(x.rev - x.a) + ' L'}</span></div>` : ''}
+        <div class="trow"><div class="track"><div class="fill" style="width:${w}%;background:linear-gradient(90deg,${ringHex(x.pct)}99,${ringHex(x.pct)})"></div>${x.tgt != null ? `<div class="mark" style="left:${mk}%"></div>` : ''}</div>${x.T != null ? `<div class="fyv">FY target <b>${fL(x.T)}</b></div>` : ''}</div>
         ${x.T != null ? `<div class="fyt">${(x.a / x.T * 100).toFixed(0)}% of FY done</div>` : ''}
         <div class="won"><span>${x.won.v == null ? '<span class="sub">Potentials not shown for OEM</span>' : `◆ Won ₹${fL(x.won.v)} L (${x.won.n}) · FY ₹${fL(x.wonFy.v)} L`}</span>${x.gap == null ? '' : x.gap > 0.05 ? `<span class="pgap neg" title="Still to get to reach the target of ${esc(periodLabel())}">Pending ₹${fL(x.gap)} L</span>` : `<span class="pgap pos" title="Above the target of ${esc(periodLabel())}">Extra ₹${fL(-x.gap)} L</span>`}</div></div>`; }).join('') + '</div>').join('');
   } else {
@@ -734,13 +793,13 @@ function openRegion(r, keep){
   $('dBody').innerHTML = `<div class="dk">
       <div class="k"><div class="l">Target</div><div class="v">${fL(x.tgt)}</div><div class="s">₹ L · FY ${fL(x.T)}</div></div>
       <div class="k"><div class="l">Achieved</div><div class="v">${fL(x.a)}</div><div class="s">${chip(x.pct)}</div></div>
+      ${x.cin > 0.05 ? `<div class="k" style="background:#fff6e6"><div class="l">Carried shortfall</div><div class="v" style="color:#b56b00">${fL(x.cin)}</div><div class="s">₹ L from ${esc(cfLabel())} · target with it ${fL(x.rev)}</div></div>` : ''}
       <div class="k"><div class="l">${x.gap != null && x.gap < 0 ? 'Ahead by' : 'Gap'}</div><div class="v">${x.gap == null ? '—' : fL(Math.abs(x.gap))}</div><div class="s">${x.short > 0 ? '' : ''}₹ L</div></div>
       <div class="k"><div class="l">vs last year</div><div class="v">${grTxt(x.a, x.l)}</div><div class="s">LY ${fL(x.l)} L</div></div>
       <div class="k" style="background:var(--won-bg)"><div class="l">Potentials won</div><div class="v wonv">${fL(x.won.v)}</div><div class="s">${x.won.v == null ? 'not shown for OEM' : x.won.n + ' deals · period'}</div></div>
       <div class="k" style="background:var(--won-bg)"><div class="l">Won · FY to date</div><div class="v wonv">${fL(x.wonFy.v)}</div><div class="s">${x.wonFy.v == null ? 'not shown for OEM' : x.wonFy.n + ' deals'}</div></div>
       ${(() => { const pr = S.pend && S.cy === curFy() ? (S.pend.reg || []).find(a => a[0] === r) : null;
         return S.pend && S.cy === curFy() ? `<div class="k pendd" data-pendr="${esc(r)}"><div class="l">Pending to bill</div><div class="v">${fL(pr ? +pr[3] : 0)}</div><div class="s">₹ L · ${pr ? pr[1] + ' OAs' : 'no open orders'}${pr && +pr[4] ? ' · ' + fL(+pr[4]) + ' last FY' : ''} · tap for OAs</div></div>` : ''; })()}</div>
-    <div class="card" id="cpCard"><div id="cpHost">${cpHtml(r)}</div></div>
     ${NO_WON.includes(r) ? '' : `<div class="card" id="noaCard"><div id="noaHost">${noaHtml(r)}</div></div>`}
     <div class="card"><div class="card-h"><div><h2>Product basket break-up</h2><div class="sub">Share of the region's ${S.doc === 'OB' ? 'order booking' : 'invoicing'} in the period · click a basket for its product series</div></div></div>
       ${list.length ? `<div class="split">${donut(list, tot)}<div class="tbl"><table class="bk"><thead><tr><th>Product basket</th><th>Value ₹ L</th><th>% contribution</th><th>LY same period</th><th>Growth</th></tr></thead><tbody>` +
@@ -750,7 +809,8 @@ function openRegion(r, keep){
         `<tr class="tot"><td>Total</td><td>${fL(tot)}</td><td>100%</td><td>${fL(list.reduce((s, o) => s + o.l, 0))}</td><td>${grTxt(tot, list.reduce((s, o) => s + o.l, 0))}</td></tr></tbody></table></div></div>` : '<div class="empty">No sales in this period.</div>'}
     </div>
     ${S.openBk ? `<div class="card" id="serCard"><div id="serHost">${serHtml(r, S.openBk)}</div></div>` : ''}
-    <div class="card"><div class="card-h"><div><h2>Month by month — ${esc(r)}</h2><div class="sub">₹ lakhs · this year vs last year vs plan</div></div></div>${monthChart(r)}</div>`;
+    <div class="card"><div class="card-h"><div><h2>Month by month — ${esc(r)}</h2><div class="sub">₹ lakhs · this year vs last year vs plan</div></div></div>${monthChart(r)}</div>
+    <div class="card" id="cpCard"><div id="cpHost">${cpHtml(r)}</div></div>`;
   $('ov').classList.add('on'); $('dr').classList.add('on');
   if (!NO_WON.includes(r)) loadNoa(r);
   loadCp(r);
@@ -847,35 +907,54 @@ function cpAgg(rows){ // -> { pv, plv, pm, fy, lfy, q }
   return o;
 }
 function cpHtml(r){
-  const D = (S.cpd || {})[cpKey(r)], C = S.cpv = S.cpv || { all:false, open:{}, q:'' };
-  const li = latestIdx(), pmN = li > 0 ? MN[MONTHS[li - 1]] : '—', per = periodLabel().replace(/ \(.*\)/, ''), W = S.doc === 'OB' ? 'order booking' : 'invoicing';
-  const head = `<div class="card-h"><div><h2>Channel partner performance — ${esc(r)}</h2><div class="sub">${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ₹ lakhs · click a partner for its product baskets, then a basket for its product series</div></div>
+  const D = (S.cpd || {})[cpKey(r)], C = S.cpv = S.cpv || { all:false, open:{}, q:'', tab:'all' };
+  const li = latestIdx(), pmN = li > 0 ? MN[MONTHS[li - 1]] : '—', per = periodLabel().replace(/ \(.*\)/, ''), cyL = fyLabel(S.cy), lyL = fyLabel(S.cy - 1);
+  const head = `<div class="card-h"><div><h2>Channel partner performance — ${esc(r)}</h2><div class="sub">${S.doc === 'OB' ? 'Order booking' : 'Invoicing'} · ₹ lakhs · ${cyL} vs ${lyL} (same period) · click a partner for its product baskets, series and month-by-month</div></div>
     <div class="cp-ctl"><div class="tog" id="cpAll"><button data-cpall="0" class="${C.all ? '' : 'on'}">Channel partners & VARs</button><button data-cpall="1" class="${C.all ? 'on' : ''}">All customers</button></div>
     <input id="cpQ" type="search" placeholder="Search partner…" value="${esc(C.q)}"></div></div>`;
   if (!D || D.loading) return head + '<div class="empty">Loading partners…</div>';
   if (D.err) return head + `<div class="empty">Could not load — ${esc(D.err)}${/rt_partners/.test(D.err) ? ' (run supabase/rt_partners.sql in Supabase)' : ''}</div>`;
   const byC = {}; D.rows.forEach(a => { if (!C.all && !isCpT(a[1])) return; (byC[a[0]] = byC[a[0]] || { c:a[0], t:a[1], rows:[] }).rows.push(a); });
-  let P = Object.values(byC).map(x => ({ ...x, ...cpAgg(x.rows) })).filter(x => Math.abs(x.pv) + Math.abs(x.fy) + Math.abs(x.lfy) + Math.abs(x.plv) > 0.0005);
-  const q = C.q.trim().toLowerCase(); if (q) P = P.filter(x => x.c.toLowerCase().includes(q));
-  P.sort((a, b) => b.pv - a.pv || b.fy - a.fy);
+  let P = Object.values(byC).map(x => ({ ...x, ...cpAgg(x.rows), nb:new Set(x.rows.filter(a => +a[4] === 0 && +a[6] > 0).map(a => a[2])).size }))
+    .filter(x => Math.abs(x.pv) + Math.abs(x.fy) + Math.abs(x.lfy) + Math.abs(x.plv) > 0.0005);
+  const q = C.q.trim().toLowerCase(); if (q) P = P.filter(x => x.c.toLowerCase().includes(q) || x.t.toLowerCase().includes(q));
+  const TABS = { all:['All', () => true], growing:['Growing', x => x.lfy > 0.0005 && x.fy > x.lfy], declining:['Declining', x => x.fy > 0.0005 && x.fy < x.lfy],
+                 nw:['New', x => x.fy > 0.0005 && x.lfy <= 0.0005], lost:['Lost', x => x.lfy > 0.0005 && x.fy <= 0.0005], idle:[`Nothing in ${per}`, x => x.pv <= 0.0005 && x.fy > 0.0005] };
+  const all = P, regFy = all.reduce((t, x) => t + x.fy, 0);
+  P = P.filter(TABS[C.tab] ? TABS[C.tab][1] : () => true);
+  P.sort((a, b) => C.tab === 'lost' ? b.lfy - a.lfy : C.tab === 'declining' ? (a.fy - a.lfy) - (b.fy - b.lfy) : (b.pv - a.pv || b.fy - a.fy));
   const T = P.reduce((t, x) => ({ pv:t.pv + x.pv, plv:t.plv + x.plv, pm:t.pm + x.pm, fy:t.fy + x.fy, lfy:t.lfy + x.lfy }), { pv:0, plv:0, pm:0, fy:0, lfy:0 });
-  const act = P.filter(x => x.pv > 0.0005).length, dorm = P.filter(x => x.pv <= 0.0005 && x.fy > 0.0005).length, lost = P.filter(x => x.fy <= 0.0005 && x.lfy > 0.0005).length;
-  const cells = (o, pad) => `<td>${fL(o.pv)}</td><td>${fL(o.plv)}</td><td>${grTxt(o.pv, o.plv)}</td><td>${fL(o.pm)}</td><td>${fL(o.fy)}</td><td>${fL(o.lfy)}</td><td>${grTxt(o.fy, o.lfy)}</td>`;
-  const rowsH = P.map(x => { const op = C.open[x.c]; let h = `<tr class="cpp" data-cpc="${esc(x.c)}"><td class="l"><span class="cv">${op ? '▾' : '▸'}</span><b>${esc(x.c)}</b><small>${esc(x.t)}${x.pv <= 0.0005 ? ' · <span class="cpn">nothing in ' + esc(per) + '</span>' : ''}</small></td>${cells(x)}</tr>`;
-    if (op) { const byB = {}; x.rows.forEach(a => (byB[a[2]] = byB[a[2]] || []).push(a));
-      Object.entries(byB).map(([b, rs]) => ({ b, rs, ...cpAgg(rs) })).filter(o => Math.abs(o.pv) + Math.abs(o.fy) + Math.abs(o.lfy) > 0.0005).sort((a, b) => b.pv - a.pv || b.fy - a.fy).forEach(o => {
-        const ob = op[o.b]; h += `<tr class="cpb" data-cpc="${esc(x.c)}" data-cpb="${esc(o.b)}"><td class="l"><span class="cv">${ob ? '▾' : '▸'}</span>${esc(o.b)}</td>${cells(o)}</tr>`;
-        if (ob) { const byS = {}; o.rs.forEach(a => (byS[a[3]] = byS[a[3]] || []).push(a));
-          h += Object.entries(byS).map(([sr, rs]) => ({ sr, ...cpAgg(rs) })).filter(z => Math.abs(z.pv) + Math.abs(z.fy) + Math.abs(z.lfy) > 0.0005).sort((a, b) => b.pv - a.pv || b.fy - a.fy)
-            .map(z => `<tr class="cps"><td class="l">${esc(z.sr)}${z.q ? ` <small style="display:inline">· ${Math.round(z.q).toLocaleString('en-IN')} pcs</small>` : ''}</td>${cells(z)}</tr>`).join(''); } }); }
-    return h; }).join('');
-  return head + `<div class="cpk"><span><b>${P.length}</b> ${C.all ? 'customers' : 'partners'}</span><span class="g"><b>${act}</b> active in ${esc(per)}</span><span class="a"><b>${dorm}</b> bought this FY but not in ${esc(per)}</span><span class="r"><b>${lost}</b> bought last FY, nothing this FY</span></div>
-    <div class="tbl cp-t"><table><thead><tr><th class="l">${C.all ? 'Customer' : 'Partner'} / basket / series</th><th>${esc(per)}</th><th>LY same</th><th>Growth</th><th>${pmN} (prev. month)</th><th>FY to date</th><th>LY to date</th><th>FY growth</th></tr></thead><tbody>
-    ${rowsH || `<tr><td colspan="8" class="l">No ${C.all ? 'customers' : 'channel partners / VARs'} in this region</td></tr>`}
-    <tr class="tot"><td class="l">Total · ${P.length}</td>${cells(T)}</tr></tbody></table></div>
-    <div class="sub" style="margin-top:6px">${esc(per)} = months chosen at the top · LY = ${fyLabel(S.cy - 1)}, same months (running month cut at the same day) · FY to date = Apr → ${MN[curMonth()]}.</div>`;
+  const chg = d => `<span class="${d >= 0 ? 'gr-up' : 'gr-dn'}">${d >= 0 ? '+' : '−'}${fL(Math.abs(d))}</span>`;
+  const detail = x => { const op = C.open[x.c] || {};
+    // baskets (click for series)
+    const byB = {}; x.rows.forEach(a => (byB[a[2]] = byB[a[2]] || []).push(a));
+    const B = Object.entries(byB).map(([b, rs]) => ({ b, rs, ...cpAgg(rs) })).filter(o => Math.abs(o.pv) + Math.abs(o.fy) + Math.abs(o.lfy) > 0.0005).sort((a, b) => b.fy - a.fy);
+    const bfy = B.reduce((t, o) => t + o.fy, 0);
+    const bRows = B.map(o => { const ob = op[o.b]; let h = `<tr class="cpb" data-cpc="${esc(x.c)}" data-cpb="${esc(o.b)}"><td class="l"><span class="cv">${ob ? '▾' : '▸'}</span>${esc(o.b)}</td><td>${fL(o.pv)}</td><td>${fL(o.fy)}</td><td>${fL(o.lfy)}</td><td>${grTxt(o.fy, o.lfy)}</td><td>${bfy ? (o.fy / bfy * 100).toFixed(1) + '%' : '—'}</td></tr>`;
+      if (ob) { const byS = {}; o.rs.forEach(a => (byS[a[3]] = byS[a[3]] || []).push(a));
+        h += Object.entries(byS).map(([sr, rs]) => ({ sr, ...cpAgg(rs), fq:rs.filter(a => +a[4] === 0 && MONTHS.slice(0, li + 1).includes(+a[5])).reduce((t, a) => t + +a[7], 0) }))
+          .filter(z => Math.abs(z.pv) + Math.abs(z.fy) + Math.abs(z.lfy) > 0.0005).sort((a, b) => b.fy - a.fy)
+          .map(z => `<tr class="cps"><td class="l">${esc(z.sr)}<small> ${z.fq ? Math.round(z.fq).toLocaleString('en-IN') + ' pcs FY' : ''}${z.q ? ' · ' + Math.round(z.q).toLocaleString('en-IN') + ' in ' + esc(per) : ''}</small></td><td>${fL(z.pv)}</td><td>${fL(z.fy)}</td><td>${fL(z.lfy)}</td><td>${grTxt(z.fy, z.lfy)}</td><td>${o.fy ? (z.fy / o.fy * 100).toFixed(1) + '%' : '—'}</td></tr>`).join(''); }
+      return h; }).join('');
+    // month by month, this FY vs last FY + cumulative
+    const mc = {}, ml = {}; x.rows.forEach(a => { const m = +a[5]; if (+a[4] === 0) mc[m] = (mc[m] || 0) + +a[6]; else ml[m] = (ml[m] || 0) + +a[6]; });
+    let cc = 0, cl = 0; const mRows = MONTHS.map((m, i) => { const c = mc[m] || 0, l = ml[m] || 0; if (i <= li) { cc += c; } cl += i <= li ? l : 0;
+      return `<tr class="${i > li ? 'fut' : ''}"><td class="l">${MN[m]}</td><td>${i > li ? '—' : fL(c)}</td><td>${fL(l)}</td><td>${i > li ? '' : grTxt(c, l)}</td><td>${i > li ? '' : fL(cc)}</td><td>${i > li ? '' : fL(cl)}</td><td>${i > li ? '' : grTxt(cc, cl)}</td></tr>`; }).join('');
+    return `<tr class="cpd"><td colspan="11"><div class="cpd-g">
+      <div><div class="cpd-t">Product baskets <span>· click a basket for its series</span></div><table class="cpd-tb"><thead><tr><th class="l">Basket / series</th><th>${esc(per)}</th><th>FY to date</th><th>LY to date</th><th>Growth</th><th>Mix</th></tr></thead><tbody>${bRows}</tbody></table></div>
+      <div><div class="cpd-t">Month by month <span>· ${cyL} vs ${lyL}</span></div><table class="cpd-tb"><thead><tr><th class="l">Month</th><th>${cyL.replace('FY ', '')}</th><th>${lyL.replace('FY ', '')}</th><th>Growth</th><th>Cum.</th><th>Cum. LY</th><th>Cum. gr.</th></tr></thead><tbody>${mRows}</tbody></table></div></div></td></tr>`; };
+  const rowsH = P.map(x => `<tr class="cpp" data-cpc="${esc(x.c)}"><td class="l"><span class="cv">${C.open[x.c] ? '▾' : '▸'}</span><b>${esc(x.c)}</b><small>${esc(x.t)}${x.nb ? ' · ' + x.nb + ' basket' + (x.nb > 1 ? 's' : '') + ' this FY' : ''}${x.pv <= 0.0005 && x.fy > 0.0005 ? ' · <span class="cpn">nothing in ' + esc(per) + '</span>' : ''}</small></td>
+      <td>${fL(x.pv)}</td><td>${fL(x.plv)}</td><td>${grTxt(x.pv, x.plv)}</td><td>${fL(x.pm)}</td><td><b>${fL(x.fy)}</b></td><td>${fL(x.lfy)}</td><td>${chg(x.fy - x.lfy)}</td><td>${grTxt(x.fy, x.lfy)}</td><td>${regFy ? (x.fy / regFy * 100).toFixed(1) + '%' : '—'}</td></tr>` + (C.open[x.c] ? detail(x) : '')).join('');
+  const cnt = k => all.filter(TABS[k][1]).length;
+  return head + `<div class="cp-tabs">${Object.entries(TABS).map(([k, t]) => `<button data-cptab="${k}" class="${C.tab === k ? 'on' : ''} t-${k}">${esc(t[0])} <b>${cnt(k)}</b></button>`).join('')}</div>
+    <div class="cpk"><span>${P.length} ${C.all ? 'customers' : 'partners'} · FY to date ₹${fL(T.fy)} L vs ₹${fL(T.lfy)} L LY ${grTxt(T.fy, T.lfy)}</span><span>${esc(per)} ₹${fL(T.pv)} L vs ₹${fL(T.plv)} L LY ${grTxt(T.pv, T.plv)}</span><span>${pmN} ₹${fL(T.pm)} L</span></div>
+    <div class="tbl cp-t"><table><thead><tr><th class="l">${C.all ? 'Customer' : 'Partner'}</th><th>${esc(per)}</th><th>LY same</th><th>Growth</th><th>${pmN} (prev. month)</th><th>FY to date</th><th>LY to date</th><th>Change</th><th>FY growth</th><th>Share of region</th></tr></thead><tbody>
+    ${rowsH || `<tr><td colspan="10" class="l">No ${C.all ? 'customers' : 'channel partners / VARs'} here</td></tr>`}
+    <tr class="tot"><td class="l">Total · ${P.length}</td><td>${fL(T.pv)}</td><td>${fL(T.plv)}</td><td>${grTxt(T.pv, T.plv)}</td><td>${fL(T.pm)}</td><td>${fL(T.fy)}</td><td>${fL(T.lfy)}</td><td>${chg(T.fy - T.lfy)}</td><td>${grTxt(T.fy, T.lfy)}</td><td>${regFy ? (T.fy / regFy * 100).toFixed(1) + '%' : '—'}</td></tr></tbody></table></div>
+    <div class="sub" style="margin-top:6px">Growing / Declining / New / Lost compare FY to date with the same period of ${lyL} (running month cut at the same day). ${esc(per)} = months chosen at the top. Share of region = partner's FY to date ÷ all ${C.all ? 'customers' : 'partners'} in ${esc(r)}.</div>`;
 }
 $('dBody').addEventListener('click', e => {
+  const tb = e.target.closest('[data-cptab]'); if (tb) { S.cpv.tab = tb.dataset.cptab; $('cpHost').innerHTML = cpHtml(S.open); return; }
   const t = e.target.closest('[data-cpall]'); if (t) { S.cpv.all = t.dataset.cpall === '1'; S.cpv.open = {}; $('cpHost').innerHTML = cpHtml(S.open); return; }
   const b = e.target.closest('tr[data-cpb]'); if (b) { const o = S.cpv.open[b.dataset.cpc]; o[b.dataset.cpb] = !o[b.dataset.cpb]; $('cpHost').innerHTML = cpHtml(S.open); return; }
   const c = e.target.closest('tr[data-cpc]'); if (c) { const k = c.dataset.cpc; S.cpv.open[k] = S.cpv.open[k] ? null : {}; $('cpHost').innerHTML = cpHtml(S.open); return; }
