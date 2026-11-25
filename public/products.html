@@ -76,7 +76,7 @@
   .card>.card-h .toggle{background:rgba(255,255,255,.18)}
   .card>.card-h .toggle button{color:#fff}
   .card>.card-h .toggle button.on{background:#fff;color:#0073C8}
-  .card>.card-h .f label{color:#dff4ff}
+  .card>.card-h .f>label{color:#dff4ff}
   .card>.card-h .btn{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.55)}
   #view .tbl{border:1px solid #e3e9f2;border-radius:12px}
   /* the portal's table-scroll.js paints header cells #f5f7fb when they look transparent, so the gradient sits on thead and the cells are forced clear */
@@ -105,6 +105,16 @@
 
   /* F: hero strip */
   .hero{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));background:linear-gradient(110deg,#005fa8,#0089b8 55%,#00a3a3);border-radius:14px;overflow:hidden;margin-bottom:14px;box-shadow:0 6px 18px rgba(0,115,200,.18)}
+  .fpk{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:12px;color:var(--t2);margin-bottom:6px}.fpk b{color:var(--t1)}
+  .fpc{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:6px;max-width:760px}
+  .fpm{text-align:center;font-size:10px;color:var(--t3)}.fpm.fut{opacity:.4}.fpm em{display:block;font-style:normal;font-weight:700;color:var(--t1);font-size:9.5px;min-height:12px}
+  .fpb{position:relative;height:54px;background:#f3f6fb;border-radius:5px;display:flex;align-items:flex-end;justify-content:center;gap:2px;padding:0 3px}
+  .fpb i{display:block;width:45%;border-radius:3px 3px 0 0}.fpb i.c{background:linear-gradient(#2ee6c9,#00a3a3)}.fpb i.l{background:#c7d3e4}
+  .fpleg{font-size:11px;color:var(--t3);margin:5px 0}.fpleg i{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 4px -1px 8px}.fpleg i.c{background:#00a3a3}.fpleg i.l{background:#c7d3e4}
+  .fpser{font-size:12px;color:var(--t2)}.fps{display:inline-block;background:#eef6fb;border-radius:8px;padding:2px 8px;margin:2px 4px 2px 0}
+  .fcov{display:inline-block;width:130px;height:9px;background:#eef2f8;border-radius:5px;vertical-align:middle;margin-right:6px}
+  .fcov i{display:block;height:100%;background:#f6c9cf;border-radius:5px;overflow:hidden}.fcov b{display:block;height:100%;background:linear-gradient(90deg,#00a3a3,#2ee6c9)}
+  .hero.h5{grid-template-columns:repeat(5,minmax(0,1fr))}
   .hero>div{padding:14px 16px;border-right:1px solid rgba(255,255,255,.18);color:#fff;min-width:0}
   .hero>div:last-child{border-right:0}
   .hero .l{font-size:10.5px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#cfe9ff}
@@ -416,13 +426,15 @@ async function loadPend(){
     S.pend = { by, tot:+(a.tot || {}).v || 0, at:a.snap && a.snap.at };
   } catch (e) { S.pend = { err:e.message || String(e), by:{} }; }
 }
+// 25-Nov-2026: no Potentials / Leads modules (and no pipeline tile) for these products
+const NO_PL_FAMS = ['OEM', 'Other', 'FDP'];
 async function loadPipe(fam){
   try {
     if (!S.pipe || S.pipe.cy !== S.fy) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:null }); S.pipe = { cy:S.fy, sum:p.sum || [], lines:p.lines_synced, asof:p.asof }; S.list = {}; }
-    if (fam === 'OEM' || fam === 'Other') return;   // no Potentials / Leads modules there
+    if (NO_PL_FAMS.includes(fam)) return;   // no Potentials / Leads modules there
     if (fam && !S.list[fam]) { const p = await rpc('prd_pipe', { p_cy:S.fy, p_fam:fam }); S.list[fam] = p.list || []; }
   } catch (e) { S.pipe = { cy:S.fy, err:e.message || String(e), sum:[] }; }
-  if (fam && fam !== 'OEM' && fam !== 'Other') await loadLeadsFam(fam);
+  if (fam && !NO_PL_FAMS.includes(fam)) await loadLeadsFam(fam);
 }
 // 25-Nov-2026: leads of one family, valued from each lead's own product lines (Zoho "Products Information")
 async function loadLeadsFam(fam){
@@ -604,12 +616,12 @@ function heroHtml(o){
   const planPct = o.share * 100, obP = pc(o.obT ?? o.ob, o.T), gap = o.plan != null ? (o.obT ?? o.ob) - o.plan : null;
   const gr = o.lyOb ? (o.ob - o.lyOb) / o.lyOb * 100 : null;
   const cov = o.pend != null && o.inv ? o.pend / (o.inv / Math.max(1, curIdx() + 1)) : null;
-  return `<div class="hero">
+  return `<div class="hero${o.fam === 'FDP' ? ' h5' : ''}">
     <div><div class="l">Order booking · FY</div><div class="v">${f2(o.ob)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.obT ?? o.ob, o.T)) + ' of ' + f0(o.T) + (o.tl ? ' L (' + o.tl + ')' : ' target') : 'no target'}</div></div>
     <div><div class="l">Invoicing · FY</div><div class="v">${f2(o.inv)} <small>L</small></div><div class="s">${o.T ? fp(pc(o.inv, o.T)) + ' of ' + f0(o.T) + (o.tl ? ' L (' + o.tl + ')' : '') : 'no target'}</div></div>
     <div><div class="l">OB vs plan to date</div><div class="v ${gap == null ? '' : gap >= 0 ? 'up' : 'dn'}">${gap == null ? '—' : (gap >= 0 ? '+' : '−') + f2(Math.abs(gap))}</div><div class="s">${gap == null ? 'no target' : (gap >= 0 ? 'ahead of ' : 'short of ') + planPct.toFixed(1) + '% plan'}</div></div>
     <div ${o.pend != null ? `class="ck" data-pend="${esc(o.fam || '')}" title="Click for product basket › series › OA details"` : ''}><div class="l">Pending to bill${o.pend != null ? ' ↗' : ''}</div><div class="v">${o.pend == null ? '—' : f2(o.pend)}</div><div class="s">${cov != null ? cov.toFixed(1) + ' months of billing' : S.pend?.err ? 'not loaded' : 'daily 9 pm copy'}</div></div>
-    <div ${o.fam && !['OEM', 'Other'].includes(o.fam) ? `class="ck" data-pipe="${monthKey(curMonth())}" title="Click for region › sales engineer › potentials"` : ''}><div class="l">Pipeline · ${MNAME[curMonth()]}${o.fam && !['OEM', 'Other'].includes(o.fam) ? ' ↗' : ''}</div><div class="v">${o.pipe ? f2(o.pipe.open) : '—'}</div><div class="s">${o.pipe ? f2(o.pipe.w) + ' L weighted' : S.pipe?.err ? 'not loaded' : 'loading…'}</div></div>
+    ${o.fam === 'FDP' ? '' : `<div ${o.fam && !['OEM', 'Other'].includes(o.fam) ? `class="ck" data-pipe="${monthKey(curMonth())}" title="Click for region › sales engineer › potentials"` : ''}><div class="l">Pipeline · ${MNAME[curMonth()]}${o.fam && !['OEM', 'Other'].includes(o.fam) ? ' ↗' : ''}</div><div class="v">${o.pipe ? f2(o.pipe.open) : '—'}</div><div class="s">${o.pipe ? f2(o.pipe.w) + ' L weighted' : S.pipe?.err ? 'not loaded' : 'loading…'}</div></div>`}
     <div><div class="l">OB vs last year</div><div class="v ${gr == null ? '' : gr >= 0 ? 'up' : 'dn'}">${gr == null ? '—' : (gr >= 0 ? '▲ ' : '▼ ') + Math.abs(gr).toFixed(1) + '%'}</div><div class="s">${o.lyOb ? f2(o.lyOb) + ' L same period LY' : 'no LY data'}</div></div>
   </div>`;
 }
@@ -657,8 +669,8 @@ function renderFam(fam){
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   }
   // 25-Nov-2026: no Potentials / Leads modules for OEM and Other
-  const NO_PL = fam === 'OEM' || fam === 'Other';
-  h += seriesCard(fam) + regionCard(fam) + growthCard(fam) + (NO_PL ? '' : pipeCard(fam) + leadsCard(fam));
+  const NO_PL = NO_PL_FAMS.includes(fam);
+  h += seriesCard(fam) + regionCard(fam) + fdpCpCard(fam) + growthCard(fam) + (NO_PL ? '' : pipeCard(fam) + leadsCard(fam));
   $('view').innerHTML = h;
   bindFam(fam); bindTips(); enableSort($('view'));
 }
@@ -1003,7 +1015,7 @@ const DD = { mode:null };
 function ddShell(title, sub, extra){
   let ov = $('ddOv');
   if (!ov) { ov = document.createElement('div'); ov.id = 'ddOv'; ov.className = 'dd-ov dk-skip'; document.body.appendChild(ov);
-    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); DD.mode === 'pipe' ? ddPipeList() : DD.mode === 'lead' ? ddLeadList() : DD.mode === 'pend' ? ddPendDocs() : ddDocs(); } });
+    ov.addEventListener('click', ddClick); ov.addEventListener('input', e => { if (e.target.id === 'ddQ') { DD.q = e.target.value.toLowerCase(); DD.mode === 'pipe' ? ddPipeList() : DD.mode === 'lead' ? ddLeadList() : DD.mode === 'pend' ? ddPendDocs() : DD.mode === 'fcp' ? ddFcpList() : ddDocs(); } });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('ddOv')?.style.display !== 'none') ddClose(); }); }
   ov.style.display = 'flex';
   ov.innerHTML = `<div class="dd-box"><div class="dd-hd"><div><h3>${title}</h3><div class="s">${sub}</div></div>
@@ -1188,6 +1200,7 @@ async function ddClick(e){
   if (a) {
     if (a.dataset.a === 'close') return ddClose();
     if (DD.mode === 'pend') return ddPendClick(e);
+    if (DD.mode === 'fcp') return ddFcpClick(e);
     if (a.dataset.a === 'unrg' && DD.mode !== 'pipe' && DD.mode !== 'lead') { DD.rg = null; return DD.mode === 'pm' ? ddLoadPm() : ddRenderSe(); }
     if (a.dataset.a === 'unsr') { DD.sr = null; return ddLoadPm(); }
     if (a.dataset.a === 'unse' && DD.mode !== 'pipe' && DD.mode !== 'lead') { DD.se = null; return ddRenderSe(); }
@@ -1196,6 +1209,7 @@ async function ddClick(e){
       a.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === a)); $('ddBd').innerHTML = '<div class="dd-load">Loading…</div>'; return ddLoadSe(); }
   }
   if (DD.mode === 'pend') return ddPendClick(e);
+  if (DD.mode === 'fcp') return ddFcpClick(e);
   if (DD.mode === 'pipe') {
     if (a && a.dataset.a === 'unrg') { DD.rg = null; DD.se = null; return ddRenderPipe(); }
     if (a && a.dataset.a === 'unse') { DD.se = null; return ddRenderPipe(); }
@@ -1232,6 +1246,110 @@ function ddCsv(){
   a.download = `${String(DD.fam + (se ? '_' + DD.series : '')).replace(/[^A-Za-z0-9]+/g, '_')}_${DD.doc}.csv`; a.click();
 }
 
+
+/* ===== Channel partner / VAR coverage, region-wise, for every product (25-Nov-2026) =====
+   Partner list = Channel Partner Analytics rule: partners / value added retailers that booked anything this FY or last FY.
+   Booked = booked this product in the chosen months. Data: prd_cp_cover (products_v7.sql). */
+const isCpType = t => /^channel partners?$/i.test(String(t || '').trim()) || /value added/i.test(String(t || ''));
+const fcpKey = fam => S.fy + '|' + fam + '|' + S.fcp.months.join(',') + '|' + S.fcp.acct.join(',');
+async function loadFdpCp(fam){
+  const F = S.fcp, key = fcpKey(fam);
+  if (F.key === key && (F.data || F.err)) return;
+  F.key = key; F.data = null; F.err = null; F.loading = true;
+  try { const d = await rpc('prd_cp_cover', { p_cy:S.fy, p_months:F.months.length ? F.months : [curMonth()], p_fam:fam, p_acct:F.acct }); if (F.key === key) F.data = d; }
+  catch (e) { F.err = e.message || String(e); }
+  F.loading = false;
+}
+function fdpRegions(rows){
+  const by = {};
+  rows.forEach(r => { const o = (by[r[2]] = by[r[2]] || { rg:r[2], n:0, b:0, q:0, v:0, act:0 }); o.n++; if (+r[4] > 0 || +r[3] > 0) { o.b++; o.q += +r[3]; o.v += +r[4]; } if (+r[6] > 0) o.act++; });
+  return Object.values(by).sort((a, b) => b.n - a.n || b.v - a.v);
+}
+function fdpCpCard(fam){
+  S.fcp = S.fcp || { months:[curMonth()], acct:[] };
+  const F = S.fcp; F.fam = fam; if (F.key !== fcpKey(fam)) { F.data = null; F.err = null; }
+  MS.fcpM = { num:true, get:() => F.months, set:v => F.months = v, quick:MONTH_QUICK() };
+  const types = (F.data?.types || []), defT = types.filter(isCpType);
+  MS.fcpA = { get:() => F.acct, set:v => F.acct = v, quick:[['Channel partners + VAR', () => []]] };
+  const aLbl = !F.acct.length ? 'Channel partners + VAR' : F.acct.length === 1 ? F.acct[0] : F.acct.length + ' types';
+  let body;
+  if (F.err) body = `<div class="note">Could not load — ${esc(F.err)}${/prd_cp_cover/.test(F.err) ? ' (run products_v7.sql in Supabase)' : ''}</div>`;
+  else if (!F.data) body = '<div class="note">Loading channel partners…</div>';
+  else {
+    const R = F.data.rows || [], regs = fdpRegions(R), T = regs.reduce((a, o) => ({ n:a.n + o.n, b:a.b + o.b, q:a.q + o.q, v:a.v + o.v }), { n:0, b:0, q:0, v:0 });
+    const mx = Math.max(1, ...regs.map(o => o.n));
+    body = `<div class="kp"><div class="k"><div class="l">Partners</div><div class="v">${nf(T.n)}</div><div class="n">${esc(aLbl)} · ${regs.length} regions</div></div>
+      <div class="k"><div class="l">Booked ${esc(fam)}</div><div class="v" style="color:#0f9f8f">${nf(T.b)}</div><div class="n">${fp(pc(T.b, T.n))} of partners</div></div>
+      <div class="k"><div class="l">Not booked</div><div class="v" style="color:#d1495b">${nf(T.n - T.b)}</div><div class="n">${fp(pc(T.n - T.b, T.n))} of partners</div></div>
+      <div class="k"><div class="l">${esc(fam)} from partners</div><div class="v">₹${f2(T.v)} L</div><div class="n">${nf(T.q)} pcs · ${esc(monthsLabel(F.months))}</div></div></div>
+    <div class="tbl"><table id="fcpTable"><thead><tr><th class="l">Region</th><th>Partners</th><th>Booked</th><th>Not booked</th><th class="l">Coverage</th><th>Qty</th><th>Value (₹ L)</th></tr></thead><tbody>
+    ${regs.map(o => { const cv = pc(o.b, o.n);
+      return `<tr class="ck" data-frg="${esc(o.rg)}" title="Click for the partner list"><td class="l"><b>${esc(o.rg)}</b></td><td>${o.n}</td><td style="color:#0f9f8f;font-weight:700">${o.b}</td><td style="color:#d1495b;font-weight:700">${o.n - o.b}</td>
+        <td class="l"><span class="fcov"><i style="width:${o.n / mx * 100}%"><b style="width:${cv}%"></b></i></span> ${fp(cv)}</td><td>${nf(o.q)}</td><td>${f2(o.v)}</td></tr>`; }).join('') || '<tr><td colspan="7">No partners for this selection</td></tr>'}
+    <tr class="tot"><td class="l">Total · ${regs.length} regions</td><td>${T.n}</td><td>${T.b}</td><td>${T.n - T.b}</td><td class="l">${fp(pc(T.b, T.n))}</td><td>${nf(T.q)}</td><td>${f2(T.v)}</td></tr></tbody></table></div>
+    <div class="note">Partner list = same as Channel Partner Analytics: ${esc(aLbl)} accounts that booked anything (any product) this FY or last FY, placed in the region with most of their business. Booked = booked ${esc(fam)} in ${esc(monthsLabel(F.months))}. Coverage bar: length = number of partners, green part = share that booked it. Click a region for its partners.</div>`;
+  }
+  return `<div class="card" id="fcpCard"><div class="card-h"><div><h2>Channel partners & VARs — ${esc(fam)} booking by region · ${esc(monthsLabel(F.months))}</h2>
+      <div class="sub">How many partners in each region booked ${esc(fam)}, and how many did not · ${fyLabel(S.fy)}</div></div>
+    <div class="fl" style="margin:0">${msHtml('fcpM', 'Months', monthsLabel(F.months), MONTH_ITEMS(), F.months, MONTH_QUICK())}
+      ${msHtml('fcpA', 'Account type', aLbl, (types.length ? types : ['Channel Partners']).map(t => ({ v:t, t:t + (isCpType(t) ? ' ✓' : '') })), F.acct, MS.fcpA.quick)}</div></div>${body}</div>`;
+}
+function bindFdpCp(rer, fam){
+  const F = S.fcp; if (!F) return;
+  if (F.key !== fcpKey(fam)) loadFdpCp(fam).then(() => { if (S.view === fam && F.key === fcpKey(fam)) rer(); });
+  const t = $('fcpTable'); if (t) t.onclick = e => { const tr = e.target.closest('tr[data-frg]'); if (tr) openFdpCp(tr.dataset.frg); };
+}
+function openFdpCp(rg){
+  const F = S.fcp; Object.assign(DD, { mode:'fcp', rg, q:'', open:new Set(), show:'all' });
+  ddShell(`${esc(rg)} · ${esc(F.fam)} booking by channel partners & VARs`, `${fyLabel(S.fy)} · ${esc(monthsLabel(F.months))} · booked = booked ${esc(F.fam)} in these months · click a partner for its FY performance and product series`);
+  ddFcpRender();
+}
+function ddFcpRender(){
+  const R = (S.fcp.data?.rows || []).filter(r => r[2] === DD.rg), b = R.filter(r => +r[3] > 0 || +r[4] > 0), nb = R.filter(r => !(+r[3] > 0 || +r[4] > 0));
+  const v = b.reduce((t, r) => t + +r[4], 0), q = b.reduce((t, r) => t + +r[3], 0);
+  $('ddBd').innerHTML = `<div class="dd-kp">
+      <div class="dd-k"><div class="l">Partners</div><div class="v">${R.length}</div><div class="n">in ${esc(DD.rg)}</div></div>
+      <div class="dd-k"><div class="l">Booked ${esc(S.fcp.fam)}</div><div class="v" style="color:#0f9f8f">${b.length}</div><div class="n">${fp(pc(b.length, R.length))} of partners</div></div>
+      <div class="dd-k"><div class="l">Not booked</div><div class="v" style="color:#d1495b">${nb.length}</div><div class="n">${nb.filter(r => +r[6] > 0).length} of them bought other products</div></div>
+      <div class="dd-k"><div class="l">${esc(S.fcp.fam)} booked</div><div class="v">₹${f2(v)} L</div><div class="n">${nf(q)} pcs</div></div></div>
+    <div class="dd-tools"><div class="toggle dd-doc" id="fcpShow"><button data-a="fshow" data-s="all" class="${DD.show === 'all' ? 'on' : ''}">All (${R.length})</button><button data-a="fshow" data-s="b" class="${DD.show === 'b' ? 'on' : ''}">Booked (${b.length})</button><button data-a="fshow" data-s="nb" class="${DD.show === 'nb' ? 'on' : ''}">Not booked (${nb.length})</button></div>
+      <input id="ddQ" placeholder="Search partner…" value="${esc(DD.q)}"><span style="flex:1"></span><button class="btn" data-a="fcsv">⬇ CSV</button></div>
+    <div class="dd-tb dd-docs" id="ddDocs"></div>`;
+  ddFcpList();
+}
+function ddFcpList(){
+  const q = DD.q, md = d => d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short' }) : '—', fam = S.fcp.fam;
+  let R = (S.fcp.data?.rows || []).filter(r => r[2] === DD.rg).map(r => ({ r, bk:+r[3] > 0 || +r[4] > 0 }));
+  if (DD.show === 'b') R = R.filter(x => x.bk); if (DD.show === 'nb') R = R.filter(x => !x.bk);
+  if (q) R = R.filter(x => String(x.r[0]).toLowerCase().includes(q) || String(x.r[1]).toLowerCase().includes(q));
+  R.sort((a, b) => (b.bk - a.bk) || (+b.r[4] - +a.r[4]) || ((+b.r[8] || 0) - (+a.r[8] || 0)) || (+b.r[6] - +a.r[6]));
+  const nc = 10, ci = curIdx();
+  // FY performance of one partner for this product: month bars this FY vs last FY + series of the chosen months
+  const perf = r => { const mc = r[12] || [], ml = r[13] || [], mx = Math.max(0.01, ...mc.map(v => +v || 0), ...ml.map(v => +v || 0));
+    const bars = MONTHS.map((m, i) => { const c = +mc[i] || 0, l = +ml[i] || 0, fut = i > ci;
+      return `<div class="fpm${fut ? ' fut' : ''}" title="${MNAME[m]}: ${fyLabel(S.fy)} ₹${f2(c)} L · ${fyLabel(S.fy - 1)} ₹${f2(l)} L"><div class="fpb"><i class="l" style="height:${l / mx * 100}%"></i><i class="c" style="height:${c / mx * 100}%"></i></div><span>${MNAME[m]}</span><em>${c ? f2(c) : ''}</em></div>`; }).join('');
+    const ser = (r[7] || []).map(x => `<span class="fps"><b>${esc(x[0])}</b> ${nf(x[1])} pcs · ₹${f2(+x[2])} L</span>`).join('') || `<span class="fps" style="opacity:.7">No ${esc(fam)} in ${esc(monthsLabel(S.fcp.months))}</span>`;
+    return `<tr class="it"><td colspan="${nc}" style="padding:8px 12px 12px 34px;white-space:normal;text-align:left">
+      <div class="fpk"><span>${fyLabel(S.fy)} to date <b>₹${f2(+r[8] || 0)} L</b> · ${nf(r[9] || 0)} pcs</span><span>${fyLabel(S.fy - 1)} same period <b>₹${f2(+r[10] || 0)} L</b></span><span>${fyLabel(S.fy - 1)} full year <b>₹${f2(+r[11] || 0)} L</b></span><span>Growth ${grTxt(+r[8] || 0, +r[10] || 0)}</span></div>
+      <div class="fpc">${bars}</div><div class="fpleg"><i class="c"></i>${fyLabel(S.fy)} <i class="l"></i>${fyLabel(S.fy - 1)} · ${esc(fam)} value by month (₹ L)</div>
+      <div class="fpser"><b>Product series · ${esc(monthsLabel(S.fcp.months))}:</b> ${ser}</div></td></tr>`; };
+  $('ddDocs').innerHTML = `<table><thead><tr><th class="l">Partner</th><th class="l">Account type</th><th class="l">Status</th><th>Qty</th><th>Value ₹ L</th><th class="l">Last order (FY)</th><th>${fyLabel(S.fy)} to date ₹ L</th><th>LY same period ₹ L</th><th>Growth</th><th>All products ₹ L (same months)</th></tr></thead><tbody>` +
+    R.map(({ r, bk }) => { const o = DD.open.has(r[0]);
+      return `<tr class="ck" data-fcp="${esc(r[0])}" title="Click for this partner's ${esc(fam)} performance this FY"><td class="l"><span class="caret">${o ? '▾' : '▸'}</span><b>${esc(r[0])}</b></td><td class="l">${esc(r[1])}</td>
+        <td class="l">${bk ? '<span class="chip c-good">Booked</span>' : `<span class="chip c-bad">Not booked</span>`}</td><td>${bk ? nf(r[3]) : '—'}</td><td>${bk ? f2(+r[4]) : '—'}</td><td class="l">${md(r[5])}</td>
+        <td>${+r[8] ? f2(+r[8]) : '—'}</td><td>${+r[10] ? f2(+r[10]) : '—'}</td><td>${(+r[8] || +r[10]) ? grTxt(+r[8] || 0, +r[10] || 0) : '—'}</td><td>${+r[6] ? f2(+r[6]) : '—'}</td></tr>` + (o ? perf(r) : ''); }).join('') +
+    (R.length ? '' : `<tr><td colspan="${nc}" style="text-align:center;color:var(--t3)">No partners match</td></tr>`) + '</tbody></table>';
+  enableSort($('ddDocs'));
+}
+function ddFcpClick(e){
+  const a = e.target.closest('[data-a]');
+  if (a && a.dataset.a === 'fshow') { DD.show = a.dataset.s; return ddFcpRender(); }
+  if (a && a.dataset.a === 'fcsv') { const R = (S.fcp.data?.rows || []).filter(r => r[2] === DD.rg);
+    const rows = [['Partner', 'Account type', 'Region', 'Status', S.fcp.fam + ' qty', S.fcp.fam + ' value Rs L', 'Last order', 'All products Rs L (same months)', S.fcp.fam + ' series', 'FY to date Rs L', 'FY to date qty', 'LY same period Rs L', 'LY full year Rs L']].concat(R.map(r => [r[0], r[1], r[2], (+r[3] > 0 || +r[4] > 0) ? 'Booked' : 'Not booked', r[3], r[4], r[5] || '', r[6], (r[7] || []).map(x => x[0] + ' ' + x[1]).join('; '), r[8] ?? '', r[9] ?? '', r[10] ?? '', r[11] ?? '']));
+    const csv = rows.map(r => r.map(c => '"' + String(c ?? '').replace(/"/g, '""') + '"').join(',')).join('\n'), l = document.createElement('a');
+    l.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' })); l.download = `${String(S.fcp.fam).replace(/[^A-Za-z0-9]+/g, '_')}_partners_${String(DD.rg).replace(/[^A-Za-z0-9]+/g, '_')}.csv`; l.click(); return; }
+  const tr = e.target.closest('tr[data-fcp]'); if (tr) { const k = tr.dataset.fcp; DD.open.has(k) ? DD.open.delete(k) : DD.open.add(k); ddFcpList(); }
+}
 
 /* ===== Overview (25-Nov-2026: shown inside Cumulative; no separate chip) ===== */
 function ovBarsHtml(stats, sel, per){
@@ -1406,6 +1524,7 @@ function bindFam(fam){
   on('visTo', 'onchange', e => { S.vis.to = e.target.value; rer(); });
   let t; on('visQ', 'oninput', e => { clearTimeout(t); t = setTimeout(() => { S.vis.q = e.target.value; S.vis.n = 40; rer(); const q = $('visQ'); if (q) { q.focus(); q.setSelectionRange(q.value.length, q.value.length); } }, 300); });
   $('view').querySelectorAll('[data-pipe]').forEach(el => el.onclick = () => openPipe(fam, el.dataset.pipe));
+  bindFdpCp(rer, fam);
   on('rrMode', 'onclick', e => { const b = e.target.closest('button'); if (b) { S.rrMode = b.dataset.r; rer(); } });
   on('leadM', 'onchange', e => { S.leadM = +e.target.value; rer(); });
   on('leadChart', 'onclick', e => { const g = e.target.closest('[data-wk]'); if (g) openLeads(fam, +g.dataset.wk); });
