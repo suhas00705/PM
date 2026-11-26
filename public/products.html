@@ -554,7 +554,7 @@ function renderCum(){
   const P = pipeOf(null);
   let h = heroHtml({ ob:all.ob, inv:all.inv, T:TOTAL_TARGET, plan:TOTAL_TARGET * share, pend:S.pend && !S.pend.err ? all.pend : null,
                      pipe:P, lyOb:all.lyOb, share, label:'All products', tl:'₹520 Cr' });
-  h += pendBand({ T:TOTAL_TARGET, inv:all.inv, pend:S.pend && !S.pend.err ? all.pend : null });
+  // 26-Nov-2026: Pending to bill band removed from the Cumulative tab (user)
   MS.cumM = { num:true, get:() => S.cumM.m, set:v => S.cumM.m = v, quick:MONTH_QUICK() };
   h += `<div class="cumflt"><div><div class="ttl">Filters</div><div class="per">Applies to the PM tracking table and the OB % chart below</div></div>
     ${msHtml('cumM', 'Months', selM.length === 12 ? 'All months' : selM.length ? per : 'Choose months', MONTH_ITEMS(), selM, MONTH_QUICK())}
@@ -701,10 +701,10 @@ function renderFam(fam){
           <div>${running ? 'Invoicing lands at' : 'Invoiced'}<b>₹${f2(running ? fi : pInv.a)} L</b></div><div class="w">${PLANM ? 'INV short of plan' : 'INV carried to ' + nxtM}<b class="need">${cI > 0.005 ? '₹' + f2(cI) + ' L' : 'nil ✓'}</b></div></div>
         <div class="rr-ft">${PLANM ? `Plan only — shortfall carried in (OB ₹${f2(pOb.cin)} L · INV ₹${f2(pInv.cin)} L) not counted` : `Shortfall carried in: OB ₹${f2(pOb.cin)} L · INV ₹${f2(pInv.cin)} L`}</div></div>
     </div>`;
-    h += heroH + pendBand({ T:s.T, inv:s.inv, pend:s.pend, fam });   // 25-Nov-2026: blue bar just below this month's run-rate KPIs
+    h += heroH;   // 26-Nov-2026: Pending to bill band removed from basket tabs (user)
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   } else {
-    h += heroH + pendBand({ T:s.T, inv:s.inv, pend:s.pend, fam });
+    h += heroH;
     h += `<div class="two">${monthTable(s.rOb, 'Order booking', 'obT')}${monthTable(s.rInv, 'Invoicing', 'invT')}</div>`;
   }
   // 25-Nov-2026: no Potentials / Leads modules for OEM and Other
