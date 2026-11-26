@@ -262,7 +262,10 @@ async function rpcRows(fn, body){
 // 25-Nov-2026 (option A): basket names that differ only by extra spaces ("Prepaid " / "Smart  Meters") count in their basket,
 // same as the Products tab. RAWB keeps the original spellings so the drill-down can still find those lines.
 const RAWB = {};
-const nb = s => String(s == null ? '' : s).trim().replace(/\s+/g, ' ');
+// 26-Nov-2026: Prepaid/Smart spelling variants ("Prepaid and Smart Meters", "prepaid & smart meter" …) map to the standard names
+const nb = s => { const n = String(s == null ? '' : s).trim().replace(/\s+/g, ' '), l = n.toLowerCase();
+  if (l === 'prepaid') return 'Prepaid'; if (l === 'smart meters' || l === 'smart meter') return 'Smart Meters';
+  if (/^prepaid ?(&|and|\/) ?smart meters?$/.test(l)) return 'Prepaid & Smart Meters'; return n; };
 function fixB(rows){ (rows || []).forEach(r => { if (r == null || r.b == null) return; const n = nb(r.b); if (n !== r.b) { (RAWB[n] = RAWB[n] || new Set()).add(r.b); r.b = n; } }); return rows; }
 const rawItems = items => items.map(x => ({ ...x, b:[...new Set(x.b.flatMap(b => [b, ...(RAWB[b] ? [...RAWB[b]] : [])]))] }));
 function showErr(e){ $('errBox').style.display = e ? 'block' : 'none'; $('errBox').textContent = e ? 'Could not load data — ' + e : ''; }

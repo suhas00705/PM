@@ -375,12 +375,15 @@ function showTip(e, h){ tip.innerHTML = h; tip.style.display = 'block';
 function hideTip(){ tip.style.display = 'none'; }
 
 /* ---------------- product family of a basket (same as prd_fam in SQL) ---------------- */
+// 26-Nov-2026: Prepaid/Smart accepts basket spelling variants ("Prepaid and Smart Meters", "prepaid & smart meter" …), same as prd_fam in SQL
+const isPrepaidBk = b => { b = String(b || '').trim().replace(/\s+/g, ' ').toLowerCase(); return ['prepaid','smart meters','smart meter'].includes(b) || /^prepaid ?(&|and|\/) ?smart meters?$/.test(b); };
+const PREPAID_ALT = ['Prepaid and Smart Meters','Prepaid & Smart Meter','Prepaid and Smart Meter','Prepaid/Smart Meters'];   // extra spellings sent to the drill-down
 function famOfBasket(b, gov){
   b = String(b || '').trim().replace(/\s+/g, ' ');
   if (['Panel Meters','High End MFM','Nano VIP','Power Quality'].includes(b)) return 'Panel Meters';
   if (b === 'ACCL') return 'ACCL';
   if (b === 'Transfer Switch') return 'ATES';
-  if (['Prepaid & Smart Meters','Prepaid','Smart Meters'].includes(b)) return gov ? GOVT : 'Prepaid/Smart';
+  if (isPrepaidBk(b)) return gov ? GOVT : 'Prepaid/Smart';   // 26-Nov-2026: spelling variants accepted
   if (b === 'SWITCHGEAR') return 'LVS';
   if (b === 'FDP') return 'FDP';
   if (b === 'OEM') return 'OEM';
@@ -727,6 +730,7 @@ function famItems(fam){
   if (fam === 'Other') { const b = [...new Set(S.rows.filter(x => x.f === 'Other').map(x => String(x.s).split(' · ')[0]))]; return [{ b, xg:false }]; }
   return [{ b:FAM_BASKETS[fam] || [], xg:fam === 'Prepaid/Smart' }];
 }
+const drillItems = fam => famItems(fam).map(x => x.xg ? { ...x, b:[...x.b, ...PREPAID_ALT] } : x);
 const ytdMonths = () => pastMonths();
 function monthsLabel(ms){
   const sel = MONTHS.filter(m => ms.includes(m)); if (!sel.length) return 'No months';
@@ -1076,7 +1080,7 @@ async function openPm(fam, doc, months){
   await ddLoadPm();
 }
 async function ddLoadPm(){
-  try { DD.data = await rpc('pm_drill', { p_fy:S.fy, p_doc:DD.doc, p_months:DD.months, p_items:famItems(DD.fam), p_rg:DD.rg, p_sr:DD.sr }); ddRenderPm(); }
+  try { DD.data = await rpc('pm_drill', { p_fy:S.fy, p_doc:DD.doc, p_months:DD.months, p_items:drillItems(DD.fam), p_rg:DD.rg, p_sr:DD.sr }); ddRenderPm(); }
   catch (e) { $('ddBd').innerHTML = `<div class="dd-load">Could not load the breakdown — ${esc(e.message)}</div>`; }
 }
 function ddRenderPm(){
@@ -1290,7 +1294,7 @@ async function ddClick(e){
     if (DD.open.has(n)) { DD.open.delete(n); return ddDocs(); }
     DD.open.add(n);
     if (!DD.items[n]) { DD.items[n] = 'loading'; ddDocs();
-      try { DD.items[n] = await rpc('pm_drill_doc', { p_fy:S.fy, p_doc:DD.doc, p_months:DD.months, p_items:famItems(DD.fam), p_doc_num:n }); }
+      try { DD.items[n] = await rpc('pm_drill_doc', { p_fy:S.fy, p_doc:DD.doc, p_months:DD.months, p_items:drillItems(DD.fam), p_doc_num:n }); }
       catch (err) { DD.items[n] = 'Could not load items — ' + err.message; } }
     ddDocs(); }
 }
